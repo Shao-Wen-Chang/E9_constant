@@ -45,6 +45,7 @@ ahf_40K_4S1o2 = -285.7308e6 * hnobar
 ahf_87Rb_5S1o2 = 3.417341305452145e9 * hnobar
 # D2 line constants
 # D1 line constants
+lambda_K39_D1 = 770.108385049e-9
 lambda_K40_D1 = 770.108136507e-9
 
 # Non-Rb or K constants
