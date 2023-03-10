@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+# Add something on github just to try it out
+
 #%% Plot parameters
 if 1:
     plt.rcParams['axes.labelsize'] = 'large'
