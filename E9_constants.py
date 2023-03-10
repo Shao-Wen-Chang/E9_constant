@@ -44,7 +44,8 @@ ahf_39K_4S1o2 = 230.8598601e6 * hnobar
 ahf_40K_4S1o2 = -285.7308e6 * hnobar
 ahf_87Rb_5S1o2 = 3.417341305452145e9 * hnobar
 # D2 line constants
-lambda_K40_D1 = 766.700674872e-9
+lambda_K39_D2 = 766.700921822e-9
+lambda_K40_D2 = 766.700674872e-9
 # D1 line constants
 lambda_K39_D1 = 770.108385049e-9
 lambda_K40_D1 = 770.108136507e-9
