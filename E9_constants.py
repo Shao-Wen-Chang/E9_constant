@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+# Add something on github just to try it out
+
 #%% Plot parameters
 if 1:
     plt.rcParams['axes.labelsize'] = 'large'
@@ -61,6 +63,7 @@ lambda_sw = 532e-9
 lambda_lw = 1064e-9
 lambda_vert = 1064e-9
 a_sw_tri = lambda_sw * (2 / 3)
+a_lw_hex = lambda_lw * (2 / 3 / np.sqrt(3))
 a_vert = lambda_vert / 2
 f_sw = c_light / lambda_sw
 f_lw = c_light / lambda_lw
