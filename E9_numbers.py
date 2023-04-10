@@ -2,43 +2,7 @@ from E9_constants import *
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.special import zeta
-# all in SI units
-# References (alphabetical):
-#     [BECDilute]: "Bose-Einstein Condensation in Dilute Gases" by C. J. Pethick, H. Smith
-#     [Bloch08]: Bloch 08 Many-body physics with ultracold gases
-#     [Claire]: Claire's thesis
-#     [Ishikawa17]: Ishikawa 17 Vapor pressure of alkali-metal binary alloys in glass cells
-#     [Ketterle08]: Ketterle 08 Making, probing and understanding ultracold Fermi gases
-#     [SteckRb]: "Rubidium 87 D Line data" v2.2.1 by Daniel Adam Steck
-#     [TBarter]: Tom's thesis
-#     [TieckeK]: "Properties of Potassium" v1.03 by Tobias Tiecke
-#     [Tarruell18]: Tarruell 18 Quantum simulation of the Hubbard model with ultracold fermions in optical lattices
-#     [Grimm99]: Grimm 99 Optical dipole traps for neutral atoms
-
-# Figure assignments:
-#     0100s: External quantities
-#         100:  Partial pressure plots
-#     1000s: Hyperfine level related
-#         1000: Breit-Rabi formula for Zeeman level energy vs B field
-#         1001: Breit-Rabi formula for neighboring Zeeman level energy splittings vs B field
-#     2000s: Feshbach resonance rated
-#         2000: scattering length vs B field
-
-# In the beginning of comments / docstrings, specify the unit of each input and output with [].
-#%% Utility functions
-def LinearFn(a, b, x):
-    return a + b * x
-
-def Gaussian(x, sigma, mu = 0):
-    '''Gaussian function normalized such that Gaussian(x = mu) = 1. (Integrates to sigma * np.sqrt(2 * pi))'''
-    return np.exp(-(x - mu)**2 / 2 / sigma**2)
-
-#%% natural constants
-def gF(I, J, F, gJ = 2, gI = 0):
-    '''Calculates g_F (see Rb data); replace gJ and gI by actual values if that accuracy (~0.1%) is needed.
-    gF * mu_B / 1e4 / hnobar gives the change in energy difference between Zeeman sublevels, in MHz/Gauss'''
-    return gJ * (F * (F + 1) - I * (I + 1) + J * (J + 1)) / (2 * F * (F + 1)) \
-        + gI * (F * (F + 1) + I * (I + 1) - J * (J + 1)) / (2 * F * (F + 1))
+# See E0_constants for list of references and some file conventions
 
 #%% Thermodynamical quantities of classical particles
 def PPart(metal, T):
