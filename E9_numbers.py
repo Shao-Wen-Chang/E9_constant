@@ -224,30 +224,55 @@ def ZeemanSplittingdBdx(gF, dBdx):
 
 
 #%% Values that depend on optical beams but not B field
-def trap_depth(hfs, mF, Gamma, nu, fl, I, P_pol = 0, Delta_FS = 0):
+def I_from_power(P0, w0):
+    '''[W/m^2] Return peak intensity of a gaussian beam with power P and beam waist w0.
+    
+    P0: [W] Power
+    w0: [m] beam WAIST (the RADIUS of the beam at 1/e^2 intensity)'''
+    return 2 * P0 / pi / w0**2
+
+def J_from_Vlat(Vlat, theta = pi/2):
+    '''[dimless] Return (t/Er) given some lattice depth V0 = Vlat/Er, where Er is the (photon) recoil energy.
+    
+    This is the value obtained by solving the Mathieu equation. See e.g. [Bloch08] eqn.(39).
+        theta: [dimless] angle between one of the beam and the symmetry plane. (theta = pi/2 for counter-propagating beams)'''
+    V0 = Vlat / np.sin(theta)**2
+    return (4 / np.sqrt(pi)) * V0**(3/4) * np.exp(-2 * np.sqrt(V0)) / np.sin(theta)**2
+
+def wsite_from_Vlat(Vlat, alat, m):
+    '''[rad/s] Return the trap frequency (angular frequency) for a lattice potential (Vlat / 2) * sin(2 * pi * x / alat).
+    
+    This result is obtained by approximating the sites as harmonic traps and is valid for deep traps.
+        Vlat: [J] lattice depth. Remember e.g. the factor of 1/9 in honeycomb lattices
+        alat: [m] lattice constant
+        m: [kg] mass of particles'''
+    return (2 * pi / alat) * np.sqrt(Vlat / 2 / m)
+
+def V0_from_I(Gamma, nu, fl, I, gF, mF, P_pol = 0, Delta_FS = 0):
     '''[J] Gives the trap depth for a hyperfine state (hfs).
     
     See [Grimm99] eqn.20. This works for the large detuning (>> fine structure splitting of relevant excited states) limit.
-        hfs: a HyperfineState object. This is the (ground) state of trapped atoms.
-        mF: mF value of the atom.
         Gamma: [Hz] (average) linewidth of relevant excited states. Usually the 2P3/2 and 2P1/2 states.
         nu: [Hz] (average) excited state energy in frequency. Note that w0 = 2 * pi * nu.
         fl: [Hz] frequency of light field. Note that wl = 2 * pi * fl.
         I: [W/m^2] light intensity.
-        P_pol: Polarization factor.
-        Delta_FS: [Hz] difference between the two excited state. Note that [Grimm99] use angular frequency [rad Hz].'''
+        gF: gF of the (ground) state of trapped atoms.
+        mF: mF value of the atom.
+        P_pol: Polarization factor. 0 if linear or ignored, +/-1 if sigma+/- polarized
+        Delta_FS: [Hz] difference between the two excited state. Note that [Grimm99] use angular frequency [rad/s].'''
     w0 = 2 * pi * nu
     wl = 2 * pi * fl
+    Gamma = 2 * pi * Gamma
     Delta = wl - w0
     Delta_FS = 2 * pi * Delta_FS
-    return (3 * pi * c_light**2 / 2 / w0**3) * (Gamma / Delta) * (1 + (P_pol * hfs.gF * mF / 3) * (Delta_FS / Delta)) * I
+    return (3 * pi * c_light**2 / 2 / w0**3) * (Gamma / Delta) * (1 + (P_pol * gF * mF / 3) * (Delta_FS / Delta)) * I
 
 def U_from_Vlat(Vlat, a_s, k_L):
     '''Returns U for some lattice parameters under harmonic well assumption.
     
-    See e.g. [Tarruell18] eqn.6. Both U and Vlat are in units of photon recoil energy. For a triangular lattice, there is
-    an additional factor of 8/9 for potential well depth, and an (approximate) factor of sqrt(3)/2 to account for potential
-    well size. (check the factor of 9/16)'''
+    See e.g. [Tarruell18] eqn.6 or [Bloch08] eqn.(49). Both U and Vlat are in units of photon recoil energy. For a triangular
+    lattice, there is an additional factor of 8/9 for potential well depth, and an (approximate) factor of sqrt(3)/2 to
+    account for potential well size. (check the factor of 9/16)'''
     return np.sqrt(8 / pi) * (k_L * np.sqrt(3)/2) * a_s * ((8/9) * Vlat * (9/16))**(3/4)
 
 def tUFromJx(J, x):
@@ -438,7 +463,6 @@ FBres_K40_9o2_9o2_Rb87_1_1 = FeshbachResonance(-215, 545.4, -1.2)
 FBres_Li6_1_2 = FeshbachResonance(-1405, 834, -300) # not sure about a_bg
 
 #%% Codes for execution; use figure numbers < 100 for additional figures
-# PlotPpartInAlloy('NaRb', [300, 384])
 
 # wstr = 2
 # wx, wy, wz = 23 * 2 * pi * wstr, 41 * 2 * pi * wstr, 46 * 2 * pi * wstr # Hz
@@ -451,3 +475,11 @@ FBres_Li6_1_2 = FeshbachResonance(-1405, 834, -300) # not sure about a_bg
 # E_F = fermi_energy_har(wbar, N)
 # plt.plot(rng, rho * V_lat)
 # print("E_F = {} Hz; Rx = {} m".format(E_F / hbar / 2 / pi, fermi_radius(m_K40, wx, N)))
+
+fig = plt.figure(1)
+fig.clf()
+ax = fig.add_subplot(111)
+FBres_K40_9o2_7o2.Visualize(ax = ax)
+FBres_K40_9o2_5o2.Visualize(ax = ax)
+ax.grid()
+ax.set_xticks([190,200,210,220,230,240])

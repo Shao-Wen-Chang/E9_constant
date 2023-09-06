@@ -1,8 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from sympy.physics.wigner import wigner_6j 
 # All in SI units unless otherwise noted. Also, I try to use FREQUENCIES instead of ANGULAR FREQUENCIES all the time, and if
-# I ever use ANGULAR FREQUENCIES I prefer to include the factor of 2pi explicitlu. e.g. (2 * pi) * 20. The units for ANGULAR
-# FREQUENCIES is [rad].
+# I ever use ANGULAR FREQUENCIES I prefer to include the factor of 2pi explicitly. e.g. (2 * pi) * 20. The units for ANGULAR
+# FREQUENCIES is [rad/s].
 # In the beginning of comments / docstrings, specify the unit of each input and output with [].
 
 # References (alphabetical):
@@ -13,6 +14,7 @@ import matplotlib.pyplot as plt
 #     [Grimm99]: Grimm 99 Optical dipole traps for neutral atoms
 #     [Ishikawa17]: Ishikawa 17 Vapor pressure of alkali-metal binary alloys in glass cells
 #     [Ketterle08]: Ketterle 08 Making, probing and understanding ultracold Fermi gases
+#     [Le Kien13]: Le Kien 13 Dynamical polarizability of atoms in arbitrary light fields: general theory and application to cesium
 #     [PvdS]: Peter van der Straten & Metcalf
 #     [SteckRb]: "Rubidium 87 D Line data" v2.2.1 by Daniel Adam Steck
 #     [TBarter]: Tom's thesis
@@ -28,87 +30,179 @@ import matplotlib.pyplot as plt
 #     2000s: Feshbach resonance rated
 #         2000: scattering length vs B field
 
+custom_plot_style = True
+use_tight_layout = False
+unit_system = 'SI' # SI, a.u. ((Hartree) atomic unit) (not walked through)
 #%% Plot parameters
-if 1:
+if custom_plot_style:
     plt.rcParams['axes.labelsize'] = 'large'
-    plt.rcParams['font.size'] = 12           # Default is 10
-    if 0:
+    plt.rcParams['font.size'] = 18           # Default is 10
+    if use_tight_layout:
         plt.rcParams['figure.autolayout'] = True # Use tight layout
 
 #%% natural constants
 pi = np.pi
-c_light = 299792458          # speed of light
-hbar = 1.054571817e-34
-hnobar = hbar * 2 * pi
-k_B = 1.380649e-23           # Boltzmann constant
-e_ele = 1.602176634e-19
-m_e = 9.1093837015e-31
-epsilon_0 = 8.8541878128e-12 # vacuum permittivity
-mu_0 = 1.25663706212e-6      # vacuum permeability
-R_gas = 8.31446261815324     # Ideal gass constant (exact)
-g_earth = 9.8
 
-# Bohr stuff aka atomic units
-a0 = 0.529177e-10 # Bohr radius, = 4 * pi * epsilon_0 * hbar^2 / (m_e * e_ele**2)
-mu_B = 	9.274009994e-24 # Bohr magneton, = e_ele * hbar / (2 * m_e)
-
-# isotope specific constants (from [SteckRb] and [TieckeK] unless otherwise noted)
-# I chose to organize according to physical quantities instead of isotopes
-m_Rb87 = 1.4431606e-25
-m_K40 = 6.636178e-26
-m_K39 = 6.470076e-26
-I_Rb87 = 3/2
-I_K40 = 4
-I_K39 = 3/2
-gJ_K_4S1o2 = 2.00229421
-gJ_Rb_5S1o2 = 2.00233113
-# Fine structure energies (in frequency unit, relative to the lowest fine structure manifold; note that hyperfine splitting
-# is not included)
-nu_K40_4_2P1o2 = 389.286184353e12 # 40K D1 line
-nu_K40_4_2P3o2 = 391.016296050e12 # 40K D2 line
-nu_K40_4_2P = (nu_K40_4_2P1o2 + nu_K40_4_2P3o2) / 2 # average of D1 & D2 line for convenience
-Delta_K40_4_2P = (nu_K40_4_2P3o2 - nu_K40_4_2P1o2) # diffference of D1 & D2 line for convenience
-# Hyperfine structure coefficients, ahf (M1) and bhf (E2), in J
-ahf_39K_4S1o2 = 230.8598601e6 * hnobar
-ahf_40K_4S1o2 = -285.7308e6 * hnobar
-ahf_87Rb_5S1o2 = 3.417341305452145e9 * hnobar
-# D2 line (and nP_(3/2) states) constants
-lambda_K39_D2 = 766.700921822e-9
-lambda_K40_D2 = 766.700674872e-9
-lambda_Rb87_D2 = 780.241209686e-9
-    # Saturation intensities are in [W/m^2]; divide by 10 for [mW/cm^2]. Assuming circularly polarized light
-I_sat_Rb87_D2 = 16.6933
-    # These are FREQUENCIES, not ANGULAR FREQUENCIES
-gamma_Rb87_D2 = 6.0666e6
-# D1 line (and nP_(1/2) states) constants
-lambda_K39_D1 = 770.108385049e-9
-lambda_K40_D1 = 770.108136507e-9
-
-# Non-Rb or K constants
-m_Li6 = 9.9883414e-27
+if unit_system == 'SI':
+    c_light = 299792458          # speed of light
+    hbar = 1.054571817e-34       # reduced Planck constant
+    hnobar = hbar * 2 * pi       # Planck constant
+    k_B = 1.380649e-23           # Boltzmann constant
+    e_ele = 1.602176634e-19      # Charge of electrons
+    m_e = 9.1093837015e-31       # Mass of electrons
+    epsilon_0 = 8.8541878128e-12 # vacuum permittivity
+    mu_0 = 1.25663706212e-6      # vacuum permeability
+    R_gas = 8.31446261815324     # Ideal gass constant (exact)
+    g_earth = 9.8
+    
+    # Bohr stuff aka atomic units
+    a0 = 0.529177210903e-10      # Bohr radius, = 4 * pi * epsilon_0 * hbar^2 / (m_e * e_ele**2)
+    mu_B = 9.274009994e-24       # Bohr magneton, = e_ele * hbar / (2 * m_e)
+    
+    # isotope specific constants (from [SteckRb] and [TieckeK] unless otherwise noted)
+    m_Rb87 = 1.4431606e-25
+    m_K40 = 6.636178e-26
+    m_K39 = 6.470076e-26
+    I_Rb87 = 3/2
+    I_K40 = 4
+    I_K39 = 3/2
+    gJ_K_4S1o2 = 2.00229421
+    gJ_Rb_5S1o2 = 2.00233113
+    # Hyperfine structure coefficients, ahf (M1) and bhf (E2), in J
+    ahf_39K_4S1o2 = 230.8598601e6 * hnobar
+    ahf_40K_4S1o2 = -285.7308e6 * hnobar
+    ahf_87Rb_5S1o2 = 3.417341305452145e9 * hnobar
+    # Line constants organized by species
+        # Saturation intensities are in [W/m^2]; divide by 10 for [mW/cm^2]. Assuming circularly polarized light
+        # nu's and gamma's are in FREQUENCIES, not ANGULAR FREQUENCIES
+    # 39K
+    lambda_K39_D1 = 770.108385049e-9
+    lambda_K39_D2 = 766.700921822e-9
+    # 40K
+    nu_K40_4_2P1o2 = 389.286184353e12 # 40K D1 line
+    nu_K40_4_2P3o2 = 391.016296050e12 # 40K D2 line
+    nu_K40_4_2P = (nu_K40_4_2P1o2 + nu_K40_4_2P3o2) / 2 # average of D1 & D2 line for convenience
+    Delta_K40_4_2P = (nu_K40_4_2P3o2 - nu_K40_4_2P1o2) # diffference of D1 & D2 line for convenience
+    lambda_K40_D1 = 770.108136507e-9
+    lambda_K40_D2 = 766.700674872e-9
+    gamma_40K_D2 = 6.035e6
+    # 87Rb
+    nu_Rb87_4_2P1o2 = 377.107463380e12 # 87Rb D1 line
+    nu_Rb87_4_2P3o2 = 384.2304844685e12 # 87Rb D2 line
+    nu_Rb87_4_2P = (nu_Rb87_4_2P1o2 + nu_Rb87_4_2P3o2) / 2 # average of D1 & D2 line for convenience
+    Delta_Rb87_4_2P = (nu_Rb87_4_2P3o2 - nu_Rb87_4_2P1o2) # diffference of D1 & D2 line for convenience
+    lambda_Rb87_D2 = 780.241209686e-9
+    gamma_Rb87_D2 = 6.0666e6
+    I_sat_Rb87_D2 = 16.6933
+    
+    # Non-Rb or K constants
+    m_Li6 = 9.9883414e-27
+elif unit_system == 'a.u.':
+    # SI values for unit conversion
+    m_e_SI = 9.1093837015e-31
+    hbar_SI = 1.054571817e-34
+    e_ele_SI = 1.602176634e-19
+    epsilon_0_SI = 8.8541878128e-12
+    # Values to multiply to convert a.u. to SI (or divide, from SI to a.u.)
+    length_au2SI = 0.529177210903e-10
+    time_au2SI = 2.4188843265857e-17
+    freq_au2SI = 1 / time_au2SI
+    
+    # numbers that I haven't worked out are set to None
+    c_light = 137.035999074      # speed of light (= 1/alpha)
+    hbar = 1                     # reduced Planck constant
+    hnobar = hbar * 2 * pi       # Planck constant
+    k_B = None           # Boltzmann constant
+    e_ele = 1                    # Charge of electrons
+    m_e = 1                      # Mass of electrons
+    epsilon_0 = 1 / (4 * pi)     # vacuum permittivity
+    mu_0 = None      # vacuum permeability
+    R_gas = None     # Ideal gass constant (exact)
+    g_earth = None
+    
+    # Bohr stuff aka atomic units
+    a0 = 1 # Bohr radius, = 4 * pi * epsilon_0 * hbar^2 / (m_e * e_ele**2)
+    mu_B = 1/2                   # Bohr magneton, = e_ele * hbar / (2 * m_e)
+    
+    # isotope specific constants (from [SteckRb] and [TieckeK] unless otherwise noted)
+    m_Rb87 = 1.4431606e-25 / m_e_SI
+    m_K40 = 6.636178e-26 / m_e_SI
+    m_K39 = 6.470076e-26 / m_e_SI
+    I_Rb87 = 3/2
+    I_K40 = 4
+    I_K39 = 3/2
+    gJ_K_4S1o2 = 2.00229421
+    gJ_Rb_5S1o2 = 2.00233113
+    # Hyperfine structure coefficients, ahf (M1) and bhf (E2), in J
+    ahf_39K_4S1o2 = None#230.8598601e6 * hnobar
+    ahf_40K_4S1o2 = None#-285.7308e6 * hnobar
+    ahf_87Rb_5S1o2 = None#3.417341305452145e9 * hnobar
+    # Line constants organized by species
+        # Saturation intensities assume circularly polarized light
+        # nu's and gamma's are in FREQUENCIES, not ANGULAR FREQUENCIES
+    # 39K
+    lambda_K39_D1 = 770.108385049e-9 / length_au2SI
+    lambda_K39_D2 = 766.700921822e-9 / length_au2SI
+    # 40K
+    nu_K40_4_2P1o2 = 389.286184353e12 / freq_au2SI # 40K D1 line
+    nu_K40_4_2P3o2 = 391.016296050e12 / freq_au2SI # 40K D2 line
+    nu_K40_4_2P = (nu_K40_4_2P1o2 + nu_K40_4_2P3o2) / 2 # average of D1 & D2 line for convenience
+    Delta_K40_4_2P = (nu_K40_4_2P3o2 - nu_K40_4_2P1o2) # diffference of D1 & D2 line for convenience
+    lambda_K40_D1 = 770.108136507e-9 / length_au2SI
+    lambda_K40_D2 = 766.700674872e-9 / length_au2SI
+    gamma_40K_D2 = 6.035e6 / freq_au2SI
+    # 87Rb
+    nu_Rb87_4_2P1o2 = 377.107463380e12 / freq_au2SI # 87Rb D1 line
+    nu_Rb87_4_2P3o2 = 384.2304844685e12 / freq_au2SI # 87Rb D2 line
+    nu_Rb87_4_2P = (nu_Rb87_4_2P1o2 + nu_Rb87_4_2P3o2) / 2 # average of D1 & D2 line for convenience
+    Delta_Rb87_4_2P = (nu_Rb87_4_2P3o2 - nu_Rb87_4_2P1o2) # diffference of D1 & D2 line for convenience
+    lambda_Rb87_D2 = 780.241209686e-9 / length_au2SI
+    gamma_Rb87_D2 = 6.0666e6 / freq_au2SI
+    I_sat_Rb87_D2 = None
+    
+    # Non-Rb or K constants
+    m_Li6 = 9.9883414e-27 / m_e_SI
+else:
+    raise('Unit system ' + str(unit_system) + ' not defined')
 
 #%% lab constants
-# B field related
-FBcoil_coeff = 1.64 * 1e-4 * 1e2 # [Claire] in T/m/Ampere; determines B field near FB coil center when running a quadrupole field
-# optical lattice related
-lambda_sw = 532e-9
-lambda_lw = 1064e-9
-lambda_vert = 1064e-9
+if unit_system == 'SI':
+    # B field related
+    FBcoil_coeff = 1.64 * 1e-4 * 1e2 # [Claire] in T/m/Ampere; determines B field near FB coil center when running a quadrupole field
+    # optical lattice related
+    lambda_sw = 532e-9
+    lambda_lw = 1064e-9
+    lambda_vert = 1064e-9
+    # beam waists, taken from [Claire] and [TBarter] (I believe those "w"'s are actually diameters, i.e. w0*2; usually beam waist is called w0)
+    w0_sw = 40e-6
+    w0_lw = 50e-6
+    w0_ODT = 50e-6
+elif unit_system == 'a.u.':
+    # B field related
+    FBcoil_coeff = None#1.64 * 1e-4 * 1e2 # [Claire] in T/m/Ampere; determines B field near FB coil center when running a quadrupole field
+    # optical lattice related
+    lambda_sw = 532e-9 / length_au2SI
+    lambda_lw = 1064e-9 / length_au2SI
+    lambda_vert = 1064e-9 / length_au2SI
+    # beam waists, taken from [Claire] and [TBarter] (I believe those "w"'s are actually diameters, i.e. w0*2; usually beam waist is called w0)
+    w0_sw = 40e-6 / length_au2SI
+    w0_lw = 50e-6 / length_au2SI
+    w0_ODT = 50e-6 / length_au2SI
+else:
+    raise('Unit system ' + str(unit_system) + ' not defined')
+
+# optical lattice related (derived)
 a_sw_tri = lambda_sw * (2 / 3)
 a_lw_hex = lambda_lw * (2 / 3 / np.sqrt(3))
 a_vert = lambda_vert / 2
 f_sw = c_light / lambda_sw
 f_lw = c_light / lambda_lw
 f_vert = c_light / lambda_vert
-# beam waists, taken from [Claire] and [TBarter] (I believe those "w"'s are actually diameters, i.e. w0*2; usually beam waist is called w0)
-w0_sw = 40e-6
-w0_lw = 50e-6
-w0_ODT = 50e-6
 # recoil energies
-E_R1064_Rb87 = hbar**2/2/m_Rb87*(2*pi/lambda_sw/2)**2 # 1064 photon recoil energy (made dimensionless)
-E_R532_Rb87 = hbar**2/2/m_Rb87*(2*pi/lambda_sw)**2 # 532 photon recoil energy (made dimensionless)
-E_R1064_K40 = hbar**2/2/m_K40*(2*pi/lambda_sw/2)**2 # 1064 photon recoil energy (made dimensionless)
-E_R532_K40 = hbar**2/2/m_K40*(2*pi/lambda_sw)**2 # 532 photon recoil energy (made dimensionless)
+E_R1064_Rb87 = hbar**2/2/m_Rb87*(2*pi/lambda_lw)**2 # 1064 photon recoil energy
+E_R532_Rb87 = hbar**2/2/m_Rb87*(2*pi/lambda_sw)**2 # 532 photon recoil energy
+E_R1064_K40 = hbar**2/2/m_K40*(2*pi/lambda_lw)**2 # 1064 photon recoil energy
+E_R532_K40 = hbar**2/2/m_K40*(2*pi/lambda_sw)**2 # 532 photon recoil energy
 
 #%% Utility functions
 def LinearFn(a, b, x):
@@ -133,3 +227,30 @@ def gF(I, J, F, gJ = 2, gI = 0):
     gF * mu_B / 1e4 / hnobar gives the change in energy difference between Zeeman sublevels, in MHz/Gauss'''
     return gJ * (F * (F + 1) - I * (I + 1) + J * (J + 1)) / (2 * F * (F + 1)) \
         + gI * (F * (F + 1) + I * (I + 1) - J * (J + 1)) / (2 * F * (F + 1))
+
+def alpha_pol(K, lamb_in, line_list):
+    '''[A2·s4·kg−1] Returns the (rank-K) polarizability given a list of transitions, ignoring scattering.
+    
+    See [Le Kien13]. I ignore the \gamma terms in the expression.
+        K: [dimless] K = 0/1/2, for scalar/vector/tensor light shifts, respectively
+        lamb_in: [nm] wavelength of incident light
+        line_list: a list of transitions considered. They should have the same gs.'''
+    alpha = 0
+    for line in line_list:
+        lamb, Jg, Je, f_ik = line['lambda'], line['Jg'], line['Je'], line['f_ik'] # numbers used in calculation
+        if f_ik is None:
+            # No oscillator strength (although Einstein A-coefficient might be nonzero)
+            iso, gs, es = line['isotope'], line['gs'], line['es']
+            print(iso + '_' + gs + '_' + es + ' transition does not have f_ik data (not E1 allowed?)')
+            continue
+        wa, wl = 2 * pi * (c_light / lamb), 2 * pi * (c_light / lamb_in) # angular frequencies of atomic transitions and light
+        mat_ele_sqr = f_ik * (2 * Jg + 1) * (3 * hbar * e_ele**2) / (2 * m_e * wa) # reduced matrix element squared
+        alpha += (-1)**(K + Jg + Je + 1) * np.sqrt(2*K + 1) * float(wigner_6j(1, K, 1, Jg, Je, Jg)) * \
+                 mat_ele_sqr * (1 / (wa - wl) + (-1)**K / (wa + wl)) / hbar
+    if K == 0:
+        prefactor = 1 / np.sqrt(3 * (2 * Jg + 1))
+    elif K == 1:
+        prefactor = - np.sqrt(2 * Jg / ((Jg + 1) * (2 * Jg + 1)))
+    elif K == 2:
+        prefactor = - np.sqrt(2 * Jg * (2 * Jg - 1) / (3 * (Jg + 1) * (2 * Jg + 1) * (2 * Jg + 3)))
+    return prefactor * alpha

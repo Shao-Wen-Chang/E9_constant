@@ -15,16 +15,19 @@ def Gamma_scat(s0, delta, gamma):
     return (gamma / 2) * s0 / (1 + s0 + (2 * delta / gamma)**2)
 
 #%% Laser cooling related
-def F_molasses(v, k, s0, delta, gamma):
+def F_molasses(v, k, s0, delta, gamma, z = 0, Ag = 0):
     '''[N] Returns the velocity dependent force in an optical molasses.
     
     Using (hbar * k * gamma) for the unit of force and (gamma * k) for velocities is convenient for plots.
+    When both v and z are arrays they should have the same dimensions, and the two arrays are cycled at the same time.
         v: [m/s] velocity
         k: [1/m] wavevector; k := 2 * pi / lambda
         s0: [dimless] saturation parameter; s0 := I/I_sat
         delta: [Hz] detuning (just from laser)
-        gamma: [Hz] transition linewidth'''
-    return hbar * k * (Gamma_scat(s0, delta - v * k, gamma) - Gamma_scat(s0, delta + v * k, gamma))
+        gamma: [Hz] transition linewidth
+        z: [m] distance from magnetic field zero
+        Ag: [T/m] Magnetic field gradient times g (see kappa_MOT)'''
+    return hbar * k * (Gamma_scat(s0, delta - v * k + z * Ag, gamma) - Gamma_scat(s0, delta + v * k, gamma))
 
 def beta_molasses(k, s0, delta, gamma):
     '''[N/(m/s)] Returns the damping coefficient in an optical molasses.
@@ -52,8 +55,8 @@ def kappa_MOT(A, k, s0, delta, gamma, g = 1):
 k_780 = (2*pi/lambda_Rb87_D2)
 s0 = 0.5
 displacement = np.linspace(-0.01, 0.01, num = 201)
-delta_2DMOT = -3 * gamma_Rb87_D2
-A_2DMOT = 0.01*15
+delta_2DMOT = -6 * gamma_Rb87_D2
+A_2DMOT = 0.01*20
 beta_2DMOT = beta_molasses(k_780, s0, delta_2DMOT, gamma_Rb87_D2)
 kappa_2DMOT = kappa_MOT(A_2DMOT, k_780, s0, delta_2DMOT, gamma_Rb87_D2)
 fig = plt.figure(1)
@@ -63,6 +66,7 @@ ax.plot(displacement * 100, - displacement * kappa_2DMOT / (hbar * k_780 * gamma
 print('beta =', beta_2DMOT, 'kg/s, damping rate =', beta_2DMOT / m_Rb87, 'Hz')
 print('kappa =', kappa_2DMOT, 'N/m, w_2DMOT =', np.sqrt(kappa_2DMOT / m_Rb87), 'Hz')
 print('restoring time =', 2 * beta_2DMOT / kappa_2DMOT * 1000, 'ms')
+print('MOT trapping radius =', - 1000 * hnobar * delta_2DMOT / A_2DMOT / mu_B, 'mm') # radius within which there is a restoring force
 # transverse velocity distribution results in around v_rms = 5 m/s, so the 100mK one might make more sense
 print('MOT rms size @ 100 mK =', np.sqrt(k_B * 0.1 / kappa_2DMOT) * 1000, 'mm')
 print('MOT rms size @ 100 uK =', np.sqrt(k_B * 1e-4 / kappa_2DMOT) * 1000, 'mm')
