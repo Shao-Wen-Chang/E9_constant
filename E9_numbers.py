@@ -227,6 +227,7 @@ def ZeemanSplittingdBdx(gF, dBdx):
 def I_from_power(P0, w0):
     '''[W/m^2] Return peak intensity of a gaussian beam with power P and beam waist w0.
     
+    Also, I = (c_light * n * epsilon_0 / 2) * |E|**2 .
     P0: [W] Power
     w0: [m] beam WAIST (the RADIUS of the beam at 1/e^2 intensity)'''
     return 2 * P0 / pi / w0**2
@@ -320,7 +321,7 @@ class HyperfineState():
         self.nu = nu # energy relative to ground state (in frequency unit, not radial frequency); ground state should
                      # be obvious in most cases
     
-    # methods copying from "convenient values"
+    # methods copying from various functions defined above
     def GetGravityCompensationBGrad(self, mF):
         return GravityCompensationBGrad(self.m, self.gF, mF)
     

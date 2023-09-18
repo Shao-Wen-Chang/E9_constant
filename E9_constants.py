@@ -7,6 +7,8 @@ from sympy.physics.wigner import wigner_6j
 # In the beginning of comments / docstrings, specify the unit of each input and output with [].
 
 # References (alphabetical):
+#     [Axner04]: Ove Axner 04 Line strengths, A-factors and absorption cross-sections for fine structure lines in
+#                multiplets and hyperfine structure components in lines in atomic spectrometry — a user's guide
 #     [BECDilute]: "Bose-Einstein Condensation in Dilute Gases" by C. J. Pethick, H. Smith
 #     [Bloch08]: Bloch 08 Many-body physics with ultracold gases
 #     [Claire]: Claire's thesis
@@ -33,10 +35,13 @@ from sympy.physics.wigner import wigner_6j
 custom_plot_style = True
 use_tight_layout = False
 unit_system = 'SI' # SI, a.u. ((Hartree) atomic unit) (not walked through)
+
 #%% Plot parameters
 if custom_plot_style:
     plt.rcParams['axes.labelsize'] = 'large'
-    plt.rcParams['font.size'] = 18           # Default is 10
+    plt.rcParams['font.size'] = 18             # Default is 10
+    plt.rcParams['xtick.minor.visible'] = True
+    plt.rcParams['ytick.minor.visible'] = True
     if use_tight_layout:
         plt.rcParams['figure.autolayout'] = True # Use tight layout
 
@@ -227,30 +232,3 @@ def gF(I, J, F, gJ = 2, gI = 0):
     gF * mu_B / 1e4 / hnobar gives the change in energy difference between Zeeman sublevels, in MHz/Gauss'''
     return gJ * (F * (F + 1) - I * (I + 1) + J * (J + 1)) / (2 * F * (F + 1)) \
         + gI * (F * (F + 1) + I * (I + 1) - J * (J + 1)) / (2 * F * (F + 1))
-
-def alpha_pol(K, lamb_in, line_list):
-    '''[A2·s4·kg−1] Returns the (rank-K) polarizability given a list of transitions, ignoring scattering.
-    
-    See [Le Kien13]. I ignore the \gamma terms in the expression.
-        K: [dimless] K = 0/1/2, for scalar/vector/tensor light shifts, respectively
-        lamb_in: [nm] wavelength of incident light
-        line_list: a list of transitions considered. They should have the same gs.'''
-    alpha = 0
-    for line in line_list:
-        lamb, Jg, Je, f_ik = line['lambda'], line['Jg'], line['Je'], line['f_ik'] # numbers used in calculation
-        if f_ik is None:
-            # No oscillator strength (although Einstein A-coefficient might be nonzero)
-            iso, gs, es = line['isotope'], line['gs'], line['es']
-            print(iso + '_' + gs + '_' + es + ' transition does not have f_ik data (not E1 allowed?)')
-            continue
-        wa, wl = 2 * pi * (c_light / lamb), 2 * pi * (c_light / lamb_in) # angular frequencies of atomic transitions and light
-        mat_ele_sqr = f_ik * (2 * Jg + 1) * (3 * hbar * e_ele**2) / (2 * m_e * wa) # reduced matrix element squared
-        alpha += (-1)**(K + Jg + Je + 1) * np.sqrt(2*K + 1) * float(wigner_6j(1, K, 1, Jg, Je, Jg)) * \
-                 mat_ele_sqr * (1 / (wa - wl) + (-1)**K / (wa + wl)) / hbar
-    if K == 0:
-        prefactor = 1 / np.sqrt(3 * (2 * Jg + 1))
-    elif K == 1:
-        prefactor = - np.sqrt(2 * Jg / ((Jg + 1) * (2 * Jg + 1)))
-    elif K == 2:
-        prefactor = - np.sqrt(2 * Jg * (2 * Jg - 1) / (3 * (Jg + 1) * (2 * Jg + 1) * (2 * Jg + 3)))
-    return prefactor * alpha
