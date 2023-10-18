@@ -40,7 +40,7 @@ def alpha_pol(K, lamb_in, line_list, state, q = None, F = None, I = None):
            very strong lattices used during microscope imaging.)
         I: required for hyperfine states calculations.'''
     alpha = np.zeros_like(lamb_in)
-    wl = 2 * pi * (c_light / lamb_in)
+    wl = 2 * np.pi * (c_light / lamb_in)
     for line in line_list:
         iso, gs, es = line['isotope'], line['gs'], line['es']
         line_name = iso + '_' + gs + '_' + es
@@ -54,10 +54,10 @@ def alpha_pol(K, lamb_in, line_list, state, q = None, F = None, I = None):
         
         if line['gs'] == state:
             J1, J2 = line['Jg'], line['Je']
-            wa = 2 * pi * (c_light / lamb) # angular frequencie of atomic transitions
+            wa = 2 * np.pi * (c_light / lamb) # angular frequencie of atomic transitions
         elif line['es'] == state:
             J1, J2 = line['Je'], line['Jg']
-            wa = - 2 * pi * (c_light / lamb) # (negaive if the state of concern is the excited state)
+            wa = - 2 * np.pi * (c_light / lamb) # (negaive if the state of concern is the excited state)
         else:
             print(line_name + ' transition has no effect and is ignored')
             continue

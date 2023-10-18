@@ -46,12 +46,10 @@ if custom_plot_style:
         plt.rcParams['figure.autolayout'] = True # Use tight layout
 
 #%% natural constants
-pi = np.pi
-
 if unit_system == 'SI':
     c_light = 299792458          # speed of light
     hbar = 1.054571817e-34       # reduced Planck constant
-    hnobar = hbar * 2 * pi       # Planck constant
+    hnobar = hbar * 2 * np.pi       # Planck constant
     k_B = 1.380649e-23           # Boltzmann constant
     e_ele = 1.602176634e-19      # Charge of electrons
     m_e = 9.1093837015e-31       # Mass of electrons
@@ -116,11 +114,11 @@ elif unit_system == 'a.u.':
     # numbers that I haven't worked out are set to None
     c_light = 137.035999074      # speed of light (= 1/alpha)
     hbar = 1                     # reduced Planck constant
-    hnobar = hbar * 2 * pi       # Planck constant
+    hnobar = hbar * 2 * np.pi       # Planck constant
     k_B = None           # Boltzmann constant
     e_ele = 1                    # Charge of electrons
     m_e = 1                      # Mass of electrons
-    epsilon_0 = 1 / (4 * pi)     # vacuum permittivity
+    epsilon_0 = 1 / (4 * np.pi)     # vacuum permittivity
     mu_0 = None      # vacuum permeability
     R_gas = None     # Ideal gass constant (exact)
     g_earth = None
@@ -204,10 +202,10 @@ f_sw = c_light / lambda_sw
 f_lw = c_light / lambda_lw
 f_vert = c_light / lambda_vert
 # recoil energies
-E_R1064_Rb87 = hbar**2/2/m_Rb87*(2*pi/lambda_lw)**2 # 1064 photon recoil energy
-E_R532_Rb87 = hbar**2/2/m_Rb87*(2*pi/lambda_sw)**2 # 532 photon recoil energy
-E_R1064_K40 = hbar**2/2/m_K40*(2*pi/lambda_lw)**2 # 1064 photon recoil energy
-E_R532_K40 = hbar**2/2/m_K40*(2*pi/lambda_sw)**2 # 532 photon recoil energy
+E_R1064_Rb87 = hbar**2/2/m_Rb87*(2*np.pi/lambda_lw)**2 # 1064 photon recoil energy
+E_R532_Rb87 = hbar**2/2/m_Rb87*(2*np.pi/lambda_sw)**2 # 532 photon recoil energy
+E_R1064_K40 = hbar**2/2/m_K40*(2*np.pi/lambda_lw)**2 # 1064 photon recoil energy
+E_R532_K40 = hbar**2/2/m_K40*(2*np.pi/lambda_sw)**2 # 532 photon recoil energy
 
 #%% Utility functions
 def LinearFn(a, b, x):

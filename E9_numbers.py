@@ -104,7 +104,7 @@ def T_BEC_bose(wbar, N, a = 0, V = 0, m = m_Rb87):
         if a != 0: print("interaction effect is not included yet in the case of harmonic potential")
         return (1 + 1.32 * (N / V) * a) * hbar * wbar * (N * zeta(3))**(1/3) / k_B
     else:
-        return (1 + 1.32 * (N / V) * a) * (2 * pi * hbar**2 / m) * (N / V / zeta(3/2))**(2/3) / k_B
+        return (1 + 1.32 * (N / V) * a) * (2 * np.pi * hbar**2 / m) * (N / V / zeta(3/2))**(2/3) / k_B
 
 def N_collapse_bose(a):
     '''[#] Returns the (order of magnutide estimate) of critical number N_c for an attractive Bose gas, above which the
@@ -119,7 +119,7 @@ def fermi_energy_lat(m, wbar, a_lat, N):
     '''Returns the Fermi energy of N fermions in a single spin component, loaded in a (square) lattice + harmonic confinement.
     
     See e.g. Eqn.(20) in [Tarruell18]. (I actually don't know how to compute this.) Often we need to compare E_F to U and t.'''
-    return (m * wbar**2 * a_lat**2 / 2) * (N / (4 * pi / 3))**(2/3)
+    return (m * wbar**2 * a_lat**2 / 2) * (N / (4 * np.pi / 3))**(2/3)
 
 def fermi_energy_har(wbar, N):
     '''Returns the Fermi energy of N fermions in a single spin component, loaded in a harmonic confinement.
@@ -144,7 +144,7 @@ def density_profile(m, wx, wy, wz, N, pos_arr, z = 0):
     wbar = (wx * wy * wz)**(1/3)
     Rx, Ry, Rz = fermi_radius(m, wx, N), fermi_radius(m, wy, N), fermi_radius(m, wz, N)
     tempfill = 1 - (pos_arr[0, :] / Rx)**2 - (pos_arr[1, :] / Ry)**2 - (z / Rz)**2
-    return (8 / pi**2) * (N / (Rx * Ry * Rz)) * np.maximum(tempfill, np.zeros_like(tempfill))**(3/2)
+    return (8 / np.pi**2) * (N / (Rx * Ry * Rz)) * np.maximum(tempfill, np.zeros_like(tempfill))**(3/2)
 
 def kFa_from_TFa(m, T_F, a_s):
     '''Prints k_F * a_s given T_F (Fermi temperature) and a_s (s-wave scattering length). (use SI unit inputs.)'''
@@ -230,15 +230,15 @@ def I_from_power(P0, w0):
     Also, I = (c_light * n * epsilon_0 / 2) * |E|**2 .
     P0: [W] Power
     w0: [m] beam WAIST (the RADIUS of the beam at 1/e^2 intensity)'''
-    return 2 * P0 / pi / w0**2
+    return 2 * P0 / np.pi / w0**2
 
-def J_from_Vlat(Vlat, theta = pi/2):
+def J_from_Vlat(Vlat, theta = np.pi/2):
     '''[dimless] Return (t/Er) given some lattice depth V0 = Vlat/Er, where Er is the (photon) recoil energy.
     
     This is the value obtained by solving the Mathieu equation. See e.g. [Bloch08] eqn.(39).
         theta: [dimless] angle between one of the beam and the symmetry plane. (theta = pi/2 for counter-propagating beams)'''
     V0 = Vlat / np.sin(theta)**2
-    return (4 / np.sqrt(pi)) * V0**(3/4) * np.exp(-2 * np.sqrt(V0)) / np.sin(theta)**2
+    return (4 / np.sqrt(np.pi)) * V0**(3/4) * np.exp(-2 * np.sqrt(V0)) / np.sin(theta)**2
 
 def wsite_from_Vlat(Vlat, alat, m):
     '''[rad/s] Return the trap frequency (angular frequency) for a lattice potential (Vlat / 2) * sin(2 * pi * x / alat).
@@ -247,7 +247,7 @@ def wsite_from_Vlat(Vlat, alat, m):
         Vlat: [J] lattice depth. Remember e.g. the factor of 1/9 in honeycomb lattices
         alat: [m] lattice constant
         m: [kg] mass of particles'''
-    return (2 * pi / alat) * np.sqrt(Vlat / 2 / m)
+    return (2 * np.pi / alat) * np.sqrt(Vlat / 2 / m)
 
 def V0_from_I(Gamma, nu, fl, I, gF, mF, P_pol = 0, Delta_FS = 0):
     '''[J] Gives the trap depth for a hyperfine state (hfs).
@@ -261,12 +261,12 @@ def V0_from_I(Gamma, nu, fl, I, gF, mF, P_pol = 0, Delta_FS = 0):
         mF: mF value of the atom.
         P_pol: Polarization factor. 0 if linear or ignored, +/-1 if sigma+/- polarized
         Delta_FS: [Hz] difference between the two excited state. Note that [Grimm99] use angular frequency [rad/s].'''
-    w0 = 2 * pi * nu
-    wl = 2 * pi * fl
-    Gamma = 2 * pi * Gamma
+    w0 = 2 * np.pi * nu
+    wl = 2 * np.pi * fl
+    Gamma = 2 * np.pi * Gamma
     Delta = wl - w0
-    Delta_FS = 2 * pi * Delta_FS
-    return (3 * pi * c_light**2 / 2 / w0**3) * (Gamma / Delta) * (1 + (P_pol * gF * mF / 3) * (Delta_FS / Delta)) * I
+    Delta_FS = 2 * np.pi * Delta_FS
+    return (3 * np.pi * c_light**2 / 2 / w0**3) * (Gamma / Delta) * (1 + (P_pol * gF * mF / 3) * (Delta_FS / Delta)) * I
 
 def U_from_Vlat(Vlat, a_s, k_L):
     '''Returns U for some lattice parameters under harmonic well assumption.
@@ -274,7 +274,7 @@ def U_from_Vlat(Vlat, a_s, k_L):
     See e.g. [Tarruell18] eqn.6 or [Bloch08] eqn.(49). Both U and Vlat are in units of photon recoil energy. For a triangular
     lattice, there is an additional factor of 8/9 for potential well depth, and an (approximate) factor of sqrt(3)/2 to
     account for potential well size. (check the factor of 9/16)'''
-    return np.sqrt(8 / pi) * (k_L * np.sqrt(3)/2) * a_s * ((8/9) * Vlat * (9/16))**(3/4)
+    return np.sqrt(8 / np.pi) * (k_L * np.sqrt(3)/2) * a_s * ((8/9) * Vlat * (9/16))**(3/4)
 
 def tUFromJx(J, x):
     '''Given desired J := 4t^2/U and x := t/U, returns the value of t and U required.
@@ -303,7 +303,7 @@ def LambDickeConst(V0):
     
     This currently assumes using K D1 line cooling in a 532 triangular lattice and can be easily generalized.
         V0: [kHz] 532 lattice depth'''
-    return (hbar * pi * a_sw_tri**2 / 2 / m_K40 / 1000)**(1/4) / lambda_K40_D1 * V0**(-1/4)
+    return (hbar * np.pi * a_sw_tri**2 / 2 / m_K40 / 1000)**(1/4) / lambda_K40_D1 * V0**(-1/4)
 
 #%% class HyperfineState
 class HyperfineState():

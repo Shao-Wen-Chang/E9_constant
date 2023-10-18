@@ -52,7 +52,7 @@ def kappa_MOT(A, k, s0, delta, gamma, g = 1):
     return g * mu_B * A * beta_molasses(k, s0, delta, gamma) / (hbar * k)
 
 #%% Working area
-k_780 = (2*pi/lambda_Rb87_D2)
+k_780 = (2*np.pi/lambda_Rb87_D2)
 s0 = 0.5
 displacement = np.linspace(-0.01, 0.01, num = 201)
 delta_2DMOT = -6 * gamma_Rb87_D2
