@@ -13,6 +13,12 @@ peak_E2 = 2 * I_from_power(1, beam_waist) / c_light / epsilon_0     # |E|**2, as
 alpha2kHz = peak_E2 / 4 / pol_SI2au / hnobar / 1000                 # Convert from alpha (in a.u.) to trap depth, in kHz
 alpha2uK = peak_E2 / 4 / pol_SI2au / k_B * 1e6                      # Convert from alpha (in a.u.) to trap depth, in uK
 
+# What lines to use
+K_4S1o2_LOI = K_4S1o2_lines                                         # Use K_4S1o2_lines to include all lines
+K_4P1o2_LOI = K_4P1o2_lines                                         # Use K_4P1o2_lines to include all lines
+K_4P3o2_LOI = K_4P3o2_lines                                         # Use K_4P3o2_lines to include all lines
+Rb_5S1o2_LOI = Rb_D12_doublett                                      # Use Rb_5S1o2_lines to include all lines
+
 #%% functions
 def alpha_pol(K, lamb_in, line_list, state, q = None, F = None, I = None):
     '''[A2·s4·kg−1] Returns the (rank-K) polarizability given a list of lines, ignoring scattering.
@@ -122,16 +128,16 @@ def mark_important_lines(ax, lines, f_min, l_alpha = None, init_text_height = 0)
             horizontalalignment = 'right', verticalalignment = 'bottom')
 
 #%% Calculate polarizibilities (This step is fast, plotting is the slow part)
-alpha_s_K_4S1o2 = alpha_pol(0, wavelengths, K_4S1o2_lines, '4S1o2')
-alpha_s_Rb_5S1o2 = alpha_pol(0, wavelengths, Rb_5S1o2_lines, '5S1o2')
-alpha_s_K_4P1o2 = alpha_pol(0, wavelengths, K_4P1o2_lines, '4P1o2')
-alpha_s_K_4P3o2 = alpha_pol(0, wavelengths, K_4P3o2_lines, '4P3o2')
+alpha_s_K_4S1o2 = alpha_pol(0, wavelengths, K_4S1o2_LOI, '4S1o2')
+alpha_s_Rb_5S1o2 = alpha_pol(0, wavelengths, Rb_5S1o2_LOI, '5S1o2')
+alpha_s_K_4P1o2 = alpha_pol(0, wavelengths, K_4P1o2_LOI, '4P1o2')
+alpha_s_K_4P3o2 = alpha_pol(0, wavelengths, K_4P3o2_LOI, '4P3o2')
 
 # alpha_v_K_4S1o2 = alpha_pol(1, wavelengths, K_4S1o2_lines, '4S1o2')
-alpha_v_K_4S1o2_F9o2 = alpha_pol(1, wavelengths, K_4S1o2_lines, '4S1o2', F = 9/2, I = 4)
-alpha_v_K_4S1o2_F7o2 = alpha_pol(1, wavelengths, K_4S1o2_lines, '4S1o2', F = 7/2, I = 4)
-alpha_v_Rb_5S1o2_F2 = alpha_pol(1, wavelengths, Rb_5S1o2_lines, '5S1o2', F = 2, I = 3/2)
-alpha_v_Rb_5S1o2_F1 = alpha_pol(1, wavelengths, Rb_5S1o2_lines, '5S1o2', F = 1, I = 3/2)
+alpha_v_K_4S1o2_F9o2 = alpha_pol(1, wavelengths, K_4S1o2_LOI, '4S1o2', F = 9/2, I = 4)
+alpha_v_K_4S1o2_F7o2 = alpha_pol(1, wavelengths, K_4S1o2_LOI, '4S1o2', F = 7/2, I = 4)
+alpha_v_Rb_5S1o2_F2 = alpha_pol(1, wavelengths, Rb_5S1o2_LOI, '5S1o2', F = 2, I = 3/2)
+alpha_v_Rb_5S1o2_F1 = alpha_pol(1, wavelengths, Rb_5S1o2_LOI, '5S1o2', F = 1, I = 3/2)
 
 avoas_K_4S1o2_F9o2 = alpha_v_K_4S1o2_F9o2/alpha_s_K_4S1o2
 avoas_Rb_5S1o2_F2 = alpha_v_Rb_5S1o2_F2/alpha_s_Rb_5S1o2
