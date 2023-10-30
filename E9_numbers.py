@@ -4,91 +4,6 @@ import matplotlib.pyplot as plt
 from scipy.special import zeta
 # See E0_constants for list of references and some file conventions
 
-#%% Thermodynamical quantities of classical particles
-def PPart(metal, T):
-    '''[Pa] Returns the partial pressure of some metal at temperature T.
-    
-    The formula is given by
-                PPart [mbar] = (T <= Tm, solid) 10**(cs - ds / T)
-                               (T > Tm, liquid) 10**(cl - dl / T)
-    Note that the values from various references might need to be adjusted to account for unit conversion.
-    torr -> mbar: -0.125; atm -> mbar: +3.006; mbar -> Pa: '''
-    # pairs of "metal": (cs, ds, cl, dl, Tm)
-    cdLib = {"K": (7.9667, 4646, 7.4077, 4453, 336.8), "Rb": (7.863, 4215, 7.318, 4040, 312.45), \
-             "Na": (8.304, 5603, 7.71, 5377, 370.95)}
-    cs, ds, cl, dl, Tm = cdLib[metal]
-    if T <= Tm:
-        return 10**(cs - ds / T) * 100
-    else:
-        return 10**(cl - dl / T) * 100
-
-def PlotPpartInAlloy(alloy, Ts = [300, 400], xA = (0, 1), ratio_in = 'liquid'):
-    '''Plot the partial pressure of species in an alloy.
-    
-    See [Ishikawa17]. Note that this function assumes that the system is in the liquid - gas phase.
-        alloy: string of the alloy of interest. e.g. "KRb" , "CsNa" ... (in alphabetical order; must be in RTlLib)
-        T: [K] temperature. Either a value or a list.
-        ratio_in: either "liquid" or "gas" . For "liquid" , xA = xA in the paper; for "gas" , xA = yA.'''
-    if ratio_in != "liquid":
-        print("not implemented yet")
-        return
-    
-    def LinearTFn(a, b):
-        def fn(T):
-            return LinearFn(a, b, T)
-        return fn
-    def GetdeltaA(l0, l1, l2, xA, xB, xAB):
-        return xB * (l0 + l1 * (2 * xAB + 1) + l2 * (3 * xAB + 2) * xAB)
-    def GetaA(l0, l1, l2, xA, xB, xAB):
-        '''Activity'''
-        return np.exp((1 - xA) * GetdeltaA(l0, l1, l2, xA, xB, xAB)) * xA
-    def GetdeltaB(l0, l1, l2, xA, xB, xAB):
-        return xA * (l0 + l1 * (2 * xAB - 1) + l2 * (3 * xAB - 2) * xAB)
-    def GetaB(l0, l1, l2, xA, xB, xAB):
-        '''Activity'''
-        return np.exp((1 - xB) * GetdeltaB(l0, l1, l2, xA, xB, xAB)) * xB
-    # pairs of "alloy": (RTl0(T), RTl1(T), RTl2(T), pA*, pB*, Astr, Bstr)
-    RTlLib = {"KRb": (LinearTFn(501.2, -0.831), LinearTFn(9.789, -0.728), LinearTFn(56.082, -0.16), "K", "Rb"), \
-              "NaRb": (LinearTFn(4948.676, 0.341), LinearTFn(1743.399, -1.417), LinearTFn(251.419, 1.887), "Na", "Rb")}
-    xA = np.linspace(xA[0], xA[1])
-    xB = 1 - xA
-    xAB = xA - xB
-    
-    RTls = RTlLib[alloy]
-    Astr, Bstr = RTls[3], RTls[4]
-    Tnum = len(Ts)
-    f_P = plt.figure(100, figsize = (12, 8))
-    f_P.clf()
-    f_P.suptitle(alloy + ' alloy')
-    for i, T in enumerate(Ts):
-        RTl0, RTl1, RTl2 = RTls[0](T), RTls[1](T), RTls[2](T)
-        l0, l1, l2 = RTl0 / R_gas / T, RTl1 / R_gas / T, RTl2 / R_gas / T
-        aA, aB = GetaA(l0, l1, l2, xA, xB, xAB), GetaB(l0, l1, l2, xA, xB, xAB)
-        pAstar, pBstar = PPart(Astr, T), PPart(Bstr, T)
-        pA, pB = aA * pAstar, aB * pBstar
-        ax_a = f_P.add_subplot(2, Tnum, i + 1)
-        ax_a.plot(xA, aA, '-r', label = Astr)
-        ax_a.plot(xA, xA, '--r', label = Astr + ' (Ideal)')
-        ax_a.plot(xA, aB, '-b', label = Bstr)
-        ax_a.plot(xA, 1 - xA, '--b', label = Bstr + ' (Ideal)')
-        ax_a.legend()
-        ax_a.set_xlabel('xA ({})'.format(Astr))
-        ax_a.set_ylabel('Activity')
-        ax_a.set_title('T = {} K'.format(T))
-        
-        ax_P = f_P.add_subplot(2, Tnum, i + 1 + Tnum)
-        ax_P.plot(xA, pA, '-r', label = Astr)
-        # ax_P.plot(xA, xA, '--r', label = Astr + ' (Ideal)')
-        ax_P.plot(xA, pB, '-b', label = Bstr)
-        # ax_P.plot(xA, 1 - xA, '--b', label = Bstr + ' (Ideal)')
-        ax_P.plot(xA, pA + pB, '-', c = '#f68a1e', label = '$P_{tot}$')
-        ax_P.plot(xA, pBstar + xA * (pAstar - pBstar), '--', c = '#f68a1e', label = '$P_{tot}$ (ideal)')
-        ax_P.legend()
-        ax_P.set_xlabel('xA ({})'.format(Astr))
-        ax_P.set_ylabel('P (Pa)')
-    f_P.tight_layout()
-    return f_P
-
 #%% Thermodynamical properties of Bose gases
 def T_BEC_bose(wbar, N, a = 0, V = 0, m = m_Rb87):
     '''[K] Returns the BEC critical temperature of a Bose gas.
@@ -175,11 +90,18 @@ def InterationParameter(T, FBres):
     '''Returns |k_F * a|, which characterizes interaction strength and therefore BEC-BCS crossover.'''
     pass
 
-def GravityCompensationBGrad(m, gF, mF):
+def GravityCompensationBGrad(mass, gF, mF):
     '''B gradient required to compensate gravity; obtained by setting dE/dz = mg. Returns T/m'''
-    BGradSI = m * g_earth / (gF * mu_B * mF)
+    BGradSI = mass * g_earth / (gF * mu_B * mF)
     print("{} Gauss/cm".format(BGradSI * 1e4 / 1e2))
     return BGradSI
+
+def Majorana_loss_rate(hfs, mF, Bgrad, T):
+    '''Returns an approximation of Majorana spin flip loss rate in an unplugged magnetic trap.
+    
+    See e.g. Y-J Lin's paper.
+        mu: = g-factor * mu_B'''
+    return 1.85 * hbar / hfs.mass * (hfs.gF * mF * mu_B * Bgrad / k_B / T)**2
 
 def QuadrupoleBField(pos, coil_coeff, I):
     '''Returns the B field at pos (relative to coil center) when the coil pair is configured to generate a quadrupole field.
@@ -204,6 +126,7 @@ def SpinSeparationBGradMSF(m, gF, t, dx):
     # return BGradSI
     print("not worked out yet")
 
+# Too many helper functions!
 def ZeemanSplitting(gF):
     '''Splitting between Zeeman sublevels as a function of B field. Returns J/Tesla'''
     ZsplitSI = gF * mu_B
@@ -307,8 +230,8 @@ def LambDickeConst(V0):
 
 #%% class HyperfineState
 class HyperfineState():
-    def __init__(self, mass, I, J, F, gJ = 2, gI = 0, ahf = None, bhf = None, nu = 0):
-        self.m = mass
+    def __init__(self, mass, I, J, F, gJ, gI = 0, ahf = None, bhf = None, nu = 0):
+        self.mass = mass
         self.S = 1/2
         self.F = F
         self.I = I
@@ -321,15 +244,15 @@ class HyperfineState():
         self.nu = nu # energy relative to ground state (in frequency unit, not radial frequency); ground state should
                      # be obvious in most cases
     
-    # methods copying from various functions defined above
+    # methods copying from various functions defined above (might want to delete all these)
     def GetGravityCompensationBGrad(self, mF):
-        return GravityCompensationBGrad(self.m, self.gF, mF)
+        return GravityCompensationBGrad(self.mass, self.gF, mF)
     
     def GetSpinSeparationBGradToF(self, t = 20e-3, dx = 100e-6):
-        return SpinSeparationBGradToF(self.m, self.gF, t, dx)
+        return SpinSeparationBGradToF(self.mass, self.gF, t, dx)
     
     def GetSpinSeparationBGradMSF(self, t = 50e-3, dx = 100e-6):
-        return SpinSeparationBGradMSF(self.m, self.gF, t, dx)
+        return SpinSeparationBGradMSF(self.mass, self.gF, t, dx)
     
     def GetZeemanSplitting(self):
         return ZeemanSplitting(self.gF)
@@ -405,12 +328,12 @@ class HyperfineState():
         return ax
 
 # format: (isotope)_n_(term symbol)_F(F value); 9/2 -> 9o2 etc
-K40_4_2S1o2_F9o2 = HyperfineState(m_K40, I_K40, 1/2, 9/2, ahf = ahf_40K_4S1o2)
-K40_4_2S1o2_F7o2 = HyperfineState(m_K40, I_K40, 1/2, 7/2, ahf = ahf_40K_4S1o2)
-K39_4_2S1o2_F1 = HyperfineState(m_K39, I_K39, 1/2, 1, ahf = ahf_39K_4S1o2)
-K39_4_2S1o2_F2 = HyperfineState(m_K39, I_K39, 1/2, 2, ahf = ahf_39K_4S1o2)
-Rb87_5_2S1o2_F1 = HyperfineState(m_Rb87, I_Rb87, 1/2, 1, ahf = ahf_87Rb_5S1o2)
-Rb87_5_2S1o2_F2 = HyperfineState(m_Rb87, I_Rb87, 1/2, 2, ahf = ahf_87Rb_5S1o2)
+K40_4_2S1o2_F9o2 = HyperfineState(m_K40, I_K40, 1/2, 9/2, gJ = gJ(1/2, 0, 1/2), ahf = ahf_40K_4S1o2)
+K40_4_2S1o2_F7o2 = HyperfineState(m_K40, I_K40, 1/2, 7/2, gJ = gJ(1/2, 0, 1/2), ahf = ahf_40K_4S1o2)
+K39_4_2S1o2_F1 = HyperfineState(m_K39, I_K39, 1/2, 1, gJ = gJ(1/2, 0, 1/2), ahf = ahf_39K_4S1o2)
+K39_4_2S1o2_F2 = HyperfineState(m_K39, I_K39, 1/2, 2, gJ = gJ(1/2, 0, 1/2), ahf = ahf_39K_4S1o2)
+Rb87_5_2S1o2_F1 = HyperfineState(m_Rb87, I_Rb87, 1/2, 1, gJ = gJ(1/2, 0, 1/2), ahf = ahf_87Rb_5S1o2)
+Rb87_5_2S1o2_F2 = HyperfineState(m_Rb87, I_Rb87, 1/2, 2, gJ = gJ(1/2, 0, 1/2), ahf = ahf_87Rb_5S1o2)
 
 #%% class FeshbachResonance
 class FeshbachResonance():
@@ -465,22 +388,12 @@ FBres_Li6_1_2 = FeshbachResonance(-1405, 834, -300) # not sure about a_bg
 
 #%% Codes for execution; use figure numbers < 100 for additional figures
 
-# wstr = 2
-# wx, wy, wz = 23 * 2 * pi * wstr, 41 * 2 * pi * wstr, 46 * 2 * pi * wstr # Hz
-# V_lat = 532e-9 * (532e-9 * 2 / 3) * (532e-9 / np.sqrt(3)) * (4/3)
-# wbar = (wx * wy * wz)**(1/3)
-# N = 1e6 # atom number
-# rng = np.linspace(-5e-5, 5e-5)
-# pos_arr = np.vstack((rng, np.zeros(50)))
-# rho = density_profile(m_K40, wx, wy, wz, N, pos_arr, z = 0)
-# E_F = fermi_energy_har(wbar, N)
-# plt.plot(rng, rho * V_lat)
-# print("E_F = {} Hz; Rx = {} m".format(E_F / hbar / 2 / pi, fermi_radius(m_K40, wx, N)))
-
-fig = plt.figure(1)
-fig.clf()
-ax = fig.add_subplot(111)
-FBres_K40_9o2_7o2.Visualize(ax = ax)
-FBres_K40_9o2_5o2.Visualize(ax = ax)
-ax.grid()
-ax.set_xticks([190,200,210,220,230,240])
+# Only use this for simple stuff as I delete them promptly
+if __name__ == "__main__":
+    Bgrad = 1.4 # T/m
+    Temp = 1e-6 # K
+    print("Trap gradient = {} [G/cm], temperature = {} [uK]".format(Bgrad * 100, Temp * 1e6))
+    print("Rb Lifetime = {} [s]".format(1 / Majorana_loss_rate(Rb87_5_2S1o2_F2, 2, Bgrad, Temp)))
+    print("40K Lifetime = {} [s]".format(1 / Majorana_loss_rate(K40_4_2S1o2_F9o2, 9/2, Bgrad, Temp)))
+    print("39K Lifetime = {} [s]".format(1 / Majorana_loss_rate(K39_4_2S1o2_F2, 2, Bgrad, Temp)))
+# %%
