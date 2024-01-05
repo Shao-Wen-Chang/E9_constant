@@ -390,8 +390,8 @@ FBres_Li6_1_2 = FeshbachResonance(-1405, 834, -300) # not sure about a_bg
 
 # Only use this for simple stuff as I delete them promptly
 if __name__ == "__main__":
-    Bgrad = 1.4 # T/m
-    Temp = 1e-6 # K
+    Bgrad = 1.5 # T/m
+    Temp = 25e-6 # K
     print("Trap gradient = {} [G/cm], temperature = {} [uK]".format(Bgrad * 100, Temp * 1e6))
     print("Rb Lifetime = {} [s]".format(1 / Majorana_loss_rate(Rb87_5_2S1o2_F2, 2, Bgrad, Temp)))
     print("40K Lifetime = {} [s]".format(1 / Majorana_loss_rate(K40_4_2S1o2_F9o2, 9/2, Bgrad, Temp)))

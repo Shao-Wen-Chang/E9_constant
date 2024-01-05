@@ -41,6 +41,19 @@ def VecTheta(theta):
     return np.array([np.cos(theta), np.sin(theta)])
 
 #%% Special functions not defined in scipy
+def Gaussian_1D(x, s = 1, mu = 0):
+    """The Gaussian normal distribution (i.e. integrates to 1)."""
+    return np.exp(-(1/2) / (s * np.sqrt(2 * np.pi)) * (x - mu)**2 / s**2)
+
+def fermi_stat(E, tau, mu = 0):
+    """The Fermi statistics function.
+    
+    Be careful about units!
+        E: energy of the orbital
+        tau: fundamental temperature, \tau = k_B * T
+        mu: chemical potential, if considered"""
+    return 1/(np.exp((E - mu) / tau) + 1)
+
 def LogisticFn(x, x0 = 0, k = 1):
     """Returns the logistic function, 1/(1 + exp(- k * (x - x0)))."""
     return 1/(1 + np.exp(- k * (x - x0)))

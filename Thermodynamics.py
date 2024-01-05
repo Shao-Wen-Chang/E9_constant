@@ -1,0 +1,128 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import quad
+import util
+# simplest version (spinless fermions in s-bands of, say, a kagome lattice)
+# Units: t_hubbard = 1
+
+#%% Variables
+V = 3 * 100**2      # size of the system (imagine a kagome lattice with n*n unit cells)
+nu = 5/6            # filling factor (1 is fully filled)
+Np = int(V * nu)    # number of particles in the system
+T = 0.4             # (fundamental) temperature (k_B * T)
+bandwidth = 6       # bandwidth (of band structure; 6 for tight-binding kagome lattice)
+E_range = (0, bandwidth + 1)    # energies considered in calculation
+
+### Definitions ###
+#%% Functions for generating the list of orbital energies Es
+def Es_from_DoS(DoS, E_range, sample_num: int, bin_num: int = 500):
+    '''Given a density of state DoS, return a list of energy sampled from this DoS.
+    
+    Assumes continuous DoS. E_range is separated into bin_num bins, and energies in each
+    bin are evenly spread out.
+        DoS: callable; density of states. Normalization doesn't matter.
+        E_range: (E_min, E_max); range of energies considered.
+        sample_num: total number of points in E_range. Should be system size.
+        bin_num: number of bins in E_range.
+        
+        Es: ndarray; energies of orbitals.'''
+    # Condition the bins
+    bin_E_ends = np.linspace(E_range[0], E_range[1], bin_num + 1)
+    bin_weights = DoS(bin_E_ends[1:])
+    bin_samples = (sample_num * (bin_weights / bin_weights.sum())).astype(int) # number of points in each bin
+    rounding_error = bin_samples.sum() - sample_num
+    if rounding_error < 0: # not enough points; add to the highest energy bin
+        bin_samples[-1] += -rounding_error
+    elif rounding_error > 0: # too many points; remove from highest energy bins
+        ind = -1
+        while rounding_error > 0:
+            rounding_error = rounding_error - bin_samples[ind]
+            bin_samples[ind] = max(0, -rounding_error)
+            ind -= 1
+    bin_samples_cum = bin_samples.cumsum()
+    bin_ends = np.concatenate((np.array([0], dtype = int), bin_samples_cum))
+
+    # generate Es
+    Es = np.zeros(sample_num)
+    for i in range(bin_num):
+        i1, i2, E1, E2, s = bin_ends[i], bin_ends[i + 1], bin_E_ends[i], bin_E_ends[i + 1], bin_samples[i]
+        Es[i1:i2] = np.linspace(E1, E2, s, endpoint = False)
+    return Es
+
+#%% Find thermodynamic values
+def mu_fermi(Es, T, Np, max_step: int = 10000, tolerance = 1e-6):
+    '''Find the chemical potential $\mu$ of a fermionic system.
+    
+    $\mu$ is chosen such that N comes out right. This is the microscopic way to do it.
+    (I could have also just used an integral solver I guess)
+        T: (fundamental) temperature (i.e. multiplied by k_B)
+        Np: number of (fermionic) particles (of a single spin species)
+        max_setp: number of steps to try before the algorithm is terminated
+        tolerance: acceptable fractional error on N.
+        
+        mu: chemical potential such that error to Np is less than the tolerance.'''
+    E_min, E_max = min(Es), max(Es)
+    E_range = E_max - E_min
+    mu_min, mu_max = E_min - 8 * E_range, E_max + 8 * E_range
+    for iter in range(max_step):
+        mu = (mu_min + mu_max) / 2
+        N_mu = np.sum(util.fermi_stat(Es, T, mu))
+        N_err = N_mu - Np
+        if abs(N_err) < Np * tolerance:
+            break
+        elif N_err >= 0:
+            mu_max = mu
+        else:
+            mu_min = mu
+
+    if iter == max_step - 1:
+        print("Warning: error in particle number is larger than the tolerance")
+    return mu
+
+def S_fermi(Es, T, Np, mu = None):
+    '''Find the entropy S of a fermionic system.
+    
+    Although we use grand canonical ensemble for the analytical expression, we actually
+    back out \mu from Np. If \mu is not given, then mu_fermi will be used to find \mu'''
+    if mu is None: mu = mu_fermi(Es, T, Np)
+
+    pass
+
+### Simulation ###
+#%% Generate a list of orbital energies
+# "simple" 2D DoS: 2D free particle DoS should be constant, however I want to include
+# the decrease of DoS near the band gap in lattices
+simple_2D_DoS = lambda x: np.tanh(E_range[1] - x)
+Es_simple_2D_DoS = Es_from_DoS(simple_2D_DoS, E_range, V)
+mu_simple_2D_DoS = mu_fermi(Es_simple_2D_DoS, T, Np)
+
+# "simple" 2D DoS + "flat band:" 1/3 of the states are assigned to a narrow range of
+# energy, in addition to the "simple" 2D DoS
+norm_factor = quad(simple_2D_DoS, E_range[0], E_range[1])[0]
+simple_flatband_DoS = lambda x: (2/3) * simple_2D_DoS(x) + (1/3) * norm_factor * util.Gaussian_1D(x, s = 0.1, mu = 4)
+Es_simple_flatband_DoS = Es_from_DoS(simple_flatband_DoS, E_range, V)
+mu_simple_flatband_DoS = mu_fermi(Es_simple_flatband_DoS, T, Np)
+
+#%% Plot
+Es_plot = np.linspace(E_range[0], E_range[1], 500)
+fig_DoS = plt.figure(1)
+fig_DoS.clf()
+ax_DoS = fig_DoS.add_subplot(111)
+
+p1 = ax_DoS.plot(simple_2D_DoS(Es_plot), Es_plot, '-', label = 'simple 2D')
+ax_DoS.fill_betweenx(Es_plot, simple_2D_DoS(Es_plot) * util.fermi_stat(Es_plot, T, mu_simple_2D_DoS), \
+                     '--', alpha = 0.3)
+ax_DoS.axhline(mu_simple_2D_DoS, color = p1[0].get_color(), ls = '--' \
+               , label = r'$\mu = ${:.3f}'.format(mu_simple_2D_DoS))
+p2 = ax_DoS.plot(simple_flatband_DoS(Es_plot), Es_plot, '-', label = 'simple flat band')
+ax_DoS.fill_betweenx(Es_plot, simple_flatband_DoS(Es_plot) * util.fermi_stat(Es_plot, T, mu_simple_flatband_DoS), \
+                     '--', alpha = 0.3)
+ax_DoS.axhline(mu_simple_flatband_DoS, color = p2[0].get_color(), ls = '--', \
+               label = r'$\mu = ${:.3f}'.format(mu_simple_flatband_DoS))
+
+ax_DoS.set_ylim(min(mu_simple_2D_DoS, E_range[0]) - 0.5, max(mu_simple_2D_DoS,E_range[1]) + 0.5)
+ax_DoS.set_xlabel("DoS [arb.]")
+ax_DoS.set_ylabel("E/t")
+ax_DoS.set_title(r'DoS ($T = ${:.2f}, $\nu = ${:.2f}, $N = ${:.2e}$'.format(T, nu, Np))
+ax_DoS.legend()
+# %%
