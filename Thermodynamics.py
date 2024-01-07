@@ -7,7 +7,7 @@ import util
 
 #%% Variables
 V = 3 * 100**2      # size of the system (imagine a kagome lattice with n*n unit cells)
-nu = 5/6            # filling factor (1 is fully filled)
+nu = 1/6            # filling factor (1 is fully filled)
 Np = int(V * nu)    # number of particles in the system
 T = 0.4             # (fundamental) temperature (k_B * T)
 bandwidth = 6       # bandwidth (of band structure; 6 for tight-binding kagome lattice)
@@ -80,13 +80,14 @@ def mu_fermi(Es, T, Np, max_step: int = 10000, tolerance = 1e-6):
     return mu
 
 def S_fermi(Es, T, Np, mu = None):
-    '''Find the entropy S of a fermionic system.
+    '''Find the fundamental entropy \sigma = S/k_B of a fermionic system.
     
     Although we use grand canonical ensemble for the analytical expression, we actually
     back out \mu from Np. If \mu is not given, then mu_fermi will be used to find \mu'''
     if mu is None: mu = mu_fermi(Es, T, Np)
 
-    pass
+    E_total = sum(Es * util.fermi_stat(Es, T, mu))
+    return (E_total - mu * Np) / T + np.log(1 + np.exp((mu - Es) / T)).sum()
 
 ### Simulation ###
 #%% Generate a list of orbital energies
@@ -95,6 +96,7 @@ def S_fermi(Es, T, Np, mu = None):
 simple_2D_DoS = lambda x: np.tanh(E_range[1] - x)
 Es_simple_2D_DoS = Es_from_DoS(simple_2D_DoS, E_range, V)
 mu_simple_2D_DoS = mu_fermi(Es_simple_2D_DoS, T, Np)
+S_simple_2D_DoS = S_fermi(Es_simple_2D_DoS, T, Np, mu_simple_2D_DoS)
 
 # "simple" 2D DoS + "flat band:" 1/3 of the states are assigned to a narrow range of
 # energy, in addition to the "simple" 2D DoS
@@ -102,6 +104,7 @@ norm_factor = quad(simple_2D_DoS, E_range[0], E_range[1])[0]
 simple_flatband_DoS = lambda x: (2/3) * simple_2D_DoS(x) + (1/3) * norm_factor * util.Gaussian_1D(x, s = 0.1, mu = 4)
 Es_simple_flatband_DoS = Es_from_DoS(simple_flatband_DoS, E_range, V)
 mu_simple_flatband_DoS = mu_fermi(Es_simple_flatband_DoS, T, Np)
+S_simple_flatband_DoS = S_fermi(Es_simple_flatband_DoS, T, Np, mu_simple_flatband_DoS)
 
 #%% Plot
 Es_plot = np.linspace(E_range[0], E_range[1], 500)
@@ -113,16 +116,16 @@ p1 = ax_DoS.plot(simple_2D_DoS(Es_plot), Es_plot, '-', label = 'simple 2D')
 ax_DoS.fill_betweenx(Es_plot, simple_2D_DoS(Es_plot) * util.fermi_stat(Es_plot, T, mu_simple_2D_DoS), \
                      '--', alpha = 0.3)
 ax_DoS.axhline(mu_simple_2D_DoS, color = p1[0].get_color(), ls = '--' \
-               , label = r'$\mu = ${:.3f}'.format(mu_simple_2D_DoS))
+               , label = r'$\mu = ${:.3f}, $s = ${:.4f}'.format(mu_simple_2D_DoS, S_simple_2D_DoS / Np))
 p2 = ax_DoS.plot(simple_flatband_DoS(Es_plot), Es_plot, '-', label = 'simple flat band')
 ax_DoS.fill_betweenx(Es_plot, simple_flatband_DoS(Es_plot) * util.fermi_stat(Es_plot, T, mu_simple_flatband_DoS), \
                      '--', alpha = 0.3)
 ax_DoS.axhline(mu_simple_flatband_DoS, color = p2[0].get_color(), ls = '--', \
-               label = r'$\mu = ${:.3f}'.format(mu_simple_flatband_DoS))
+               label = r'$\mu = ${:.3f}, $s = ${:.4f}'.format(mu_simple_flatband_DoS, S_simple_flatband_DoS / Np))
 
 ax_DoS.set_ylim(min(mu_simple_2D_DoS, E_range[0]) - 0.5, max(mu_simple_2D_DoS,E_range[1]) + 0.5)
 ax_DoS.set_xlabel("DoS [arb.]")
 ax_DoS.set_ylabel("E/t")
-ax_DoS.set_title(r'DoS ($T = ${:.2f}, $\nu = ${:.2f}, $N = ${:.2e}$'.format(T, nu, Np))
+ax_DoS.set_title(r'DoS ($T = ${:.2f}, $\nu = ${:.2f}, $N = ${:.2e})'.format(T, nu, Np))
 ax_DoS.legend()
 # %%

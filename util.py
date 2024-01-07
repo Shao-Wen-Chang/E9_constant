@@ -43,7 +43,7 @@ def VecTheta(theta):
 #%% Special functions not defined in scipy
 def Gaussian_1D(x, s = 1, mu = 0):
     """The Gaussian normal distribution (i.e. integrates to 1)."""
-    return np.exp(-(1/2) / (s * np.sqrt(2 * np.pi)) * (x - mu)**2 / s**2)
+    return np.exp(-(1/2) * (x - mu)**2 / s**2) / (s * np.sqrt(2 * np.pi))
 
 def fermi_stat(E, tau, mu = 0):
     """The Fermi statistics function.
