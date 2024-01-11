@@ -70,33 +70,35 @@ class DoS_exp():
     
     def find_outputs(self):
         '''Helper function that calculates everything I can calculate.'''
-        self.find_Es()
+        self.find_E_orbs()
         self.find_mus()
         self.find_Ss()
     
-    def find_Es(self):
+    def find_E_orbs(self):
         '''Calculate the list of energies sampled from each DoS for each species.
         
-        This method both modifies the entries in species_list, and add the parameter Ess to
+        This method both modifies the entries in species_list, and add the parameter E_orbss to
         itself. The behavior of other find_xxx functions are similar.'''
         for sp in self.species_list:
-            sp["Es"] = thmdy.Es_from_DoS(sp["DoS"], sp["E_range"], sp["V"])
-        self.Ess = util.all_values_from_key(self.species_list, "Es")
+            sp["E_orbs"] = thmdy.E_orbs_from_DoS(sp["DoS"], sp["E_range"], sp["V"])
+        self.E_orbss = util.all_values_from_key(self.species_list, "E_orbs")
     
     def find_mus(self):
         '''Calculate the chemical potential for each species.
         
         For reservoirs, mu is determined by the referenced system, and this function finds
-        Np instead.'''
+        Np instead.
+        N_BEC = 0 always for fermionic species.'''
         for i, sp in enumerate(self.species_list):
             if not sp["reservoir"]:
                 # Not a reservoir - find chemical potential by matching particle number
-                sp["mu"] = thmdy.find_mu(sp["Es"], self.T, sp["Np"], sp["stat"])
+                sp["mu"], sp["N_BEC"] = thmdy.find_mu(sp["E_orbs"], self.T, sp["Np"], sp["stat"])
             else:
                 # Is reservoir - find the chemical potential to match to, then update
                 # the particle number in reservoir
                 sp["mu"] = self.species_list[self._refsys[i]]["mu"]
-                sp["Np"] = thmdy.find_Np(sp["Es"], self.T, sp["mu"], sp["stat"])
+                sp["Np"] = thmdy.find_Np(sp["E_orbs"], self.T, sp["mu"], sp["stat"])
+                sp["N_BEC"] = 0 # Not implemented yet
         
         self.mus = util.all_values_from_key(self.species_list, "mu")
         self.Nps = util.all_values_from_key(self.species_list, "Np")
@@ -104,25 +106,25 @@ class DoS_exp():
     def find_Ss(self):
         '''Calculate the entropy for each species.'''
         for sp in self.species_list:
-            sp["S"] = thmdy.find_S(sp["Es"], self.T, sp["Np"], sp["mu"], sp["stat"])
+            sp["S"] = thmdy.find_S(sp["E_orbs"], self.T, sp["Np"], sp["mu"], sp["stat"])
         self.Ss = util.all_values_from_key(self.species_list, "S")
     
     def plot_DoSs(self):
         '''Visulaization of Dos + filling.'''
-        Es_plot = np.linspace(min([x[0] for x in self.E_ranges])
+        E_orbs_plot = np.linspace(min([x[0] for x in self.E_ranges])
                               , max([x[1] for x in self.E_ranges])+10, 1000)
         fig_DoS = plt.figure(1)
         fig_DoS.clf()
         ax_DoS = fig_DoS.add_subplot(111)
 
         for sp in self.species_list:
-            p = ax_DoS.plot(sp["DoS"](Es_plot), Es_plot, '-', label = sp["name"])
-            ax_DoS.fill_betweenx(Es_plot, sp["DoS"](Es_plot) * util.fermi_stat(Es_plot, self.T, sp["mu"])
+            p = ax_DoS.plot(sp["DoS"](E_orbs_plot), E_orbs_plot, '-', label = sp["name"])
+            ax_DoS.fill_betweenx(E_orbs_plot, sp["DoS"](E_orbs_plot) * util.fermi_stat(E_orbs_plot, self.T, sp["mu"])
                                 , '--', alpha = 0.3)
             ax_DoS.axhline(sp["mu"], color = p[0].get_color(), ls = '--'
                         , label = r'$\mu = ${:.3f}, $s = ${:.4f}'.format(sp["mu"], sp["S"] / sp["Np"]))
 
-        # ax_DoS.set_ylim(min(min(self.mus), Es_plot[0]) - 0.5, max(max(self.mus), Es_plot[-1]) + 0.5)
+        # ax_DoS.set_ylim(min(min(self.mus), E_orbs_plot[0]) - 0.5, max(max(self.mus), E_orbs_plot[-1]) + 0.5)
         ax_DoS.set_xlabel("DoS [arb.]")
         ax_DoS.set_ylabel("E/t")
         ax_DoS.set_title(r'DoS ($T = ${:.2f})'.format(self.T))
@@ -152,7 +154,7 @@ if __name__ == "__main__":
     DoS_sys = simple_flatband_DoS
 
     # reservoir specific
-    offset = -1.5           # energy offset in the DoS of reservoir
+    offset = 1.5           # energy offset in the DoS of reservoir
     V_rsv = int(V - V_sys) # size of the reservoir
     E_range_rsv = (offset, offset + bandwidth + 1) # energies considered in calculation
     DoS_rsv = lambda x: simple_flatband_DoS(x - offset)

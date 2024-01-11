@@ -6,8 +6,8 @@ import util
 # Units: t_hubbard = 1
 
 ### Definitions ###
-#%% Functions for generating the list of orbital energies Es
-def Es_from_DoS(DoS, E_range, sample_num: int, bin_num: int = 500):
+#%% Functions for generating the list of orbital energies E_orbs
+def E_orbs_from_DoS(DoS, E_range, sample_num: int, bin_num: int = 500):
     '''Given a density of state DoS, return a list of energies sampled from this DoS.
     
     Assumes continuous DoS. E_range is separated into bin_num bins, and energies in each
@@ -17,7 +17,7 @@ def Es_from_DoS(DoS, E_range, sample_num: int, bin_num: int = 500):
         sample_num: total number of points in E_range. Should be system size.
         bin_num: number of bins in E_range.
         
-        Es: ndarray; energies of orbitals.'''
+        E_orbs: ndarray; energies of orbitals.'''
     # Condition the bins
     bin_E_ends = np.linspace(E_range[0], E_range[1], bin_num + 1)
     bin_weights = DoS(bin_E_ends[1:])
@@ -34,15 +34,15 @@ def Es_from_DoS(DoS, E_range, sample_num: int, bin_num: int = 500):
     bin_samples_cum = bin_samples.cumsum()
     bin_ends = np.concatenate((np.array([0], dtype = int), bin_samples_cum))
 
-    # generate Es
-    Es = np.zeros(sample_num)
+    # generate E_orbs
+    E_orbs = np.zeros(sample_num)
     for i in range(bin_num):
         i1, i2, E1, E2, s = bin_ends[i], bin_ends[i + 1], bin_E_ends[i], bin_E_ends[i + 1], bin_samples[i]
-        Es[i1:i2] = np.linspace(E1, E2, s, endpoint = False)
-    return Es
+        E_orbs[i1:i2] = np.linspace(E1, E2, s, endpoint = False)
+    return E_orbs
 
 #%% Find thermodynamic values
-def find_Np(Es, T, mu, stat: str):
+def find_Np(E_orbs, T, mu, stat: str):
     '''Find the number of (non-condensed) particle of a system.
     
     For fermions, this is the total number of particles in the system. For bosons, this
@@ -50,66 +50,93 @@ def find_Np(Es, T, mu, stat: str):
         T: (fundamental) temperature (i.e. multiplied by k_B)
         stat: "fermi" or "bose"'''
     if stat == "fermi":
-        return np.sum(util.fermi_stat(Es, T, mu))
+        return np.sum(util.fermi_stat(E_orbs, T, mu))
     elif stat == "bose":
-        return np.sum(util.bose_stat(Es, T, mu))
+        return np.sum(util.bose_stat(E_orbs, T, mu))
 
-def find_E(Es, T, mu, stat: str, N_BEC: int = 0):
+def find_E(E_orbs, T, mu, stat: str, N_BEC: int = 0):
     '''Find the total energy of a system.
     
         N_BEC: number of bose-condensed particles, if any'''
     if stat == "fermi":
-        return sum(Es * util.fermi_stat(Es, T, mu))
+        return sum(E_orbs * util.fermi_stat(E_orbs, T, mu))
     elif stat == "bose":
-        return sum(Es * util.fermi_stat(Es, T, mu)) + N_BEC * Es[0]
+        return sum(E_orbs * util.fermi_stat(E_orbs, T, mu)) + N_BEC * E_orbs[0]
 
-def find_mu(Es, T, Np, stat: str = "fermi", max_step: int = 10000, tolerance = 1e-6):
-    '''Find the chemical potential $\mu$ of a system.
+def find_mu(E_orbs, T, Np, stat: str = "fermi", max_step: int = 10000, tolerance = 1e-6):
+    '''Find the chemical potential $\mu$ of a system, and (if any) the number of bose-
+    condensed particles.
     
-    $\mu$ is chosen such that N comes out right. This is the microscopic way to do it.
-    (I could have also just used an integral solver I guess)
+    $\mu$ is chosen such that N comes out right. (I could have also just used an integral
+    solver I guess) Remember that "BEC only occurs in 2D at T = 0" refers to 2D free
+    particles. It is all about the leading power term of the DoS, and e.g. 2D harmonic
+    confinement can result in BEC at T > 0.
+    Arguments:
         Np: number of (fermionic) particles (of a single spin species)
         max_setp: number of steps to try before the algorithm is terminated
         tolerance: acceptable fractional error on N.
+    Outputs:
+        mu: chemical potential such that error to Np is less than the tolerance.
+        N_BEC: 0 if fermion or non-condensed bosons'''
+    def mu_subroutine(mu_min, mu_max, Np, stat, tolerance):
+        '''Subroutine used in the algorithm.
         
-        mu: chemical potential such that error to Np is less than the tolerance.'''
-    E_min, E_max = min(Es), max(Es)
+        The algorithm finds mu by reducing the possible range of mu by a factor of 2
+        for each iteration. If mu is within tolerance, both mu_min and mu_max is set
+        to this acceptable mu. (so mu_min == mu_max signals termination of algorithm)'''
+        mu = (mu_min + mu_max) / 2
+        N_mu = find_Np(E_orbs, T, mu, stat)
+        N_err = N_mu - Np
+
+        if abs(N_err) < Np * tolerance: # good enough
+            mu_min, mu_max = mu, mu
+        elif N_err >= 0:
+            mu_max = mu
+        else:
+            mu_min = mu
+        
+        return mu_min, mu_max
+
+    E_min, E_max = min(E_orbs), max(E_orbs)
     E_range = E_max - E_min
     mu_min, mu_max = E_min - 8 * E_range, E_max + 8 * E_range
+    N_BEC = 0
 
-    if stat == "fermi":
-        for iter in range(max_step):
-            mu = (mu_min + mu_max) / 2
-            N_mu = find_Np(Es, T, mu, stat)
-            N_err = N_mu - Np
-            if abs(N_err) < Np * tolerance:
-                break
-            elif N_err >= 0:
-                mu_max = mu
-            else:
-                mu_min = mu
-
-        if iter == max_step - 1:
-            print("Warning: error in particle number is larger than the tolerance")
-        return mu
+    # For bosons, first check if the gas is bose-condensed; otherwise the procedure for
+    # finding mu will be the same as Fermions, except that mu_max < E_orbs[0] must hold
+    if stat == "bose":
+        N_ex = find_Np(E_orbs, T, E_orbs[0], stat)
+        if N_ex < Np:
+            mu_min, mu_max = E_orbs[0], E_orbs[0]
+            N_BEC = Np - N_ex
+        else:
+            mu_max = E_orbs[0]
     
-    elif stat == "bose":
-        raise("not implemented yet")
+    # For fermions or non-condesed bosons; mu = mu_min = mu_max if the algorithm is successful
+    if N_BEC == 0:
+        for _ in range(max_step):
+            mu_min, mu_max = mu_subroutine(mu_min, mu_max, Np, stat, tolerance)
+            if mu_min == mu_max: break
 
-def find_S(Es, T, Np, mu = None, stat: str = "fermi", N_BEC: int = 0):
+        if mu_min != mu_max:
+            print("Warning: error in particle number is larger than the tolerance")
+
+    return mu_min, N_BEC
+
+def find_S(E_orbs, T, Np, mu = None, stat: str = "fermi", N_BEC: int = 0):
     '''Find the fundamental entropy \sigma = S/k_B of a fermionic system.
     
     Although we use grand canonical ensemble for the analytical expression, we actually
     back out \mu from Np. If \mu is not given, then find_mu will be used to find \mu'''
-    if mu is None: mu = find_mu(Es, T, Np, stat, N_BEC)
+    if mu is None: mu = find_mu(E_orbs, T, Np, stat, N_BEC)
     
-    E_total = find_E(Es, T, Np, stat)
+    E_total = find_E(E_orbs, T, mu, stat, N_BEC)
     if stat == "fermi":
-        xi = 1
+        xi = 1.
     elif stat == "bose":
-        xi = -1
+        xi = -1.
     
-    return (E_total - mu * Np) / T + xi * np.log(1 + xi * np.exp((mu - Es) / T)).sum()
+    return (E_total - mu * Np) / T + xi * np.log(1 + xi * np.exp((mu - E_orbs) / T)).sum()
 
 #%% Simulation
 if __name__ == "__main__":
@@ -124,31 +151,31 @@ if __name__ == "__main__":
     # "simple" 2D DoS: 2D free particle DoS should be constant, however I want to include
     # the decrease of DoS near the band gap in lattices
     simple_2D_DoS = lambda x: np.tanh(E_range[1] - x)
-    Es_simple_2D_DoS = Es_from_DoS(simple_2D_DoS, E_range, V)
-    mu_simple_2D_DoS = find_mu(Es_simple_2D_DoS, T, Np)
-    S_simple_2D_DoS = find_S(Es_simple_2D_DoS, T, Np, mu_simple_2D_DoS)
+    E_orbs_simple_2D_DoS = E_orbs_from_DoS(simple_2D_DoS, E_range, V)
+    mu_simple_2D_DoS = find_mu(E_orbs_simple_2D_DoS, T, Np)
+    S_simple_2D_DoS = find_S(E_orbs_simple_2D_DoS, T, Np, mu_simple_2D_DoS)
 
     # "simple" 2D DoS + "flat band:" 1/3 of the states are assigned to a narrow range of
     # energy, in addition to the "simple" 2D DoS
     norm_factor = quad(simple_2D_DoS, E_range[0], E_range[1])[0]
     simple_flatband_DoS = lambda x: (2/3) * simple_2D_DoS(x) + (1/3) * norm_factor * util.Gaussian_1D(x, s = 0.1, mu = 4)
-    Es_simple_flatband_DoS = Es_from_DoS(simple_flatband_DoS, E_range, V)
-    mu_simple_flatband_DoS = find_mu(Es_simple_flatband_DoS, T, Np)
-    S_simple_flatband_DoS = find_S(Es_simple_flatband_DoS, T, Np, mu_simple_flatband_DoS)
+    E_orbs_simple_flatband_DoS = E_orbs_from_DoS(simple_flatband_DoS, E_range, V)
+    mu_simple_flatband_DoS = find_mu(E_orbs_simple_flatband_DoS, T, Np)
+    S_simple_flatband_DoS = find_S(E_orbs_simple_flatband_DoS, T, Np, mu_simple_flatband_DoS)
 
     #%% Plot
-    Es_plot = np.linspace(E_range[0], E_range[1], 500)
+    E_orbs_plot = np.linspace(E_range[0], E_range[1], 500)
     fig_DoS = plt.figure(1)
     fig_DoS.clf()
     ax_DoS = fig_DoS.add_subplot(111)
 
-    p1 = ax_DoS.plot(simple_2D_DoS(Es_plot), Es_plot, '-', label = 'simple 2D')
-    ax_DoS.fill_betweenx(Es_plot, simple_2D_DoS(Es_plot) * util.fermi_stat(Es_plot, T, mu_simple_2D_DoS), \
+    p1 = ax_DoS.plot(simple_2D_DoS(E_orbs_plot), E_orbs_plot, '-', label = 'simple 2D')
+    ax_DoS.fill_betweenx(E_orbs_plot, simple_2D_DoS(E_orbs_plot) * util.fermi_stat(E_orbs_plot, T, mu_simple_2D_DoS), \
                         '--', alpha = 0.3)
     ax_DoS.axhline(mu_simple_2D_DoS, color = p1[0].get_color(), ls = '--' \
                 , label = r'$\mu = ${:.3f}, $s = ${:.4f}'.format(mu_simple_2D_DoS, S_simple_2D_DoS / Np))
-    p2 = ax_DoS.plot(simple_flatband_DoS(Es_plot), Es_plot, '-', label = 'simple flat band')
-    ax_DoS.fill_betweenx(Es_plot, simple_flatband_DoS(Es_plot) * util.fermi_stat(Es_plot, T, mu_simple_flatband_DoS), \
+    p2 = ax_DoS.plot(simple_flatband_DoS(E_orbs_plot), E_orbs_plot, '-', label = 'simple flat band')
+    ax_DoS.fill_betweenx(E_orbs_plot, simple_flatband_DoS(E_orbs_plot) * util.fermi_stat(E_orbs_plot, T, mu_simple_flatband_DoS), \
                         '--', alpha = 0.3)
     ax_DoS.axhline(mu_simple_flatband_DoS, color = p2[0].get_color(), ls = '--', \
                 label = r'$\mu = ${:.3f}, $s = ${:.4f}'.format(mu_simple_flatband_DoS, S_simple_flatband_DoS / Np))
