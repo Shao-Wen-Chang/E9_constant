@@ -5,18 +5,10 @@ import util
 # simplest version (spinless fermions in s-bands of, say, a kagome lattice)
 # Units: t_hubbard = 1
 
-#%% Variables
-V = 3 * 100**2      # size of the system (imagine a kagome lattice with n*n unit cells)
-nu = 1/6            # filling factor (1 is fully filled)
-Np = int(V * nu)    # number of particles in the system
-T = 0.4             # (fundamental) temperature (k_B * T)
-bandwidth = 6       # bandwidth (of band structure; 6 for tight-binding kagome lattice)
-E_range = (0, bandwidth + 1)    # energies considered in calculation
-
 ### Definitions ###
 #%% Functions for generating the list of orbital energies Es
 def Es_from_DoS(DoS, E_range, sample_num: int, bin_num: int = 500):
-    '''Given a density of state DoS, return a list of energy sampled from this DoS.
+    '''Given a density of state DoS, return a list of energies sampled from this DoS.
     
     Assumes continuous DoS. E_range is separated into bin_num bins, and energies in each
     bin are evenly spread out.
@@ -50,12 +42,32 @@ def Es_from_DoS(DoS, E_range, sample_num: int, bin_num: int = 500):
     return Es
 
 #%% Find thermodynamic values
-def mu_fermi(Es, T, Np, max_step: int = 10000, tolerance = 1e-6):
-    '''Find the chemical potential $\mu$ of a fermionic system.
+def find_Np(Es, T, mu, stat: str):
+    '''Find the number of (non-condensed) particle of a system.
+    
+    For fermions, this is the total number of particles in the system. For bosons, this
+    is the total number of particles less the fraction that forms a BEC.
+        T: (fundamental) temperature (i.e. multiplied by k_B)
+        stat: "fermi" or "bose"'''
+    if stat == "fermi":
+        return np.sum(util.fermi_stat(Es, T, mu))
+    elif stat == "bose":
+        return np.sum(util.bose_stat(Es, T, mu))
+
+def find_E(Es, T, mu, stat: str, N_BEC: int = 0):
+    '''Find the total energy of a system.
+    
+        N_BEC: number of bose-condensed particles, if any'''
+    if stat == "fermi":
+        return sum(Es * util.fermi_stat(Es, T, mu))
+    elif stat == "bose":
+        return sum(Es * util.fermi_stat(Es, T, mu)) + N_BEC * Es[0]
+
+def find_mu(Es, T, Np, stat: str = "fermi", max_step: int = 10000, tolerance = 1e-6):
+    '''Find the chemical potential $\mu$ of a system.
     
     $\mu$ is chosen such that N comes out right. This is the microscopic way to do it.
     (I could have also just used an integral solver I guess)
-        T: (fundamental) temperature (i.e. multiplied by k_B)
         Np: number of (fermionic) particles (of a single spin species)
         max_setp: number of steps to try before the algorithm is terminated
         tolerance: acceptable fractional error on N.
@@ -64,68 +76,86 @@ def mu_fermi(Es, T, Np, max_step: int = 10000, tolerance = 1e-6):
     E_min, E_max = min(Es), max(Es)
     E_range = E_max - E_min
     mu_min, mu_max = E_min - 8 * E_range, E_max + 8 * E_range
-    for iter in range(max_step):
-        mu = (mu_min + mu_max) / 2
-        N_mu = np.sum(util.fermi_stat(Es, T, mu))
-        N_err = N_mu - Np
-        if abs(N_err) < Np * tolerance:
-            break
-        elif N_err >= 0:
-            mu_max = mu
-        else:
-            mu_min = mu
 
-    if iter == max_step - 1:
-        print("Warning: error in particle number is larger than the tolerance")
-    return mu
+    if stat == "fermi":
+        for iter in range(max_step):
+            mu = (mu_min + mu_max) / 2
+            N_mu = find_Np(Es, T, mu, stat)
+            N_err = N_mu - Np
+            if abs(N_err) < Np * tolerance:
+                break
+            elif N_err >= 0:
+                mu_max = mu
+            else:
+                mu_min = mu
 
-def S_fermi(Es, T, Np, mu = None):
+        if iter == max_step - 1:
+            print("Warning: error in particle number is larger than the tolerance")
+        return mu
+    
+    elif stat == "bose":
+        raise("not implemented yet")
+
+def find_S(Es, T, Np, mu = None, stat: str = "fermi", N_BEC: int = 0):
     '''Find the fundamental entropy \sigma = S/k_B of a fermionic system.
     
     Although we use grand canonical ensemble for the analytical expression, we actually
-    back out \mu from Np. If \mu is not given, then mu_fermi will be used to find \mu'''
-    if mu is None: mu = mu_fermi(Es, T, Np)
+    back out \mu from Np. If \mu is not given, then find_mu will be used to find \mu'''
+    if mu is None: mu = find_mu(Es, T, Np, stat, N_BEC)
+    
+    E_total = find_E(Es, T, Np, stat)
+    if stat == "fermi":
+        xi = 1
+    elif stat == "bose":
+        xi = -1
+    
+    return (E_total - mu * Np) / T + xi * np.log(1 + xi * np.exp((mu - Es) / T)).sum()
 
-    E_total = sum(Es * util.fermi_stat(Es, T, mu))
-    return (E_total - mu * Np) / T + np.log(1 + np.exp((mu - Es) / T)).sum()
+#%% Simulation
+if __name__ == "__main__":
+    V = 3 * 100**2      # size of the system (imagine a kagome lattice with n*n unit cells)
+    nu = 4/6            # filling factor (1 is fully filled)
+    Np = int(V * nu)    # number of particles in the system
+    T = 0.4             # (fundamental) temperature (k_B * T)
+    bandwidth = 6       # bandwidth (of band structure; 6 for tight-binding kagome lattice)
+    E_range = (0, bandwidth + 1)    # energies considered in calculation
 
-### Simulation ###
-#%% Generate a list of orbital energies
-# "simple" 2D DoS: 2D free particle DoS should be constant, however I want to include
-# the decrease of DoS near the band gap in lattices
-simple_2D_DoS = lambda x: np.tanh(E_range[1] - x)
-Es_simple_2D_DoS = Es_from_DoS(simple_2D_DoS, E_range, V)
-mu_simple_2D_DoS = mu_fermi(Es_simple_2D_DoS, T, Np)
-S_simple_2D_DoS = S_fermi(Es_simple_2D_DoS, T, Np, mu_simple_2D_DoS)
+    #%% Generate a list of orbital energies
+    # "simple" 2D DoS: 2D free particle DoS should be constant, however I want to include
+    # the decrease of DoS near the band gap in lattices
+    simple_2D_DoS = lambda x: np.tanh(E_range[1] - x)
+    Es_simple_2D_DoS = Es_from_DoS(simple_2D_DoS, E_range, V)
+    mu_simple_2D_DoS = find_mu(Es_simple_2D_DoS, T, Np)
+    S_simple_2D_DoS = find_S(Es_simple_2D_DoS, T, Np, mu_simple_2D_DoS)
 
-# "simple" 2D DoS + "flat band:" 1/3 of the states are assigned to a narrow range of
-# energy, in addition to the "simple" 2D DoS
-norm_factor = quad(simple_2D_DoS, E_range[0], E_range[1])[0]
-simple_flatband_DoS = lambda x: (2/3) * simple_2D_DoS(x) + (1/3) * norm_factor * util.Gaussian_1D(x, s = 0.1, mu = 4)
-Es_simple_flatband_DoS = Es_from_DoS(simple_flatband_DoS, E_range, V)
-mu_simple_flatband_DoS = mu_fermi(Es_simple_flatband_DoS, T, Np)
-S_simple_flatband_DoS = S_fermi(Es_simple_flatband_DoS, T, Np, mu_simple_flatband_DoS)
+    # "simple" 2D DoS + "flat band:" 1/3 of the states are assigned to a narrow range of
+    # energy, in addition to the "simple" 2D DoS
+    norm_factor = quad(simple_2D_DoS, E_range[0], E_range[1])[0]
+    simple_flatband_DoS = lambda x: (2/3) * simple_2D_DoS(x) + (1/3) * norm_factor * util.Gaussian_1D(x, s = 0.1, mu = 4)
+    Es_simple_flatband_DoS = Es_from_DoS(simple_flatband_DoS, E_range, V)
+    mu_simple_flatband_DoS = find_mu(Es_simple_flatband_DoS, T, Np)
+    S_simple_flatband_DoS = find_S(Es_simple_flatband_DoS, T, Np, mu_simple_flatband_DoS)
 
-#%% Plot
-Es_plot = np.linspace(E_range[0], E_range[1], 500)
-fig_DoS = plt.figure(1)
-fig_DoS.clf()
-ax_DoS = fig_DoS.add_subplot(111)
+    #%% Plot
+    Es_plot = np.linspace(E_range[0], E_range[1], 500)
+    fig_DoS = plt.figure(1)
+    fig_DoS.clf()
+    ax_DoS = fig_DoS.add_subplot(111)
 
-p1 = ax_DoS.plot(simple_2D_DoS(Es_plot), Es_plot, '-', label = 'simple 2D')
-ax_DoS.fill_betweenx(Es_plot, simple_2D_DoS(Es_plot) * util.fermi_stat(Es_plot, T, mu_simple_2D_DoS), \
-                     '--', alpha = 0.3)
-ax_DoS.axhline(mu_simple_2D_DoS, color = p1[0].get_color(), ls = '--' \
-               , label = r'$\mu = ${:.3f}, $s = ${:.4f}'.format(mu_simple_2D_DoS, S_simple_2D_DoS / Np))
-p2 = ax_DoS.plot(simple_flatband_DoS(Es_plot), Es_plot, '-', label = 'simple flat band')
-ax_DoS.fill_betweenx(Es_plot, simple_flatband_DoS(Es_plot) * util.fermi_stat(Es_plot, T, mu_simple_flatband_DoS), \
-                     '--', alpha = 0.3)
-ax_DoS.axhline(mu_simple_flatband_DoS, color = p2[0].get_color(), ls = '--', \
-               label = r'$\mu = ${:.3f}, $s = ${:.4f}'.format(mu_simple_flatband_DoS, S_simple_flatband_DoS / Np))
+    p1 = ax_DoS.plot(simple_2D_DoS(Es_plot), Es_plot, '-', label = 'simple 2D')
+    ax_DoS.fill_betweenx(Es_plot, simple_2D_DoS(Es_plot) * util.fermi_stat(Es_plot, T, mu_simple_2D_DoS), \
+                        '--', alpha = 0.3)
+    ax_DoS.axhline(mu_simple_2D_DoS, color = p1[0].get_color(), ls = '--' \
+                , label = r'$\mu = ${:.3f}, $s = ${:.4f}'.format(mu_simple_2D_DoS, S_simple_2D_DoS / Np))
+    p2 = ax_DoS.plot(simple_flatband_DoS(Es_plot), Es_plot, '-', label = 'simple flat band')
+    ax_DoS.fill_betweenx(Es_plot, simple_flatband_DoS(Es_plot) * util.fermi_stat(Es_plot, T, mu_simple_flatband_DoS), \
+                        '--', alpha = 0.3)
+    ax_DoS.axhline(mu_simple_flatband_DoS, color = p2[0].get_color(), ls = '--', \
+                label = r'$\mu = ${:.3f}, $s = ${:.4f}'.format(mu_simple_flatband_DoS, S_simple_flatband_DoS / Np))
 
-ax_DoS.set_ylim(min(mu_simple_2D_DoS, E_range[0]) - 0.5, max(mu_simple_2D_DoS,E_range[1]) + 0.5)
-ax_DoS.set_xlabel("DoS [arb.]")
-ax_DoS.set_ylabel("E/t")
-ax_DoS.set_title(r'DoS ($T = ${:.2f}, $\nu = ${:.2f}, $N = ${:.2e})'.format(T, nu, Np))
-ax_DoS.legend()
+    ax_DoS.set_ylim(min(mu_simple_2D_DoS, E_range[0]) - 0.5, max(mu_simple_2D_DoS,E_range[1]) + 0.5)
+    ax_DoS.set_xlabel("DoS [arb.]")
+    ax_DoS.set_ylabel("E/t")
+    ax_DoS.set_title(r'DoS ($T = ${:.2f}, $\nu = ${:.2f}, $N = ${:.2e})'.format(T, nu, Np))
+    ax_DoS.legend()
 # %%

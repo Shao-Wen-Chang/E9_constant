@@ -1,5 +1,20 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from typing import Iterable
+
+#%% dictionary manipulation
+def all_values_from_key(dict_iter: Iterable[dict], key, default = 'raise_error'):
+    '''Given an iterable of dictionaries, return the value in each that correspond to key.
+    
+    The default behavior is to raise error if a key value doesn't exist in one of the
+    dictionary. The output is of the same type as dict_iter.
+        default: if == 'raise_error', then raise KeyError. Otherwise, it sets the value
+                 to use if a dictionary doesn't have the key value given.'''
+    iter_type = type(dict_iter)
+    if default == 'raise_error':
+        return iter_type([x[key] for x in dict_iter])
+    else:
+        return iter_type([x.get(key, default) for x in dict_iter])
 
 #%% np.array manipulation
 def find_nearest(arr, val):
@@ -41,19 +56,33 @@ def VecTheta(theta):
     return np.array([np.cos(theta), np.sin(theta)])
 
 #%% Special functions not defined in scipy
-def Gaussian_1D(x, s = 1, mu = 0):
-    """The Gaussian normal distribution (i.e. integrates to 1)."""
-    return np.exp(-(1/2) * (x - mu)**2 / s**2) / (s * np.sqrt(2 * np.pi))
-
-def fermi_stat(E, tau, mu = 0):
-    """The Fermi statistics function.
+def bose_stat(E, tau, mu = 0):
+    """The Bose statistics function.
     
     Be careful about units!
         E: energy of the orbital
         tau: fundamental temperature, \tau = k_B * T
         mu: chemical potential, if considered"""
+    return 1/(np.exp((E - mu) / tau) - 1)
+
+def Gaussian_1D(x, s = 1, mu = 0):
+    """The Gaussian normal distribution (i.e. integrates to 1)."""
+    return np.exp(-(1/2) * (x - mu)**2 / s**2) / (s * np.sqrt(2 * np.pi))
+
+def fermi_stat(E, tau, mu = 0):
+    """The Fermi statistics function."""
     return 1/(np.exp((E - mu) / tau) + 1)
 
 def LogisticFn(x, x0 = 0, k = 1):
     """Returns the logistic function, 1/(1 + exp(- k * (x - x0)))."""
     return 1/(1 + np.exp(- k * (x - x0)))
+
+def step_fn(x, x0: float = 0):
+    '''Returns the step function, f = 1 for x >= x0, f = 0 otherwise.
+    
+    Can easily extend to different behaviors at x0 if needed.'''
+    return np.array(x >= x0).astype(float)
+
+def rect_fn(x, x0: float = 0, x1: float = 0):
+    '''Returns the rectangular function, f = 1 for x1 >= x >= x0, f = 0 otherwise.'''
+    return step_fn(x, x0) * step_fn(-x, -x1)
