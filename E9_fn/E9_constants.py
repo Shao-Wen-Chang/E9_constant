@@ -1,6 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from sympy.physics.wigner import wigner_6j 
 # All in SI units unless otherwise noted. Also, I try to use FREQUENCIES instead of ANGULAR FREQUENCIES all the time, and if
 # I ever use ANGULAR FREQUENCIES I prefer to include the factor of 2pi explicitly. e.g. (2 * pi) * 20. The units for ANGULAR
 # FREQUENCIES is [rad/s].

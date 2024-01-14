@@ -1,7 +1,6 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from scipy.integrate import quad
-import util
+
+from E9_fn import util
 # simplest version (spinless fermions in s-bands of, say, a kagome lattice)
 # Units: t_hubbard = 1
 

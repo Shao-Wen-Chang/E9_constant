@@ -1,9 +1,11 @@
-from E9_constants import *
-from E9_numbers import *
-from transition_line_data import *
 import numpy as np
 import matplotlib.pyplot as plt
-import util
+from sympy.physics.wigner import wigner_6j
+
+from E9_fn.E9_constants import *
+from E9_fn.E9_numbers import *
+from E9_fn.datasets.transition_line_data import *
+from E9_fn import util
 
 # Plot parameters are in their own sections below
 pol_SI2au = 1/1.64877727436e-41                                     # Conversion factor from SI to a.u. for polarizability

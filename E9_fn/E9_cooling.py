@@ -1,6 +1,7 @@
-from E9_constants import *
 import numpy as np
 import matplotlib.pyplot as plt
+
+from E9_fn.E9_constants import *
 # See E0_constants for list of references and some file conventions
 # All from [PvdS] unless otherwise noted
 

@@ -1,6 +1,7 @@
-from E9_constants import *
 import numpy as np
 import matplotlib.pyplot as plt
+
+from E9_fn.E9_constants import *
 
 def PPart(metal, T):
     '''[Pa] Returns the partial pressure of some metal at temperature T.

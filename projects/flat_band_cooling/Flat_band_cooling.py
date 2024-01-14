@@ -1,8 +1,11 @@
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
-import util
-import E9_models as E9M
 from scipy.integrate import quad
+sys.path.insert(1,
+    "C:\\Users\\ken92\\Documents\\Studies\\E5\\simulation\\E9_simulations")
+from E9_fn import util
+import E9_fn.E9_models as E9M
 # spinless fermion in a step potential with flat band dispersion
 
 #%% Experiment initialization 
