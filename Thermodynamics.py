@@ -123,14 +123,14 @@ def find_mu(E_orbs, T, Np, stat: str = "fermi", max_step: int = 10000, tolerance
 
     return mu_min, N_BEC
 
-def find_S(E_orbs, T, Np, mu = None, stat: str = "fermi", N_BEC: int = 0):
+def find_S(E_orbs, T, Np, mu = None, E_total = None, stat: str = "fermi", N_BEC: int = 0):
     '''Find the fundamental entropy \sigma = S/k_B of a fermionic system.
     
     Although we use grand canonical ensemble for the analytical expression, we actually
     back out \mu from Np. If \mu is not given, then find_mu will be used to find \mu'''
     if mu is None: mu = find_mu(E_orbs, T, Np, stat, N_BEC)
+    if E_total is None: E_total = find_E(E_orbs, T, mu, stat, N_BEC)
     
-    E_total = find_E(E_orbs, T, mu, stat, N_BEC)
     if stat == "fermi":
         xi = 1.
     elif stat == "bose":

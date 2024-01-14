@@ -86,3 +86,34 @@ def step_fn(x, x0: float = 0):
 def rect_fn(x, x0: float = 0, x1: float = 0):
     '''Returns the rectangular function, f = 1 for x1 >= x >= x0, f = 0 otherwise.'''
     return step_fn(x, x0) * step_fn(-x, -x1)
+
+#%% Helper plotting functions
+def plot_delta_fn(ax,
+                  x0: float = 0,
+                  a0: float = 1,
+                  a_plt: float = 1,
+                  text: str = None,
+                  axis = 'x',
+                  *kwargs):
+    '''Plot the delta function, a0 * delta(x - x0), as an arrow.
+    
+    The arrow makes it clear that the delta function is not just a sharply peaked function.
+        ax: the Axes object to be plotted on.
+        x0: position of the delta function peak.
+        a0: actual value that the delta function integrates to. Only affects the text.
+        a_plt: the length of the arrow on the plot, normalized to y_lim (or x_lim).
+        text: the text to be added next to the arrow to indicate the actual value of
+              a0. Default to a0 if None.
+        axis: which axis is used as the variable. Default is x (horizontal axis).
+        *kwargs: must be plot-related arguments accepted by arrow().'''
+    # Initialize arguments to arrow()
+    if text is None: text = str(a0)
+    if axis == 'x':
+        (xi, yi, dx, dy) = (x0, 0, 0, a0)
+    elif axis == 'y':
+        (xi, yi, dx, dy) = (0, x0, a0, 0)
+    else:
+        raise("axis must be \'x\' or \'y\'")
+    
+    arr = ax.arrow(xi, yi, dx, dy, *kwargs)
+    return arr

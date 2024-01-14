@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.table import table as plot_table
 import util
 import Thermodynamics as thmdy
 from scipy.integrate import quad
@@ -68,13 +69,35 @@ class DoS_exp():
 
         # self.comments = util.all_values_from_key(species_list, "comment") # not useful if not updated
     
-    def find_outputs(self):
+    def check_consistency(self, update: bool = True):
+        # '''Check that all the attributes of the object matches those in self.species_list.
+        
+        # Currently this method assumes that the species in species_list all have the same
+        # set of keys. This is desired anyway.
+        #     update: if True, then the attribute values are updated if there are any
+        #             inconsistencies. If False, only prints a warning.'''
+        # all_keys = self.species_list[0].keys()
+        # for key in all_keys:
+        #     attr_name = key + 's' # This is bad coding practice
+        #     for i, sp in enumerate(self.species_list):
+        #         value_in_attr = eval("self.{}".format(attr_name))[i]
+        #         if value_in_attr != sp[key]:
+        #             print("Inconsistency found in species #{}:".format(i))
+        #             if update: 
+        #                 print("Replaced self.{}[{}] = {} with value {}".format(
+        #                     attr_name, i, value_in_attr, sp[key]))
+        #                 eval("self.{}".format(attr_name))[i] = sp[key]
+        pass
+
+    ### Thermodynamical calculations
+    def find_outputs(self) -> None:
         '''Helper function that calculates everything I can calculate.'''
         self.find_E_orbs()
         self.find_mus()
+        self.find_Es()
         self.find_Ss()
     
-    def find_E_orbs(self):
+    def find_E_orbs(self) -> None:
         '''Calculate the list of energies sampled from each DoS for each species.
         
         This method both modifies the entries in species_list, and add the parameter E_orbss to
@@ -83,7 +106,7 @@ class DoS_exp():
             sp["E_orbs"] = thmdy.E_orbs_from_DoS(sp["DoS"], sp["E_range"], sp["V"])
         self.E_orbss = util.all_values_from_key(self.species_list, "E_orbs")
     
-    def find_mus(self):
+    def find_mus(self) -> None:
         '''Calculate the chemical potential for each species.
         
         For reservoirs, mu is determined by the referenced system, and this function finds
@@ -99,23 +122,37 @@ class DoS_exp():
                 sp["mu"] = self.species_list[self._refsys[i]]["mu"]
                 sp["Np"] = thmdy.find_Np(sp["E_orbs"], self.T, sp["mu"], sp["stat"])
                 sp["N_BEC"] = 0 # Not implemented yet
+                sp["comment"]["find_mus"] = \
+                "Finding N_BEC for bosonic systems with reservoirs are not implemented yet"
         
         self.mus = util.all_values_from_key(self.species_list, "mu")
         self.Nps = util.all_values_from_key(self.species_list, "Np")
+        self.comments = util.all_values_from_key(self.species_list, "comment")
 
-    def find_Ss(self):
+
+    def find_Es(self) -> None:
+        '''Calculate the energy for each species.'''
+        for sp in self.species_list:
+            sp["E"] = thmdy.find_E(sp["E_orbs"], self.T, sp["mu"], sp["stat"], sp["N_BEC"])
+        self.Es = util.all_values_from_key(self.species_list, "E")
+
+    def find_Ss(self) -> None:
         '''Calculate the entropy for each species.'''
         for sp in self.species_list:
-            sp["S"] = thmdy.find_S(sp["E_orbs"], self.T, sp["Np"], sp["mu"], sp["stat"])
+            sp["S"] = thmdy.find_S(sp["E_orbs"], self.T, sp["Np"], sp["mu"], sp["E"], sp["stat"])
         self.Ss = util.all_values_from_key(self.species_list, "S")
     
-    def plot_DoSs(self):
+    ### plot related methods
+    def plot_DoSs(self, ax = None):
         '''Visulaization of Dos + filling.'''
         E_orbs_plot = np.linspace(min([x[0] for x in self.E_ranges])
                               , max([x[1] for x in self.E_ranges])+10, 1000)
-        fig_DoS = plt.figure(1)
-        fig_DoS.clf()
-        ax_DoS = fig_DoS.add_subplot(111)
+        if ax is None:
+            fig_DoS = plt.figure(1)
+            fig_DoS.clf()
+            ax_DoS = fig_DoS.add_subplot(111)
+        else:
+            ax_DoS = ax
 
         for sp in self.species_list:
             p = ax_DoS.plot(sp["DoS"](E_orbs_plot), E_orbs_plot, '-', label = sp["name"])
@@ -130,6 +167,31 @@ class DoS_exp():
         ax_DoS.set_title(r'DoS ($T = ${:.2f})'.format(self.T))
         ax_DoS.legend()
         return ax_DoS
+    
+    def tabulate_params(self,
+                        ax = None,
+                        hidden: list[str] = ["DoS", "E_orbs"],
+                        str_len: int = 25):
+        '''Tabulate all the currently available parameters.
+        
+        "comment" is a dictionary of str. It is currently handled in an ugly way.
+            hidden: a list of keys to ignore.
+            str_len: length of the string displayed. Long strings are truncated, and short
+                     strings are padded with spaces to the left.'''
+        if ax is None:
+            fig_table = plt.figure(1)
+            fig_table.clf()
+            ax_table = fig_table.add_axes(111)
+        else:
+            ax_table = ax
+        
+        displayed_keys = list(self.species_list[0].keys())
+        for x in hidden: displayed_keys.remove(x)
+        all_values_str = [[str(sp[key]).rjust(str_len)[:str_len] for key in displayed_keys]
+                          for sp in self.species_list]
+        plot_table(ax_table, cellText = list(zip(*all_values_str)),
+                   rowLabels = displayed_keys, loc = 'center')
+        return ax_table
 
 #%% simulation
 if __name__ == "__main__":
@@ -166,4 +228,10 @@ if __name__ == "__main__":
          "E_range": E_range_rsv, "reservoir": "spin_up", "comment": {}},
     ])
     step_pot_exp.find_outputs()
-    ax_DoS = step_pot_exp.plot_DoSs()
+    fig_exp = plt.figure(1, figsize = (5, 8))
+    ax_DoS = fig_exp.add_subplot(211)
+    ax_table = fig_exp.add_axes(212)
+    ax_table.set_axis_off()
+    step_pot_exp.plot_DoSs(ax_DoS)
+    step_pot_exp.tabulate_params(ax_table)
+    plt.tight_layout()
