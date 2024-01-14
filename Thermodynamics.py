@@ -140,49 +140,5 @@ def find_S(E_orbs, T, Np, mu = None, E_total = None, stat: str = "fermi", N_BEC:
 
 #%% Simulation
 if __name__ == "__main__":
-    V = 3 * 100**2      # size of the system (imagine a kagome lattice with n*n unit cells)
-    nu = 4/6            # filling factor (1 is fully filled)
-    Np = int(V * nu)    # number of particles in the system
-    T = 0.4             # (fundamental) temperature (k_B * T)
-    bandwidth = 6       # bandwidth (of band structure; 6 for tight-binding kagome lattice)
-    E_range = (0, bandwidth + 1)    # energies considered in calculation
-
-    #%% Generate a list of orbital energies
-    # "simple" 2D DoS: 2D free particle DoS should be constant, however I want to include
-    # the decrease of DoS near the band gap in lattices
-    simple_2D_DoS = lambda x: np.tanh(E_range[1] - x)
-    E_orbs_simple_2D_DoS = E_orbs_from_DoS(simple_2D_DoS, E_range, V)
-    mu_simple_2D_DoS = find_mu(E_orbs_simple_2D_DoS, T, Np)
-    S_simple_2D_DoS = find_S(E_orbs_simple_2D_DoS, T, Np, mu_simple_2D_DoS)
-
-    # "simple" 2D DoS + "flat band:" 1/3 of the states are assigned to a narrow range of
-    # energy, in addition to the "simple" 2D DoS
-    norm_factor = quad(simple_2D_DoS, E_range[0], E_range[1])[0]
-    simple_flatband_DoS = lambda x: (2/3) * simple_2D_DoS(x) + (1/3) * norm_factor * util.Gaussian_1D(x, s = 0.1, mu = 4)
-    E_orbs_simple_flatband_DoS = E_orbs_from_DoS(simple_flatband_DoS, E_range, V)
-    mu_simple_flatband_DoS = find_mu(E_orbs_simple_flatband_DoS, T, Np)
-    S_simple_flatband_DoS = find_S(E_orbs_simple_flatband_DoS, T, Np, mu_simple_flatband_DoS)
-
-    #%% Plot
-    E_orbs_plot = np.linspace(E_range[0], E_range[1], 500)
-    fig_DoS = plt.figure(1)
-    fig_DoS.clf()
-    ax_DoS = fig_DoS.add_subplot(111)
-
-    p1 = ax_DoS.plot(simple_2D_DoS(E_orbs_plot), E_orbs_plot, '-', label = 'simple 2D')
-    ax_DoS.fill_betweenx(E_orbs_plot, simple_2D_DoS(E_orbs_plot) * util.fermi_stat(E_orbs_plot, T, mu_simple_2D_DoS), \
-                        '--', alpha = 0.3)
-    ax_DoS.axhline(mu_simple_2D_DoS, color = p1[0].get_color(), ls = '--' \
-                , label = r'$\mu = ${:.3f}, $s = ${:.4f}'.format(mu_simple_2D_DoS, S_simple_2D_DoS / Np))
-    p2 = ax_DoS.plot(simple_flatband_DoS(E_orbs_plot), E_orbs_plot, '-', label = 'simple flat band')
-    ax_DoS.fill_betweenx(E_orbs_plot, simple_flatband_DoS(E_orbs_plot) * util.fermi_stat(E_orbs_plot, T, mu_simple_flatband_DoS), \
-                        '--', alpha = 0.3)
-    ax_DoS.axhline(mu_simple_flatband_DoS, color = p2[0].get_color(), ls = '--', \
-                label = r'$\mu = ${:.3f}, $s = ${:.4f}'.format(mu_simple_flatband_DoS, S_simple_flatband_DoS / Np))
-
-    ax_DoS.set_ylim(min(mu_simple_2D_DoS, E_range[0]) - 0.5, max(mu_simple_2D_DoS,E_range[1]) + 0.5)
-    ax_DoS.set_xlabel("DoS [arb.]")
-    ax_DoS.set_ylabel("E/t")
-    ax_DoS.set_title(r'DoS ($T = ${:.2f}, $\nu = ${:.2f}, $N = ${:.2e})'.format(T, nu, Np))
-    ax_DoS.legend()
-# %%
+    # removed old incompatible code on 20240114
+    pass
