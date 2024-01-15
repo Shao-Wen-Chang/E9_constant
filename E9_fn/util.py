@@ -56,14 +56,35 @@ def VecTheta(theta):
     return np.array([np.cos(theta), np.sin(theta)])
 
 #%% Special functions not defined in scipy
-def bose_stat(E, tau, mu = 0.):
-    """The Bose statistics function.
+def part_stat(E, tau, mu, xi, replace_inf = "Don't"):
+    """Fermi (xi = +1) or Bose (xi = -1) statistics function.
     
+    Useful for coding. bose_stat and fermi_stat are the two possible cases for
+    part_stat, and are derived from part_stat for readability where it helps.
     Be careful about units!
         E: energy of the orbital
         tau: fundamental temperature, \tau = k_B * T
-        mu: chemical potential, if considered"""
-    return 1/(np.exp((E - mu) / tau) - 1.)
+        mu: chemical potential, if considered
+        xi: 1 for fermions, -1 for bosons
+        replace_inf: the value used to replace any inf. If "Don't" (default),
+                     then raise an error."""
+    if xi != 1 and xi != -1:
+        print("xi = {}".format(xi))
+        raise Exception("xi must be 1 or -1")
+    
+    output = 1/(np.exp((E - mu) / tau) + xi)
+    if np.isinf(output).any():
+        print("inf encountered")
+        if replace_inf == "Don't":
+            raise Exception("no replacement value given")
+        else:
+            print("Replace inf with {}".format(replace_inf))
+            output[np.isinf(output)] = replace_inf
+    return output
+
+def bose_stat(E, tau, mu = 0.):
+    """The Bose statistics function."""
+    return part_stat(E, tau, mu, xi = -1)
 
 def Gaussian_1D(x, s = 1, mu = 0):
     """The Gaussian normal distribution (i.e. integrates to 1)."""
@@ -71,7 +92,7 @@ def Gaussian_1D(x, s = 1, mu = 0):
 
 def fermi_stat(E, tau, mu = 0):
     """The Fermi statistics function."""
-    return 1/(np.exp((E - mu) / tau) + 1)
+    return part_stat(E, tau, mu, xi = 1)
 
 def LogisticFn(x, x0 = 0, k = 1):
     """Returns the logistic function, 1/(1 + exp(- k * (x - x0)))."""
@@ -88,6 +109,19 @@ def rect_fn(x, x0: float = 0, x1: float = 0):
     return step_fn(x, x0) * step_fn(-x, -x1)
 
 #%% Helper plotting functions
+def make_simple_axes(ax = None, fignum = None):
+    '''Make a figure with one single Axes if ax is None, and return (figure, axes).
+    
+    My favorite thing to have in the beginning of a plotting function.'''
+    if ax is None:
+        f = plt.figure(num = fignum)
+        f.clf()
+        ax = f.add_axes(111)
+        return (f, ax)
+    else:
+        return (ax.get_figure(), ax)
+        
+
 def plot_delta_fn(ax,
                   x0: float = 0,
                   a0: float = 1,
@@ -119,7 +153,7 @@ def plot_delta_fn(ax,
         (xi, yi, dx, dy) = (0, x0, a_plt, 0)
         tx, ty = xi + dx, yi + dy + 0.05 * yr
     else:
-        raise("axis must be \'x\' or \'y\'")
+        raise Exception("axis must be \'x\' or \'y\'")
     
     arr = ax.arrow(xi, yi, dx, dy, **kwargs)
     ax.text(tx, ty, text)

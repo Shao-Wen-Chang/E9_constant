@@ -35,9 +35,9 @@ E_range_rsv = (offset, offset + bandwidth + 1) # energies considered in calculat
 DoS_rsv = lambda x: simple_flatband_DoS(x - offset)
 
 step_pot_exp = E9M.DoS_exp(T, [
-    {"name": "spin_up", "V": V_sys, "Np": Np_sys, "stat": "fermi", "DoS": DoS_sys,
+    {"name": "spin_up", "V": V_sys, "Np": Np_sys, "stat": +1, "DoS": DoS_sys,
         "E_range": E_range_sys, "reservoir": "", "comment": {}},
-    {"name": "spin_up_rsv", "V": V_rsv, "Np": 0, "stat": "fermi", "DoS": DoS_rsv,
+    {"name": "spin_up_rsv", "V": V_rsv, "Np": 0, "stat": +1, "DoS": DoS_rsv,
         "E_range": E_range_rsv, "reservoir": "spin_up", "comment": {}},
 ])
 

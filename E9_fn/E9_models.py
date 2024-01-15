@@ -37,7 +37,7 @@ class DoS_exp():
             "V": int                     # number of orbitals / size of the system
             "Np": int                    # number of particles (will be overwritten if
                                            "reservoir" is not "", see below)
-            "stat": "bose" or "fermi"    # statistics of the particle considered.
+            "stat": 1 or -1              # 1 for fermions, -1 for bosons
             "DoS": callable like f(E)    # density of states
             "E_range": (float, float)    # energies considered in calculation
             "reservoir": str             # "" if not a reservoir; "name" if it acts as the
@@ -140,42 +140,34 @@ class DoS_exp():
     def find_Ss(self) -> None:
         '''Calculate the entropy for each species.'''
         for sp in self.species_list:
-            sp["S"] = thmdy.find_S(sp["E_orbs"], self.T, sp["Np"], sp["mu"], sp["E"], sp["stat"], sp["N_BEC"])
+            sp["S"] = thmdy.find_S(sp["E_orbs"], self.T, sp["Np"], sp["stat"], sp["mu"], sp["E"], sp["N_BEC"])
         self.Ss = util.all_values_from_key(self.species_list, "S")
     
     ### plot related methods
     def plot_DoSs(self, ax = None):
         '''Visulaization of DoS + filling.'''
-        if ax is None:
-            fig_DoS = plt.figure(1)
-            fig_DoS.clf()
-            ax_DoS = fig_DoS.add_subplot(111)
-        else:
-            ax_DoS = ax
+        _, ax_DoS = util.make_simple_axes(ax, fignum = 1)
 
         # Plot DoS and filling
         max_DoS = np.zeros(len(self.species_list))
         for i, sp in enumerate(self.species_list):
+            # Energies used for plotting is generated separately (less points than
+            # E_orbs); ignore the ground state if there's a BEC
             E_orbs_plot = np.linspace(sp["E_range"][0], sp["E_range"][1], 1000)
             if sp["N_BEC"] != 0: E_orbs_plot = E_orbs_plot[1:]
             DoS_values = sp["DoS"](E_orbs_plot)
             max_DoS[i] = max(DoS_values)
-            p = ax_DoS.plot(DoS_values, E_orbs_plot, '-', label = sp["name"])
+            filling = DoS_values * util.part_stat(E_orbs_plot, self.T, sp["mu"], sp["stat"])
             
-            if sp["stat"] == "fermi":
-                ax_DoS.fill_betweenx(E_orbs_plot, DoS_values * util.fermi_stat(E_orbs_plot, self.T, sp["mu"])
-                                    , '--', alpha = 0.3)
-            elif sp["stat"] == "bose":
-                ax_DoS.fill_betweenx(E_orbs_plot, DoS_values * util.bose_stat(E_orbs_plot, self.T, sp["mu"])
-                                    , '--', alpha = 0.3)
-                
-            ax_DoS.axhline(sp["mu"], color = p[0].get_color(), ls = '--'
+            # plotting
+            pDoS = ax_DoS.plot(DoS_values, E_orbs_plot, '-', label = sp["name"])
+            ax_DoS.fill_betweenx(E_orbs_plot, filling, '--', alpha = 0.3)
+            ax_DoS.axhline(sp["mu"], color = pDoS[0].get_color(), ls = '--'
                         , label = r'$\mu = ${:.3f}, $s = ${:.4f}'.format(sp["mu"], sp["S"] / sp["Np"]))
             if sp["N_BEC"] != 0:
                 util.plot_delta_fn(ax, x0 = sp["E_orbs"][0], a0 = sp["N_BEC"], a_plt = max_DoS[i] * 0.8,
-                                   axis = 'y', color = p[0].get_color(), head_width = 0.5, head_length = 0.3)
+                                   axis = 'y', color = pDoS[0].get_color(), head_width = 0.5, head_length = 0.3)
 
-        # ax_DoS.set_ylim(min(min(self.mus), E_orbs_plot[0]) - 0.5, max(max(self.mus), E_orbs_plot[-1]) + 0.5)
         ax_DoS.set_xlabel("DoS [arb.]")
         ax_DoS.set_ylabel("E/t")
         ax_DoS.set_title(r'DoS ($T = ${:.2f})'.format(self.T))
@@ -193,12 +185,7 @@ class DoS_exp():
             hidden: a list of keys to ignore.
             str_len: length of the string displayed. Long strings are truncated, and short
                      strings are padded with spaces to the left.'''
-        if ax is None:
-            fig_table = plt.figure(1)
-            fig_table.clf()
-            ax_table = fig_table.add_axes(111)
-        else:
-            ax_table = ax
+        _, ax_table = util.make_simple_axes(ax, fignum = 2)
         
         displayed_keys = list(self.species_list[0].keys())
         for x in hidden: displayed_keys.remove(x)

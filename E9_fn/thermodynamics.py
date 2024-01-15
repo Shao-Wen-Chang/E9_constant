@@ -41,28 +41,23 @@ def E_orbs_from_DoS(DoS, E_range, sample_num: int, bin_num: int = 500):
     return E_orbs
 
 #%% Find thermodynamic values
-def find_Np(E_orbs, T, mu, stat: str) -> float:
+def find_Np(E_orbs, T, mu, xi) -> float:
     '''(Still returning float!) Find the number of (non-condensed) particle of a system.
     
     For fermions, this is the total number of particles in the system. For bosons, this
     is the total number of particles less the fraction that forms a BEC.
         T: (fundamental) temperature (i.e. multiplied by k_B)
-        stat: "fermi" or "bose"'''
-    if stat == "fermi":
-        return np.sum(util.fermi_stat(E_orbs, T, mu))
-    elif stat == "bose":
-        return np.sum(util.bose_stat(E_orbs, T, mu))
+        xi: 1 for fermions, -1 for bosons'''
+    return np.sum(util.part_stat(E_orbs, T, mu, xi, replace_inf = 0))
 
-def find_E(E_orbs, T, mu, stat: str, N_BEC: int = 0):
+def find_E(E_orbs, T, mu, xi, N_BEC: int = 0):
     '''Find the total energy of a system.
     
-        N_BEC: number of bose-condensed particles, if any'''
-    if stat == "fermi":
-        return sum(E_orbs * util.fermi_stat(E_orbs, T, mu))
-    elif stat == "bose":
-        return sum(E_orbs * util.fermi_stat(E_orbs, T, mu)) + N_BEC * E_orbs[0]
+        N_BEC: number of bose-condensed particles, if any (should be 0 for fermions)'''
+    return sum(E_orbs * util.part_stat(E_orbs, T, mu, xi, replace_inf = 0)) + N_BEC * E_orbs[0]
 
-def find_mu(E_orbs, T, Np, stat: str = "fermi", max_step: int = 10000, tolerance = 1e-6):
+
+def find_mu(E_orbs, T, Np, xi, max_step: int = 10000, tolerance = 1e-6):
     '''Find the chemical potential $\mu$ of a system, and (if any) the number of bose-
     condensed particles.
     
@@ -77,14 +72,14 @@ def find_mu(E_orbs, T, Np, stat: str = "fermi", max_step: int = 10000, tolerance
     Outputs:
         mu: chemical potential such that error to Np is less than the tolerance.
         N_BEC: 0 if fermion or non-condensed bosons'''
-    def mu_subroutine(mu_min, mu_max, Np, stat, tolerance):
+    def mu_subroutine(mu_min, mu_max, Np, xi, tolerance):
         '''Subroutine used in the algorithm.
         
         The algorithm finds mu by reducing the possible range of mu by a factor of 2
         for each iteration. If mu is within tolerance, both mu_min and mu_max is set
         to this acceptable mu. (so mu_min == mu_max signals termination of algorithm)'''
         mu = (mu_min + mu_max) / 2
-        N_mu = find_Np(E_orbs, T, mu, stat)
+        N_mu = find_Np(E_orbs, T, mu, xi)
         N_err = N_mu - Np
 
         if abs(N_err) < Np * tolerance: # good enough
@@ -103,9 +98,9 @@ def find_mu(E_orbs, T, Np, stat: str = "fermi", max_step: int = 10000, tolerance
 
     # For bosons, first check if the gas is bose-condensed; otherwise the procedure for
     # finding mu will be the same as Fermions, except that mu_max < E_orbs[0] must hold
-    if stat == "bose":
+    if xi == -1:
         # The ground state is excluded from the sum for ease of calculation
-        N_ex = find_Np(E_orbs[1:], T, E_orbs[0], stat)
+        N_ex = find_Np(E_orbs[1:], T, E_orbs[0], xi)
         if N_ex < Np:
             mu_min, mu_max = E_orbs[0], E_orbs[0]
             N_BEC = Np - N_ex
@@ -115,7 +110,7 @@ def find_mu(E_orbs, T, Np, stat: str = "fermi", max_step: int = 10000, tolerance
     # For fermions or non-condesed bosons; mu = mu_min = mu_max if the algorithm is successful
     if N_BEC == 0:
         for _ in range(max_step):
-            mu_min, mu_max = mu_subroutine(mu_min, mu_max, Np, stat, tolerance)
+            mu_min, mu_max = mu_subroutine(mu_min, mu_max, Np, xi, tolerance)
             if mu_min == mu_max: break
 
         if mu_min != mu_max:
@@ -123,19 +118,14 @@ def find_mu(E_orbs, T, Np, stat: str = "fermi", max_step: int = 10000, tolerance
 
     return mu_min, N_BEC
 
-def find_S(E_orbs, T, Np, mu = None, E_total = None, stat: str = "fermi", N_BEC: int = 0):
+def find_S(E_orbs, T, Np, xi, mu = None, E_total = None, N_BEC: int = 0):
     '''Find the fundamental entropy \sigma = S/k_B of a fermionic system.
     
     Although we use grand canonical ensemble for the analytical expression, we actually
     back out \mu from Np. If \mu is not given, then find_mu will be used to find \mu'''
-    if mu is None: mu = find_mu(E_orbs, T, Np, stat, N_BEC)
-    if E_total is None: E_total = find_E(E_orbs, T, mu, stat, N_BEC)
-    
-    if stat == "fermi":
-        xi = 1.
-    elif stat == "bose":
-        xi = -1.
-    
+    if mu is None: mu = find_mu(E_orbs, T, Np, xi, N_BEC)
+    if E_total is None: E_total = find_E(E_orbs, T, mu, xi, N_BEC)
+
     if N_BEC != 0:
         # Intentially coded in a way that assumes mu == E_orbs[0]; if result is
         # still inf then the calculation is wrong
