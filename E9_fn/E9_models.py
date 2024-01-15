@@ -127,6 +127,7 @@ class DoS_exp():
         
         self.mus = util.all_values_from_key(self.species_list, "mu")
         self.Nps = util.all_values_from_key(self.species_list, "Np")
+        self.N_BECs = util.all_values_from_key(self.species_list, "N_BEC")
         self.comments = util.all_values_from_key(self.species_list, "comment")
 
 
@@ -139,14 +140,12 @@ class DoS_exp():
     def find_Ss(self) -> None:
         '''Calculate the entropy for each species.'''
         for sp in self.species_list:
-            sp["S"] = thmdy.find_S(sp["E_orbs"], self.T, sp["Np"], sp["mu"], sp["E"], sp["stat"])
+            sp["S"] = thmdy.find_S(sp["E_orbs"], self.T, sp["Np"], sp["mu"], sp["E"], sp["stat"], sp["N_BEC"])
         self.Ss = util.all_values_from_key(self.species_list, "S")
     
     ### plot related methods
     def plot_DoSs(self, ax = None):
-        '''Visulaization of Dos + filling.'''
-        E_orbs_plot = np.linspace(min([x[0] for x in self.E_ranges])
-                              , max([x[1] for x in self.E_ranges])+10, 1000)
+        '''Visulaization of DoS + filling.'''
         if ax is None:
             fig_DoS = plt.figure(1)
             fig_DoS.clf()
@@ -154,17 +153,33 @@ class DoS_exp():
         else:
             ax_DoS = ax
 
-        for sp in self.species_list:
-            p = ax_DoS.plot(sp["DoS"](E_orbs_plot), E_orbs_plot, '-', label = sp["name"])
-            ax_DoS.fill_betweenx(E_orbs_plot, sp["DoS"](E_orbs_plot) * util.fermi_stat(E_orbs_plot, self.T, sp["mu"])
-                                , '--', alpha = 0.3)
+        # Plot DoS and filling
+        max_DoS = np.zeros(len(self.species_list))
+        for i, sp in enumerate(self.species_list):
+            E_orbs_plot = np.linspace(sp["E_range"][0], sp["E_range"][1], 1000)
+            if sp["N_BEC"] != 0: E_orbs_plot = E_orbs_plot[1:]
+            DoS_values = sp["DoS"](E_orbs_plot)
+            max_DoS[i] = max(DoS_values)
+            p = ax_DoS.plot(DoS_values, E_orbs_plot, '-', label = sp["name"])
+            
+            if sp["stat"] == "fermi":
+                ax_DoS.fill_betweenx(E_orbs_plot, DoS_values * util.fermi_stat(E_orbs_plot, self.T, sp["mu"])
+                                    , '--', alpha = 0.3)
+            elif sp["stat"] == "bose":
+                ax_DoS.fill_betweenx(E_orbs_plot, DoS_values * util.bose_stat(E_orbs_plot, self.T, sp["mu"])
+                                    , '--', alpha = 0.3)
+                
             ax_DoS.axhline(sp["mu"], color = p[0].get_color(), ls = '--'
                         , label = r'$\mu = ${:.3f}, $s = ${:.4f}'.format(sp["mu"], sp["S"] / sp["Np"]))
+            if sp["N_BEC"] != 0:
+                util.plot_delta_fn(ax, x0 = sp["E_orbs"][0], a0 = sp["N_BEC"], a_plt = max_DoS[i] * 0.8,
+                                   axis = 'y', color = p[0].get_color(), head_width = 0.5, head_length = 0.3)
 
         # ax_DoS.set_ylim(min(min(self.mus), E_orbs_plot[0]) - 0.5, max(max(self.mus), E_orbs_plot[-1]) + 0.5)
         ax_DoS.set_xlabel("DoS [arb.]")
         ax_DoS.set_ylabel("E/t")
         ax_DoS.set_title(r'DoS ($T = ${:.2f})'.format(self.T))
+        ax_DoS.set_xlim(0, max(max_DoS) * 1.5)
         ax_DoS.legend()
         return ax_DoS
     

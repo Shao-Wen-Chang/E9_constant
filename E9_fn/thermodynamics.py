@@ -41,8 +41,8 @@ def E_orbs_from_DoS(DoS, E_range, sample_num: int, bin_num: int = 500):
     return E_orbs
 
 #%% Find thermodynamic values
-def find_Np(E_orbs, T, mu, stat: str):
-    '''Find the number of (non-condensed) particle of a system.
+def find_Np(E_orbs, T, mu, stat: str) -> float:
+    '''(Still returning float!) Find the number of (non-condensed) particle of a system.
     
     For fermions, this is the total number of particles in the system. For bosons, this
     is the total number of particles less the fraction that forms a BEC.
@@ -104,7 +104,8 @@ def find_mu(E_orbs, T, Np, stat: str = "fermi", max_step: int = 10000, tolerance
     # For bosons, first check if the gas is bose-condensed; otherwise the procedure for
     # finding mu will be the same as Fermions, except that mu_max < E_orbs[0] must hold
     if stat == "bose":
-        N_ex = find_Np(E_orbs, T, E_orbs[0], stat)
+        # The ground state is excluded from the sum for ease of calculation
+        N_ex = find_Np(E_orbs[1:], T, E_orbs[0], stat)
         if N_ex < Np:
             mu_min, mu_max = E_orbs[0], E_orbs[0]
             N_BEC = Np - N_ex
@@ -135,7 +136,13 @@ def find_S(E_orbs, T, Np, mu = None, E_total = None, stat: str = "fermi", N_BEC:
     elif stat == "bose":
         xi = -1.
     
-    return (E_total - mu * Np) / T + xi * np.log(1 + xi * np.exp((mu - E_orbs) / T)).sum()
+    if N_BEC != 0:
+        # Intentially coded in a way that assumes mu == E_orbs[0]; if result is
+        # still inf then the calculation is wrong
+        print("N_BEC = {:.2f}; don't include the ground state in log".format(N_BEC))
+        return (E_total - mu * Np) / T + xi * np.log(1 + xi * np.exp((mu - E_orbs[1:]) / T)).sum()
+    else:
+        return (E_total - mu * Np) / T + xi * np.log(1 + xi * np.exp((mu - E_orbs) / T)).sum()
 
 #%% Simulation
 if __name__ == "__main__":

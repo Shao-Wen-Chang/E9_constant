@@ -56,14 +56,14 @@ def VecTheta(theta):
     return np.array([np.cos(theta), np.sin(theta)])
 
 #%% Special functions not defined in scipy
-def bose_stat(E, tau, mu = 0):
+def bose_stat(E, tau, mu = 0.):
     """The Bose statistics function.
     
     Be careful about units!
         E: energy of the orbital
         tau: fundamental temperature, \tau = k_B * T
         mu: chemical potential, if considered"""
-    return 1/(np.exp((E - mu) / tau) - 1)
+    return 1/(np.exp((E - mu) / tau) - 1.)
 
 def Gaussian_1D(x, s = 1, mu = 0):
     """The Gaussian normal distribution (i.e. integrates to 1)."""
@@ -94,26 +94,33 @@ def plot_delta_fn(ax,
                   a_plt: float = 1,
                   text: str = None,
                   axis = 'x',
-                  *kwargs):
+                  **kwargs):
     '''Plot the delta function, a0 * delta(x - x0), as an arrow.
     
-    The arrow makes it clear that the delta function is not just a sharply peaked function.
+    The arrow must be plotted after limits have changed.
         ax: the Axes object to be plotted on.
         x0: position of the delta function peak.
         a0: actual value that the delta function integrates to. Only affects the text.
-        a_plt: the length of the arrow on the plot, normalized to y_lim (or x_lim).
+        a0: length of the arrow.
         text: the text to be added next to the arrow to indicate the actual value of
               a0. Default to a0 if None.
         axis: which axis is used as the variable. Default is x (horizontal axis).
         *kwargs: must be plot-related arguments accepted by arrow().'''
     # Initialize arguments to arrow()
-    if text is None: text = str(a0)
+    if text is None: text = '{:.2f}'.format(a0)
+
+    xlims, ylims = ax.get_xlim(), ax.get_ylim()
+    xc, xr = (xlims[0] + xlims[1]) / 2., xlims[1] - xlims[0]
+    yc, yr = (ylims[0] + ylims[1]) / 2., ylims[1] - ylims[0]
     if axis == 'x':
-        (xi, yi, dx, dy) = (x0, 0, 0, a0)
+        (xi, yi, dx, dy) = (x0, 0, 0, a_plt)
+        tx, ty = xi + dx + 0.05 * xr, yi + dy
     elif axis == 'y':
-        (xi, yi, dx, dy) = (0, x0, a0, 0)
+        (xi, yi, dx, dy) = (0, x0, a_plt, 0)
+        tx, ty = xi + dx, yi + dy + 0.05 * yr
     else:
         raise("axis must be \'x\' or \'y\'")
     
-    arr = ax.arrow(xi, yi, dx, dy, *kwargs)
+    arr = ax.arrow(xi, yi, dx, dy, **kwargs)
+    ax.text(tx, ty, text)
     return arr
