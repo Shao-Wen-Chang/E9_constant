@@ -1,3 +1,4 @@
+# Recommended import call: import E9_fn.E9_models as E9M
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.table import table as plot_table
@@ -16,9 +17,10 @@ import E9_fn.thermodynamics as thmdy
 class DoS_exp():
     '''Models that focuses on the density of states (DoS) of possibly several species.
     
-    Each "experiment" or "system" contains one or more atomic species in a finite size
-    system. They can be a single isotope in different spin states, several atomic species
-    , etc. Each of the species has their own set of properties, such as the size of the
+    Each "experiment" or "system" contains one or more "species" in a finite size
+    system. Each "species" can be a single isotope in different spin states,
+    several atomic species, or even the same spin state but with different DoS.
+    They are defined by their own set of properties, such as the size of the
     system, DoS, # of particles, or interaction strength.
 
     A "reservoir" is a special kind of species that is actually the same species as some

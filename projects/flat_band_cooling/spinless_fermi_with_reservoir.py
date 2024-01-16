@@ -7,6 +7,8 @@ sys.path.insert(1,
 from E9_fn import util
 import E9_fn.E9_models as E9M
 # spinless fermion in a step potential with flat band dispersion
+# Note that this setup actually does NOT allow thermalization (single species
+# fermions). See what a "species" mean in DoS_exp.
 
 #%% Experiment initialization 
 #   "system": 1/10 of the number of sites, half-filled

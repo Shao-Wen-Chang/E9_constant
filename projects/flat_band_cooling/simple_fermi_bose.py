@@ -21,7 +21,7 @@ simple_flatband_DoS = lambda x: (2/3) * simple_2D_DoS(x) \
 DoS_exp = simple_flatband_DoS
 
 # fermion specific
-nu_f = 5/6               # filling factor (1 is fully filled)
+nu_f = 4/6               # filling factor (1 is fully filled)
 Np_f = int(V * nu_f)        # number of fermions
 
 # boson specific
