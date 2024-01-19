@@ -56,7 +56,7 @@ def VecTheta(theta):
     return np.array([np.cos(theta), np.sin(theta)])
 
 #%% Special functions not defined in scipy
-def part_stat(E, tau, mu, xi, replace_inf = "Don't"):
+def part_stat(E, tau, mu, xi, replace_inf = "Don't", verbose: bool = False):
     """Fermi (xi = +1) or Bose (xi = -1) statistics function.
     
     Useful for coding. bose_stat and fermi_stat are the two possible cases for
@@ -67,18 +67,19 @@ def part_stat(E, tau, mu, xi, replace_inf = "Don't"):
         mu: chemical potential, if considered
         xi: 1 for fermions, -1 for bosons
         replace_inf: the value used to replace any inf. If "Don't" (default),
-                     then raise an error."""
+                     then raise an error.
+        verbose: print messages if True."""
     if xi != 1 and xi != -1:
         print("xi = {}".format(xi))
         raise Exception("xi must be 1 or -1")
     
     output = 1/(np.exp((E - mu) / tau) + xi)
     if np.isinf(output).any():
-        print("inf encountered")
+        if verbose: print("inf encountered")
         if replace_inf == "Don't":
             raise Exception("no replacement value given")
         else:
-            print("Replace inf with {}".format(replace_inf))
+            if verbose: print("Replace inf with {}".format(replace_inf))
             output[np.isinf(output)] = replace_inf
     return output
 
