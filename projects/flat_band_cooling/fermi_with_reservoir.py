@@ -1,3 +1,4 @@
+# Recommended import call: import fermi_with_reservoir as fwr
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
@@ -44,7 +45,9 @@ step_pot_exp = E9M.DoS_exp(T, [
 ])
 
 #%% simulation
-if __name__ == "__main__":
+def main(**kwargs):
+    calculation_mode = kwargs["calculation_mode"]
+
     step_pot_exp.find_outputs()
     fig_exp = plt.figure(1, figsize = (5, 8))
     ax_DoS = fig_exp.add_subplot(211)
@@ -53,3 +56,6 @@ if __name__ == "__main__":
     step_pot_exp.plot_DoSs(ax_DoS)
     step_pot_exp.tabulate_params(ax_table)
     plt.tight_layout()
+
+if __name__ == "__main__":
+    main()

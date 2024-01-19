@@ -1,3 +1,4 @@
+# Recommended import call: import simple_fermi_bose as sfb
 import sys
 from copy import deepcopy
 import numpy as np
@@ -39,12 +40,12 @@ exp_fb = E9M.DoS_exp(T, [
 ])
 
 #%% simulation
-if __name__ == "__main__":
+def main(**kwargs):
     # What to calculate: (inputs specific for each calculation mode are defined below)
     #   simple - Find basic thermodynamic parameters of the experiment defined above
     #   isentropic - Find equilibirum conditions for total entropies in isen_S_list
     #                T is used as the initial guess of the first entry
-    calculation_mode = "isentropic"
+    calculation_mode = kwargs["calculation_mode"]
 
     if calculation_mode == "simple":
         exp_fb.find_outputs()
@@ -102,3 +103,6 @@ if __name__ == "__main__":
         
         fig_exp.suptitle("Simple fermi-bose experiment")
         fig_exp.tight_layout()
+
+if __name__ == "__main__":
+    main(calculation_mode = "isentropic")
