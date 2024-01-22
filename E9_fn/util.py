@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import Iterable
@@ -56,7 +57,7 @@ def VecTheta(theta):
     return np.array([np.cos(theta), np.sin(theta)])
 
 #%% Special functions not defined in scipy
-def part_stat(E, tau, mu, xi, replace_inf = "Don't", verbose: bool = False):
+def part_stat(E, tau, mu, xi, replace_inf = "Don't"):
     """Fermi (xi = +1) or Bose (xi = -1) statistics function.
     
     Useful for coding. bose_stat and fermi_stat are the two possible cases for
@@ -67,20 +68,19 @@ def part_stat(E, tau, mu, xi, replace_inf = "Don't", verbose: bool = False):
         mu: chemical potential, if considered
         xi: 1 for fermions, -1 for bosons
         replace_inf: the value used to replace any inf. If "Don't" (default),
-                     then raise an error.
-        verbose: print messages if True."""
+                     then raise an error."""
     if xi != 1 and xi != -1:
-        print("xi = {}".format(xi))
-        raise Exception("xi must be 1 or -1")
+        logging.error("xi = {}".format(xi))
+        raise Exception("xi must be 1 or -1 in part_stat")
     
     output = 1/(np.exp((E - mu) / tau) + xi)
     if np.isinf(output).any():
-        if verbose: print("inf encountered")
         if replace_inf == "Don't":
+            logging.error("inf encountered in part_stat")
             raise Exception("no replacement value given")
         else:
-            if verbose: print("Replace inf with {}".format(replace_inf))
             output[np.isinf(output)] = replace_inf
+            logging.info("inf encountered in part_stat; replaced with {}".format(replace_inf))
     return output
 
 def bose_stat(E, tau, mu = 0.):
@@ -110,6 +110,28 @@ def rect_fn(x, x0: float = 0, x1: float = 0):
     return step_fn(x, x0) * step_fn(-x, -x1)
 
 #%% Helper plotting functions
+#%% Plot parameters
+def set_custom_plot_style(actv: bool = True, overwrite: dict = {}):
+    '''Use a set of rcParams that I prefer.
+    
+    To restore to default values, use plt.rcdefaults().
+        overwrite: a dictionary with rcParams settings. This overwrites the
+                   original custom values.'''
+    # The default custom parameters
+    custom_rcParams = {"font.size": 18,                     # Default is 10
+                       "axes.labelsize": "large",
+                       "axes.formatter.limits": (-3, 3),    # Default is [-5, 6]
+                       "xtick.minor.visible": True,
+                       "ytick.minor.visible": True,
+                       "figure.autolayout": True,           # Use tight layout
+                       } | overwrite
+
+    if actv:
+        for key, value in custom_rcParams.items():
+            plt.rcParams[key] = value
+    else:
+        plt.rcdefaults()
+
 def make_simple_axes(ax = None, fignum = None):
     '''Make a figure with one single Axes if ax is None, and return (figure, axes).
     
@@ -122,7 +144,6 @@ def make_simple_axes(ax = None, fignum = None):
     else:
         return (ax.get_figure(), ax)
         
-
 def plot_delta_fn(ax,
                   x0: float = 0,
                   a0: float = 1,

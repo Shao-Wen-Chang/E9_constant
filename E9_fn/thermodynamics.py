@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 
 from E9_fn import util
@@ -114,7 +115,7 @@ def find_mu(E_orbs, T, Np, xi, max_step: int = 10000, tolerance = 1e-6):
             if mu_min == mu_max: break
 
         if mu_min != mu_max:
-            print("Warning: error in particle number is larger than the tolerance")
+            logging.warning("Error in particle number is larger than the tolerance")
 
     return mu_min, N_BEC
 
@@ -129,7 +130,7 @@ def find_S(E_orbs, T, Np, xi, mu = None, E_total = None, N_BEC: int = 0):
     if N_BEC != 0:
         # Intentially coded in a way that assumes mu == E_orbs[0]; if result is
         # still inf then the calculation is wrong
-        print("N_BEC = {:.2f}; don't include the ground state in log".format(N_BEC))
+        logging.info("N_BEC = {:.2f}; don't include the ground state in log".format(N_BEC))
         return (E_total - mu * Np) / T + xi * np.log(1 + xi * np.exp((mu - E_orbs[1:]) / T)).sum()
     else:
         return (E_total - mu * Np) / T + xi * np.log(1 + xi * np.exp((mu - E_orbs) / T)).sum()

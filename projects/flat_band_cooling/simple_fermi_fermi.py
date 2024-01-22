@@ -1,4 +1,4 @@
-# Recommended import call: import simple_fermi_bose as sfb
+# Recommended import call: import simple_fermi_fermi as sff
 import sys
 from copy import deepcopy
 import logging
@@ -11,11 +11,12 @@ sys.path.insert(1,
     "C:\\Users\\ken92\\Documents\\Studies\\E5\\simulation\\E9_simulations")
 from E9_fn import util
 import E9_fn.E9_models as E9M
-# non-interacting spinless fermions and spinless bosons in a uniform potential
+# non-interacting spin-1/2 fermions in a uniform potential
+# (Spins are labelled with numbers for ease of generalizing to >2 spin species)
 
 #%% Experiment initialization 
 V = 3 * 100**2      # size of the experiment (imagine a kagome lattice with n*n unit cells)
-T = 0.4             # (fundamental) temperature (k_B * T)
+T = 0.05             # (fundamental) temperature (k_B * T)
 bandwidth = 6       # bandwidth (of band structure; 6 for tight-binding kagome lattice)
 E_range_exp = (0, bandwidth + 1)    # energies considered in calculation
     # Defining DoS
@@ -25,18 +26,18 @@ simple_flatband_DoS = lambda x: (2/3) * simple_2D_DoS(x) \
     + (1/3) * norm_factor * util.Gaussian_1D(x, s = 0.1, mu = 4)
 DoS_exp = simple_flatband_DoS
 
-# fermion specific
-nu_f = 4/6               # filling factor (1 is fully filled)
-Np_f = int(V * nu_f)        # number of fermions
+# spin 1 specific
+nu_1 = 3/6               # filling factor (1 is fully filled)
+Np_1 = int(V * nu_1)        # number of fermions
 
-# boson specific
-nu_b = 2/6               # filling factor (1 is one particle per site)
-Np_b = int(V * nu_b)        # number of bosons
+# spin 2 specific
+nu_2 = 3/6               # filling factor (1 is one particle per site)
+Np_2 = int(V * nu_2)        # number of bosons
 
 exp_fb = E9M.DoS_exp(T, [
-    {"name": "fermion", "V": V, "Np": Np_f, "stat": 1, "DoS": DoS_exp,
+    {"name": "fermion 1", "V": V, "Np": Np_1, "stat": 1, "DoS": DoS_exp,
         "E_range": E_range_exp, "reservoir": "", "comment": {}},
-    {"name": "boson", "V": V, "Np": Np_b, "stat": -1, "DoS": DoS_exp,
+    {"name": "fermion 2", "V": V, "Np": Np_2, "stat": 1, "DoS": DoS_exp,
         "E_range": E_range_exp, "reservoir": "", "comment": {}},
 ])
 
@@ -78,31 +79,24 @@ def main(**kwargs):
         
         # Plots
         fig_exp = plt.figure(1, figsize = (5,8))
-        ax_SvsT = fig_exp.add_subplot(421)
+        ax_SvsT = fig_exp.add_subplot(221)
         ax_SvsT.plot(isen_S_list, isen_T_list)
         ax_SvsT.set_xlabel(r"$S_{tot}$")
         ax_SvsT.set_ylabel("T")
 
         fermi_S = np.array([x.species_list[0]["S"] for x in isen_exp_list])
-        ax_Srel = fig_exp.add_subplot(422)
+        ax_Srel = fig_exp.add_subplot(222)
         ax_Srel.plot(isen_S_list, fermi_S / isen_S_list)
         ax_Srel.set_xlabel(r"$S_{tot}$")
-        ax_Srel.set_ylabel(r"$S_f/S_{tot}$")
-
-        bose_BEC = np.array([x.species_list[1]["N_BEC"] for x in isen_exp_list])
-        box_width = isen_S_list[1] - isen_S_list[0]
-        ax_BEC = fig_exp.add_subplot(423)
-        ax_BEC.bar(x = isen_S_list, height = bose_BEC, width = box_width)
-        ax_BEC.set_xlabel(r"$S_{tot}$")
-        ax_BEC.set_ylabel(r"$N_{BEC}^{b}$")
+        ax_Srel.set_ylabel(r"$S_f1/S_{tot}$")
 
         tabulated_run = 2
-        ax_tab = fig_exp.add_subplot(212)
+        ax_tab = fig_exp.add_subplot(313)
         ax_tab.set_axis_off()
         isen_exp_list[tabulated_run].tabulate_params(ax_tab)
         ax_tab.set_title("Showing S = {}".format(isen_S_list[tabulated_run]))
         
-        fig_exp.suptitle("Simple fermi-bose experiment")
+        fig_exp.suptitle("Simple fermi-fermi experiment")
         fig_exp.tight_layout()
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 # Recommended import call: import E9_fn.E9_models as E9M
+import logging
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.table import table as plot_table
@@ -67,11 +68,12 @@ class DoS_exp():
                 try:
                     self._refsys[i] = self.names.index(r)
                 except ValueError:
-                    print(r + " not found in the list of names")
+                    logging.error(r + " not found in the list of names")
 
         # self.comments = util.all_values_from_key(species_list, "comment") # not useful if not updated
     
     def check_consistency(self, update: bool = True):
+        '''Not implemented yet - need a better way to handle array comparision'''
         # '''Check that all the attributes of the object matches those in self.species_list.
         
         # Currently this method assumes that the species in species_list all have the same
@@ -180,7 +182,7 @@ class DoS_exp():
     def tabulate_params(self,
                         ax = None,
                         hidden: list[str] = ["DoS", "E_orbs"],
-                        str_len: int = 25):
+                        str_len: int = 10):
         '''Tabulate all the currently available parameters.
         
         "comment" is a dictionary of str. It is currently handled in an ugly way.

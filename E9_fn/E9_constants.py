@@ -1,5 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
 # All in SI units unless otherwise noted. Also, I try to use FREQUENCIES instead of ANGULAR FREQUENCIES all the time, and if
 # I ever use ANGULAR FREQUENCIES I prefer to include the factor of 2pi explicitly. e.g. (2 * pi) * 20. The units for ANGULAR
 # FREQUENCIES is [rad/s].
@@ -31,18 +30,7 @@ import matplotlib.pyplot as plt
 #     2000s: Feshbach resonance rated
 #         2000: scattering length vs B field
 
-custom_plot_style = True
-use_tight_layout = False
 unit_system = 'SI' # SI, a.u. ((Hartree) atomic unit) (not walked through)
-
-#%% Plot parameters
-if custom_plot_style:
-    plt.rcParams['axes.labelsize'] = 'large'
-    plt.rcParams['font.size'] = 18             # Default is 10
-    plt.rcParams['xtick.minor.visible'] = True
-    plt.rcParams['ytick.minor.visible'] = True
-    if use_tight_layout:
-        plt.rcParams['figure.autolayout'] = True # Use tight layout
 
 #%% natural constants
 if unit_system == 'SI':

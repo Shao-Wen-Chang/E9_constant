@@ -1,6 +1,7 @@
 # Recommended import call: import equilibrium_finder as eqfind
 import sys
 from copy import deepcopy
+import logging
 import numpy as np
 from scipy.optimize import root_scalar, RootResults
 # User defined modules
@@ -41,5 +42,5 @@ def isentropic_solver(S0: float,
 
     rrst = root_scalar(S_err, args = (exp0, S0), x0 = exp0.T, method = "secant",
                        rtol = tol, maxiter = max_step) # outputs a root_result object
-    if not rrst.converged: print("Algorithm failed to converge!")
+    if not rrst.converged: logging.warning("Algorithm failed to converge!")
     return rrst.root, rrst
