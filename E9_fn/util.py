@@ -5,12 +5,12 @@ from typing import Iterable
 
 #%% dictionary manipulation
 def all_values_from_key(dict_iter: Iterable[dict], key, default = 'raise_error'):
-    '''Given an iterable of dictionaries, return the value in each that correspond to key.
+    """Given an iterable of dictionaries, return the value in each that correspond to key.
     
     The default behavior is to raise error if a key value doesn't exist in one of the
     dictionary. The output is of the same type as dict_iter.
         default: if == 'raise_error', then raise KeyError. Otherwise, it sets the value
-                 to use if a dictionary doesn't have the key value given.'''
+                 to use if a dictionary doesn't have the key value given."""
     iter_type = type(dict_iter)
     if default == 'raise_error':
         return iter_type([x[key] for x in dict_iter])
@@ -19,14 +19,14 @@ def all_values_from_key(dict_iter: Iterable[dict], key, default = 'raise_error')
 
 #%% np.array manipulation
 def find_nearest(arr, val):
-    '''Find the nearest value to val in arr, returned as a tuple of (value, idx)'''
+    """Find the nearest value to val in arr, returned as a tuple of (value, idx)"""
     idx = (np.abs(arr - val)).argmin()
     return (arr[idx], idx)
 
 def find_y_by_nearest_x(xarr, yarr, val):
-    '''For a dataset (x, y), find the value of y, whose corresponding x is closest to val, and return as a tuple of (x, y)
+    """For a dataset (x, y), find the value of y, whose corresponding x is closest to val, and return as a tuple of (x, y)
     
-    xarr and yarr should have the same shape.'''
+    xarr and yarr should have the same shape."""
     xnear, idx = find_nearest(xarr, val)
     return (xnear, yarr[idx])
 
@@ -100,23 +100,23 @@ def LogisticFn(x, x0 = 0, k = 1):
     return 1/(1 + np.exp(- k * (x - x0)))
 
 def step_fn(x, x0: float = 0):
-    '''Returns the step function, f = 1 for x >= x0, f = 0 otherwise.
+    """Returns the step function, f = 1 for x >= x0, f = 0 otherwise.
     
-    Can easily extend to different behaviors at x0 if needed.'''
+    Can easily extend to different behaviors at x0 if needed."""
     return np.array(x >= x0).astype(float)
 
 def rect_fn(x, x0: float = 0, x1: float = 0):
-    '''Returns the rectangular function, f = 1 for x1 >= x >= x0, f = 0 otherwise.'''
+    """Returns the rectangular function, f = 1 for x1 >= x >= x0, f = 0 otherwise."""
     return step_fn(x, x0) * step_fn(-x, -x1)
 
 #%% Helper plotting functions
 #%% Plot parameters
 def set_custom_plot_style(actv: bool = True, overwrite: dict = {}):
-    '''Use a set of rcParams that I prefer.
+    """Use a set of rcParams that I prefer.
     
     To restore to default values, use plt.rcdefaults().
         overwrite: a dictionary with rcParams settings. This overwrites the
-                   original custom values.'''
+                   original custom values."""
     # The default custom parameters
     custom_rcParams = {"font.size": 18,                     # Default is 10
                        "axes.labelsize": "large",
@@ -133,9 +133,9 @@ def set_custom_plot_style(actv: bool = True, overwrite: dict = {}):
         plt.rcdefaults()
 
 def make_simple_axes(ax = None, fignum = None):
-    '''Make a figure with one single Axes if ax is None, and return (figure, axes).
+    """Make a figure with one single Axes if ax is None, and return (figure, axes).
     
-    My favorite thing to have in the beginning of a plotting function.'''
+    My favorite thing to have in the beginning of a plotting function."""
     if ax is None:
         f = plt.figure(num = fignum)
         f.clf()
@@ -151,7 +151,7 @@ def plot_delta_fn(ax,
                   text: str = None,
                   axis = 'x',
                   **kwargs):
-    '''Plot the delta function, a0 * delta(x - x0), as an arrow.
+    """Plot the delta function, a0 * delta(x - x0), as an arrow.
     
     The arrow must be plotted after limits have changed.
         ax: the Axes object to be plotted on.
@@ -161,7 +161,7 @@ def plot_delta_fn(ax,
         text: the text to be added next to the arrow to indicate the actual value of
               a0. Default to a0 if None.
         axis: which axis is used as the variable. Default is x (horizontal axis).
-        *kwargs: must be plot-related arguments accepted by arrow().'''
+        *kwargs: must be plot-related arguments accepted by arrow()."""
     # Initialize arguments to arrow()
     if text is None: text = '{:.2f}'.format(a0)
 

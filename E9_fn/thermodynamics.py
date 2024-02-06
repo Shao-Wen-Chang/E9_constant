@@ -8,7 +8,7 @@ from E9_fn import util
 ### Definitions ###
 #%% Functions for generating the list of orbital energies E_orbs
 def E_orbs_from_DoS(DoS, E_range, sample_num: int, bin_num: int = 500):
-    '''Given a density of state DoS, return a list of energies sampled from this DoS.
+    """Given a density of state DoS, return a list of energies sampled from this DoS.
     
     Assumes continuous DoS. E_range is separated into bin_num bins, and energies in each
     bin are evenly spread out.
@@ -17,7 +17,7 @@ def E_orbs_from_DoS(DoS, E_range, sample_num: int, bin_num: int = 500):
         sample_num: total number of points in E_range. Should be system size.
         bin_num: number of bins in E_range.
         
-        E_orbs: ndarray; energies of orbitals.'''
+        E_orbs: ndarray; energies of orbitals."""
     # Condition the bins
     bin_E_ends = np.linspace(E_range[0], E_range[1], bin_num + 1)
     bin_weights = DoS(bin_E_ends[1:])
@@ -43,23 +43,23 @@ def E_orbs_from_DoS(DoS, E_range, sample_num: int, bin_num: int = 500):
 
 #%% Find thermodynamic values
 def find_Np(E_orbs, T, mu, xi) -> float:
-    '''(Still returning float!) Find the number of (non-condensed) particle of a system.
+    """(Still returning float!) Find the number of (non-condensed) particle of a system.
     
     For fermions, this is the total number of particles in the system. For bosons, this
     is the total number of particles less the fraction that forms a BEC.
         T: (fundamental) temperature (i.e. multiplied by k_B)
-        xi: 1 for fermions, -1 for bosons'''
+        xi: 1 for fermions, -1 for bosons"""
     return np.sum(util.part_stat(E_orbs, T, mu, xi, replace_inf = 0))
 
 def find_E(E_orbs, T, mu, xi, N_BEC: int = 0):
-    '''Find the total energy of a system.
+    """Find the total energy of a system.
     
-        N_BEC: number of bose-condensed particles, if any (should be 0 for fermions)'''
+        N_BEC: number of bose-condensed particles, if any (should be 0 for fermions)"""
     return sum(E_orbs * util.part_stat(E_orbs, T, mu, xi, replace_inf = 0)) + N_BEC * E_orbs[0]
 
 
 def find_mu(E_orbs, T, Np, xi, max_step: int = 10000, tolerance = 1e-6):
-    '''Find the chemical potential $\mu$ of a system, and (if any) the number of bose-
+    """Find the chemical potential $\mu$ of a system, and (if any) the number of bose-
     condensed particles.
     
     $\mu$ is chosen such that N comes out right. (I could have also just used an integral
@@ -72,13 +72,13 @@ def find_mu(E_orbs, T, Np, xi, max_step: int = 10000, tolerance = 1e-6):
         tolerance: acceptable fractional error on N.
     Outputs:
         mu: chemical potential such that error to Np is less than the tolerance.
-        N_BEC: 0 if fermion or non-condensed bosons'''
+        N_BEC: 0 if fermion or non-condensed bosons"""
     def mu_subroutine(mu_min, mu_max, Np, xi, tolerance):
-        '''Subroutine used in the algorithm.
+        """Subroutine used in the algorithm.
         
         The algorithm finds mu by reducing the possible range of mu by a factor of 2
         for each iteration. If mu is within tolerance, both mu_min and mu_max is set
-        to this acceptable mu. (so mu_min == mu_max signals termination of algorithm)'''
+        to this acceptable mu. (so mu_min == mu_max signals termination of algorithm)"""
         mu = (mu_min + mu_max) / 2
         N_mu = find_Np(E_orbs, T, mu, xi)
         N_err = N_mu - Np
@@ -120,10 +120,10 @@ def find_mu(E_orbs, T, Np, xi, max_step: int = 10000, tolerance = 1e-6):
     return mu_min, N_BEC
 
 def find_S(E_orbs, T, Np, xi, mu = None, E_total = None, N_BEC: int = 0):
-    '''Find the fundamental entropy \sigma = S/k_B of a fermionic system.
+    """Find the fundamental entropy \sigma = S/k_B of a fermionic system.
     
     Although we use grand canonical ensemble for the analytical expression, we actually
-    back out \mu from Np. If \mu is not given, then find_mu will be used to find \mu'''
+    back out \mu from Np. If \mu is not given, then find_mu will be used to find \mu"""
     if mu is None: mu = find_mu(E_orbs, T, Np, xi, N_BEC)
     if E_total is None: E_total = find_E(E_orbs, T, mu, xi, N_BEC)
 

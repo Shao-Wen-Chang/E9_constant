@@ -7,17 +7,17 @@ from E9_fn.E9_constants import *
 
 #%% Two-level system (TLS) physics
 def Gamma_scat(s0, delta, gamma):
-    '''[Hz] Returns the photon scattering rate as calculated by TLS optical Bloch equation.
+    """[Hz] Returns the photon scattering rate as calculated by TLS optical Bloch equation.
     
     This is \gamma_p in [PvdS] eqn 2.26.
         s0: [dimless] saturation parameter; s0 := I/I_sat
         delta: [Hz] detuning
-        gamma: [Hz] transition linewidth'''
+        gamma: [Hz] transition linewidth"""
     return (gamma / 2) * s0 / (1 + s0 + (2 * delta / gamma)**2)
 
 #%% Laser cooling related
 def F_molasses(v, k, s0, delta, gamma, z = 0, Ag = 0):
-    '''[N] Returns the velocity dependent force in an optical molasses.
+    """[N] Returns the velocity dependent force in an optical molasses.
     
     Using (hbar * k * gamma) for the unit of force and (gamma * k) for velocities is convenient for plots.
     When both v and z are arrays they should have the same dimensions, and the two arrays are cycled at the same time.
@@ -27,21 +27,21 @@ def F_molasses(v, k, s0, delta, gamma, z = 0, Ag = 0):
         delta: [Hz] detuning (just from laser)
         gamma: [Hz] transition linewidth
         z: [m] distance from magnetic field zero
-        Ag: [T/m] Magnetic field gradient times g (see kappa_MOT)'''
+        Ag: [T/m] Magnetic field gradient times g (see kappa_MOT)"""
     return hbar * k * (Gamma_scat(s0, delta - v * k + z * Ag, gamma) - Gamma_scat(s0, delta + v * k, gamma))
 
 def beta_molasses(k, s0, delta, gamma):
-    '''[N/(m/s)] Returns the damping coefficient in an optical molasses.
+    """[N/(m/s)] Returns the damping coefficient in an optical molasses.
     
     This is [PvdS] eqn 7.2, which is valid for small velocities (F = -\beta v). Use F_molasses for arbitrary velocities.
     Check F_molasses for units.
     Some values of interest:
-        (damping rate) beta / m'''
+        (damping rate) beta / m"""
     return - 8 * hbar * k**2 * delta * s0 / (gamma * (1 + s0 + (2 * delta / gamma)**2)**2)
 
 #%% Trapping related
 def kappa_MOT(A, k, s0, delta, gamma, g = 1):
-    '''[N/m] Returns the restoring force coefficient in a MOT.
+    """[N/m] Returns the restoring force coefficient in a MOT.
     
     Check F_molasses for other inputs.
         A: [T/m] magnetic field gradient (= 0.01 * (gradient in [G/cm]))
@@ -49,7 +49,7 @@ def kappa_MOT(A, k, s0, delta, gamma, g = 1):
                      probably has something to do with using the stretched states)
     Some values of interest:
         (harmonic oscillator frequency) np.sqrt(kappa / m)
-        (MOT rms size) np.sqrt(k_B * T / kappa)'''
+        (MOT rms size) np.sqrt(k_B * T / kappa)"""
     return g * mu_B * A * beta_molasses(k, s0, delta, gamma) / (hbar * k)
 
 #%% Working area

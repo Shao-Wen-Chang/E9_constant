@@ -4,41 +4,41 @@ import matplotlib.pyplot as plt
 from E9_numbers import QuadrupoleBField
 
 def BFieldAtZSlice(z, rad_axis, coil_coeff, I):
-    '''Returns (3 x n) array of B field values at a fixed z over n points defined by rad_axis.'''
+    """Returns (3 x n) array of B field values at a fixed z over n points defined by rad_axis."""
     pos = np.vstack((rad_axis, np.zeros_like(rad_axis), z * np.ones_like(rad_axis)))
     return QuadrupoleBField(pos, coil_coeff, I)
 
 def BVecGradAtPos(pos, vec, coil_coeff, I):
-    '''Returns [(vec grad) pos] as a 3-element array at pos.
+    """Returns [(vec grad) pos] as a 3-element array at pos.
     
-    Note that this implementation assumes that the field is smooth within 1 um.'''
+    Note that this implementation assumes that the field is smooth within 1 um."""
     vecum = 0.5e-6 * vec / np.linalg.norm(vec)
     B1 = QuadrupoleBField(pos + vecum, coil_coeff, I)
     B2 = QuadrupoleBField(pos - vecum, coil_coeff, I)
     return (B1 - B2) / 1e-6
 
 def sB(a_lat, B_offset, B_grad, B_var):
-    '''Figure of merit for B field stability for single layer / site selection, see [Dydiowa].
+    """Figure of merit for B field stability for single layer / site selection, see [Dydiowa].
     
     a_lat: lattice spacing
     B_offset: strength of offset field at trap center
     B_grad: B field gradient, assumed to be constant
-    B_var: unwanted spatial variation of B field strength within a single layer due to curvature etc.'''
+    B_var: unwanted spatial variation of B field strength within a single layer due to curvature etc."""
     return (a_lat * B_grad - B_var) / B_offset
 
 def BVar(coil_coeff, I_FB, cloud_size, B_offset):
-    '''Returns the variation of |B| within a layer.
+    """Returns the variation of |B| within a layer.
     
     Note that practically cloud_size should be a funcion of I_FB.
-    It is assumed that the cloud is at the trap center ([0, 0, 0]).'''
+    It is assumed that the cloud is at the trap center ([0, 0, 0])."""
     return abs( abs(np.linalg.norm(QuadrupoleBField(np.array([0, 0, 0]), coil_coeff, I_FB) + np.array([0, 0, B_offset]))) \
         - abs(np.linalg.norm(QuadrupoleBField(np.array([cloud_size, 0, 0]), coil_coeff, I_FB) + np.array([0, 0, B_offset]))) )
 
 def sBandBo_Bgrads(a_lat, I_FBs, coil_coeff, cloud_size):
-    '''Returns B_offset's that maximizes sB, and the resulting sB's, for gradients given in B_grads.
+    """Returns B_offset's that maximizes sB, and the resulting sB's, for gradients given in B_grads.
     
     a_lat: lattice spacing
-    I_FBs: a list of FB coil currents'''
+    I_FBs: a list of FB coil currents"""
     B_offsets = np.arange(10, 100, 0.25) * 1e-4
     sB_best = np.zeros_like(I_FBs, dtype = np.float64)
     Bo_best = np.zeros_like(I_FBs, dtype = np.float64)

@@ -16,7 +16,7 @@ import E9_fn.thermodynamics as thmdy
 
 #%% DoS model - used in thermodynamical calculations
 class DoS_exp():
-    '''Models that focuses on the density of states (DoS) of possibly several species.
+    """Models that focuses on the density of states (DoS) of possibly several species.
     
     Each "experiment" or "system" contains one or more "species" in a finite size
     system. Each "species" can be a single isotope in different spin states,
@@ -32,9 +32,9 @@ class DoS_exp():
     
     Currently, the properties shared by all system are:
         1. Temperature (thermodynamical equilibrium);
-        2. -'''
+        2. -"""
     def __init__(self, T: float, species_list: list[dict]):
-        '''Each of the elements in species_list must be defined as a dictionary, with
+        """Each of the elements in species_list must be defined as a dictionary, with
         at least the following key-value pairs:
             "name": str                  # name of the species
             "V": int                     # number of orbitals / size of the system
@@ -49,7 +49,7 @@ class DoS_exp():
         Additional key-value pairs are assigned each time a value is calculated.
         
         Other inputs:
-            T: temperature of the system.'''
+            T: temperature of the system."""
         self.T = T
 
         self.species_list = species_list
@@ -73,13 +73,13 @@ class DoS_exp():
         # self.comments = util.all_values_from_key(species_list, "comment") # not useful if not updated
     
     def check_consistency(self, update: bool = True):
-        '''Not implemented yet - need a better way to handle array comparision'''
-        # '''Check that all the attributes of the object matches those in self.species_list.
+        """Not implemented yet - need a better way to handle array comparision"""
+        # """Check that all the attributes of the object matches those in self.species_list.
         
         # Currently this method assumes that the species in species_list all have the same
         # set of keys. This is desired anyway.
         #     update: if True, then the attribute values are updated if there are any
-        #             inconsistencies. If False, only prints a warning.'''
+        #             inconsistencies. If False, only prints a warning."""
         # all_keys = self.species_list[0].keys()
         # for key in all_keys:
         #     attr_name = key + 's' # This is bad coding practice
@@ -95,27 +95,27 @@ class DoS_exp():
 
     ### Thermodynamical calculations
     def find_outputs(self) -> None:
-        '''Helper function that calculates everything I can calculate.'''
+        """Helper function that calculates everything I can calculate."""
         self.find_E_orbs()
         self.find_mus()
         self.find_Es()
         self.find_Ss()
     
     def find_E_orbs(self) -> None:
-        '''Calculate the list of energies sampled from each DoS for each species.
+        """Calculate the list of energies sampled from each DoS for each species.
         
         This method both modifies the entries in species_list, and add the parameter E_orbss to
-        itself. The behavior of other find_xxx functions are similar.'''
+        itself. The behavior of other find_xxx functions are similar."""
         for sp in self.species_list:
             sp["E_orbs"] = thmdy.E_orbs_from_DoS(sp["DoS"], sp["E_range"], sp["V"])
         self.E_orbss = util.all_values_from_key(self.species_list, "E_orbs")
     
     def find_mus(self) -> None:
-        '''Calculate the chemical potential for each species.
+        """Calculate the chemical potential for each species.
         
         For reservoirs, mu is determined by the referenced system, and this function finds
         Np instead.
-        N_BEC = 0 always for fermionic species.'''
+        N_BEC = 0 always for fermionic species."""
         for i, sp in enumerate(self.species_list):
             if not sp["reservoir"]:
                 # Not a reservoir - find chemical potential by matching particle number
@@ -126,7 +126,7 @@ class DoS_exp():
                 sp["mu"] = self.species_list[self._refsys[i]]["mu"]
                 sp["Np"] = thmdy.find_Np(sp["E_orbs"], self.T, sp["mu"], sp["stat"])
                 sp["N_BEC"] = 0 # Not implemented yet
-                sp["comment"]["find_mus"] = \
+                if sp["stat"] == -1: sp["comment"]["find_mus"] = \
                 "Finding N_BEC for bosonic systems with reservoirs are not implemented yet"
         
         self.mus = util.all_values_from_key(self.species_list, "mu")
@@ -136,20 +136,23 @@ class DoS_exp():
 
 
     def find_Es(self) -> None:
-        '''Calculate the energy for each species.'''
+        """Calculate the energy for each species."""
         for sp in self.species_list:
             sp["E"] = thmdy.find_E(sp["E_orbs"], self.T, sp["mu"], sp["stat"], sp["N_BEC"])
         self.Es = util.all_values_from_key(self.species_list, "E")
 
     def find_Ss(self) -> None:
-        '''Calculate the entropy for each species.'''
+        """Calculate the entropy for each species."""
         for sp in self.species_list:
             sp["S"] = thmdy.find_S(sp["E_orbs"], self.T, sp["Np"], sp["stat"], sp["mu"], sp["E"], sp["N_BEC"])
         self.Ss = util.all_values_from_key(self.species_list, "S")
     
     ### plot related methods
-    def plot_DoSs(self, ax = None):
-        '''Visulaization of DoS + filling.'''
+    def plot_DoSs(self, ax = None, offset_traces: bool = False):
+        """Visulaization of DoS + filling.
+        
+        arguments:
+            offset_traces: if True, offset each DoS trace by a bit horizontally."""
         _, ax_DoS = util.make_simple_axes(ax, fignum = 1)
 
         # Plot DoS and filling
@@ -164,8 +167,13 @@ class DoS_exp():
             filling = DoS_values * util.part_stat(E_orbs_plot, self.T, sp["mu"], sp["stat"])
             
             # plotting
-            pDoS = ax_DoS.plot(DoS_values, E_orbs_plot, '-', label = sp["name"])
-            ax_DoS.fill_betweenx(E_orbs_plot, filling, '--', alpha = 0.3)
+            off_h = 0
+            if offset_traces:
+                off_h = 0.1 * i * max_DoS[i]
+                ax_DoS.axvline(off_h, color = 'k', ls = '-', lw = 0.5)
+            pDoS = ax_DoS.plot(DoS_values + off_h, E_orbs_plot, '-', label = sp["name"])
+            ax_DoS.fill_betweenx(E_orbs_plot, x1 = filling + off_h, x2 = off_h
+                                 , ls = '--', alpha = 0.3)
             ax_DoS.axhline(sp["mu"], color = pDoS[0].get_color(), ls = '--'
                         , label = r'$\mu = ${:.3f}, $s = ${:.4f}'.format(sp["mu"], sp["S"] / sp["Np"]))
             if sp["N_BEC"] != 0:
@@ -183,12 +191,12 @@ class DoS_exp():
                         ax = None,
                         hidden: list[str] = ["DoS", "E_orbs"],
                         str_len: int = 10):
-        '''Tabulate all the currently available parameters.
+        """Tabulate all the currently available parameters.
         
         "comment" is a dictionary of str. It is currently handled in an ugly way.
             hidden: a list of keys to ignore.
             str_len: length of the string displayed. Long strings are truncated, and short
-                     strings are padded with spaces to the left.'''
+                     strings are padded with spaces to the left."""
         _, ax_table = util.make_simple_axes(ax, fignum = 2)
         
         displayed_keys = list(self.species_list[0].keys())

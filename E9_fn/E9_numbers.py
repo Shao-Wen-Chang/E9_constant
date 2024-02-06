@@ -7,7 +7,7 @@ from E9_fn.E9_constants import *
 
 #%% Thermodynamical properties of Bose gases
 def T_BEC_bose(wbar, N, a = 0, V = 0, m = m_Rb87):
-    '''[K] Returns the BEC critical temperature of a Bose gas.
+    """[K] Returns the BEC critical temperature of a Bose gas.
     
     See [BECDilute] p.23. When wbar is 0, assume that atoms are trapped in a box of volume V. In the case where a != 0, Tc is
     shifted accordingly ([Bloch08] eqn.11 & the equation to its right) and the effect is quite sizable (of order 0.1*Tc).
@@ -15,7 +15,7 @@ def T_BEC_bose(wbar, N, a = 0, V = 0, m = m_Rb87):
         N: [#] atom number
         a: [m] s-wave scattering length
         V: [m^3] (only for wbar = 0) box volume
-        m: [kg] (only for wbar = 0) mass of the atom'''
+        m: [kg] (only for wbar = 0) mass of the atom"""
     if wbar != 0:
         if a != 0: print("interaction effect is not included yet in the case of harmonic potential")
         return (1 + 1.32 * (N / V) * a) * hbar * wbar * (N * zeta(3))**(1/3) / k_B
@@ -23,39 +23,39 @@ def T_BEC_bose(wbar, N, a = 0, V = 0, m = m_Rb87):
         return (1 + 1.32 * (N / V) * a) * (2 * np.pi * hbar**2 / m) * (N / V / zeta(3/2))**(2/3) / k_B
 
 def N_collapse_bose(a):
-    '''[#] Returns the (order of magnutide estimate) of critical number N_c for an attractive Bose gas, above which the
+    """[#] Returns the (order of magnutide estimate) of critical number N_c for an attractive Bose gas, above which the
     gas collapses.
     
     See [BECDilute] p.164, and references therein.
-        a: [m] s-wave scattering length'''
+        a: [m] s-wave scattering length"""
     pass
 
 #%% Thermodynamical properties of Fermi gases
 def fermi_energy_lat(m, wbar, a_lat, N):
-    '''Returns the Fermi energy of N fermions in a single spin component, loaded in a (square) lattice + harmonic confinement.
+    """Returns the Fermi energy of N fermions in a single spin component, loaded in a (square) lattice + harmonic confinement.
     
-    See e.g. Eqn.(20) in [Tarruell18]. (I actually don't know how to compute this.) Often we need to compare E_F to U and t.'''
+    See e.g. Eqn.(20) in [Tarruell18]. (I actually don't know how to compute this.) Often we need to compare E_F to U and t."""
     return (m * wbar**2 * a_lat**2 / 2) * (N / (4 * np.pi / 3))**(2/3)
 
 def fermi_energy_har(wbar, N):
-    '''Returns the Fermi energy of N fermions in a single spin component, loaded in a harmonic confinement.
+    """Returns the Fermi energy of N fermions in a single spin component, loaded in a harmonic confinement.
     
-    See e.g. Eqn.(33) in [Ketterle08].'''
+    See e.g. Eqn.(33) in [Ketterle08]."""
     return hbar * wbar * (6 * N)**(1/3)
 
 def fermi_radius(m, w, N):
-    '''Return the Fermi radius in the axis with trap frequency w.'''
+    """Return the Fermi radius in the axis with trap frequency w."""
     E_F = fermi_energy_har(w, N)
     return np.sqrt(2 * E_F / (m * w**2))
 
 def density_profile(m, wx, wy, wz, N, pos_arr, z = 0):
-    '''Given a harmonic trapping potential with specified trapping frequencies, for each point in pos (where the origin
+    """Given a harmonic trapping potential with specified trapping frequencies, for each point in pos (where the origin
     is set at trap center), return the number density at zero temperature.
     
     See e.g. Eqn.(34) in [Ketterle08].
         wx/y/z: [Hz] trapping frequencies in x / y / z direction
         pos_arr: [m] a (2, L)-dim ndarray, where pos[:, i] = (x, y) of the i-th point. 
-        z: [m] specifies the z-coordinate shared by all points in pos.'''
+        z: [m] specifies the z-coordinate shared by all points in pos."""
     R = np.sqrt(pos_arr[0, :]**2 + pos_arr[1, :]**2 + z**2) # Distances from trap center
     wbar = (wx * wy * wz)**(1/3)
     Rx, Ry, Rz = fermi_radius(m, wx, N), fermi_radius(m, wy, N), fermi_radius(m, wz, N)
@@ -63,20 +63,20 @@ def density_profile(m, wx, wy, wz, N, pos_arr, z = 0):
     return (8 / np.pi**2) * (N / (Rx * Ry * Rz)) * np.maximum(tempfill, np.zeros_like(tempfill))**(3/2)
 
 def kFa_from_TFa(m, T_F, a_s):
-    '''Prints k_F * a_s given T_F (Fermi temperature) and a_s (s-wave scattering length). (use SI unit inputs.)'''
+    """Prints k_F * a_s given T_F (Fermi temperature) and a_s (s-wave scattering length). (use SI unit inputs.)"""
     k_F = np.sqrt(2 * m * k_B * T_F) / hbar
     ka = k_F * a_s
     print('ka = {}; 1 / (ka) = {}'.format(ka, 1 / ka))
     return ka
 
 def mu_fermi():
-    '''[Bloch08]'''
+    """[Bloch08]"""
     pass
 
 #%% (Mainly) values that depends on B field but not optical beams
 # By convention I print a more convenient form and return SI unit values, but check 
 def BreitRabi(ahf, F, I, S, gI, gJ, mF, B):
-    '''Breit-Rabi formula for Zeeman level splitting for all fields for the special case L = 0 & S = 1/2'''
+    """Breit-Rabi formula for Zeeman level splitting for all fields for the special case L = 0 & S = 1/2"""
     x = (gJ - gI) * mu_B / (ahf * (I + 1/2)) * B
     if abs(mF) == I + S:
         # This is the special case where there is only one state with the given mF, and ...
@@ -88,39 +88,39 @@ def BreitRabi(ahf, F, I, S, gI, gJ, mF, B):
         return - ahf / 4 + gI * mu_B * mF * B + (sgn * ahf * (I + 1/2) / 2) * np.sqrt(1 + 4 * mF * x / (2 * I + 1) + x**2)
 
 def InterationParameter(T, FBres):
-    '''Returns |k_F * a|, which characterizes interaction strength and therefore BEC-BCS crossover.'''
+    """Returns |k_F * a|, which characterizes interaction strength and therefore BEC-BCS crossover."""
     pass
 
 def GravityCompensationBGrad(mass, gF, mF):
-    '''B gradient required to compensate gravity; obtained by setting dE/dz = mg. Returns T/m'''
+    """B gradient required to compensate gravity; obtained by setting dE/dz = mg. Returns T/m"""
     BGradSI = mass * g_earth / (gF * mu_B * mF)
     print("{} Gauss/cm".format(BGradSI * 1e4 / 1e2))
     return BGradSI
 
 def Majorana_loss_rate(hfs, mF, Bgrad, T):
-    '''Returns an approximation of Majorana spin flip loss rate in an unplugged magnetic trap.
+    """Returns an approximation of Majorana spin flip loss rate in an unplugged magnetic trap.
     
     See e.g. Y-J Lin's paper.
-        mu: = g-factor * mu_B'''
+        mu: = g-factor * mu_B"""
     return 1.85 * hbar / hfs.mass * (hfs.gF * mF * mu_B * Bgrad / k_B / T)**2
 
 def QuadrupoleBField(pos, coil_coeff, I):
-    '''Returns the B field at pos (relative to coil center) when the coil pair is configured to generate a quadrupole field.
+    """Returns the B field at pos (relative to coil center) when the coil pair is configured to generate a quadrupole field.
     
     pos: a (3 x n) array, where pos[:,i] is the i-th spatial point
-    This is only accurate near the center. For off-center fields, consider modelling with magpylib instead.'''
+    This is only accurate near the center. For off-center fields, consider modelling with magpylib instead."""
     M = np.diag([0.5, 0.5, -1])
     B = M @ (I * coil_coeff * pos)
     return B
 
 def SpinSeparationBGradToF(m, gF, t, dx):
-    '''B gradient required to separate neighboring Zeeman sublevels by dx during ToF t. Returns T/m'''
+    """B gradient required to separate neighboring Zeeman sublevels by dx during ToF t. Returns T/m"""
     BGradSI = 2 * dx * m / (gF * mu_B * t**2)
     print("{} Gauss/cm".format(BGradSI * 1e4 / 1e2))
     return BGradSI
 
 def SpinSeparationBGradMSF(m, gF, t, dx):
-    '''B gradient required to separate neighboring Zeeman sublevels by dx during MSF t. Returns T/m'''
+    """B gradient required to separate neighboring Zeeman sublevels by dx during MSF t. Returns T/m"""
     # omega = pi / (2 * t)
     # BGradSI = m * dx * omega**2 / (gF * mu_B)
     # print("{} Gauss/cm".format(BGradSI * 1e4 / 1e2))
@@ -129,19 +129,19 @@ def SpinSeparationBGradMSF(m, gF, t, dx):
 
 # Too many helper functions!
 def ZeemanSplitting(gF):
-    '''Splitting between Zeeman sublevels as a function of B field. Returns J/Tesla'''
+    """Splitting between Zeeman sublevels as a function of B field. Returns J/Tesla"""
     ZsplitSI = gF * mu_B
     print("{} MHz/Gauss".format(ZsplitSI / 1e4 / hnobar / 1e6))
     return ZsplitSI
 
 def ZeemanSplittingdx(gF, dx):
-    '''Change in Zeeman splitting between lattice sites separated by dx along B gradient. Returns J*m*T^-1'''
+    """Change in Zeeman splitting between lattice sites separated by dx along B gradient. Returns J*m*T^-1"""
     ZsplitGradSI = gF * mu_B * dx
     print("{} Hz*(Gauss/cm)^-1".format(ZsplitGradSI / 1e4 * 1e2 / hnobar))
     return ZsplitGradSI
 
 def ZeemanSplittingdBdx(gF, dBdx):
-    '''Change in Zeeman splitting given some B gradient dBdx. Returns J*m^-1'''
+    """Change in Zeeman splitting given some B gradient dBdx. Returns J*m^-1"""
     ZsplitGradSI = gF * mu_B * dBdx
     print("{} Hz/um".format(ZsplitGradSI / 1e6 / hnobar))
     return ZsplitGradSI
@@ -149,32 +149,32 @@ def ZeemanSplittingdBdx(gF, dBdx):
 
 #%% Values that depend on optical beams but not B field
 def I_from_power(P0, w0):
-    '''[W/m^2] Return peak intensity of a gaussian beam with power P and beam waist w0.
+    """[W/m^2] Return peak intensity of a gaussian beam with power P and beam waist w0.
     
     Also, I = (c_light * n * epsilon_0 / 2) * |E|**2 .
     P0: [W] Power
-    w0: [m] beam WAIST (the RADIUS of the beam at 1/e^2 intensity)'''
+    w0: [m] beam WAIST (the RADIUS of the beam at 1/e^2 intensity)"""
     return 2 * P0 / np.pi / w0**2
 
 def J_from_Vlat(Vlat, theta = np.pi/2):
-    '''[dimless] Return (t/Er) given some lattice depth V0 = Vlat/Er, where Er is the (photon) recoil energy.
+    """[dimless] Return (t/Er) given some lattice depth V0 = Vlat/Er, where Er is the (photon) recoil energy.
     
     This is the value obtained by solving the Mathieu equation. See e.g. [Bloch08] eqn.(39).
-        theta: [dimless] angle between one of the beam and the symmetry plane. (theta = pi/2 for counter-propagating beams)'''
+        theta: [dimless] angle between one of the beam and the symmetry plane. (theta = pi/2 for counter-propagating beams)"""
     V0 = Vlat / np.sin(theta)**2
     return (4 / np.sqrt(np.pi)) * V0**(3/4) * np.exp(-2 * np.sqrt(V0)) / np.sin(theta)**2
 
 def wsite_from_Vlat(Vlat, alat, m):
-    '''[rad/s] Return the trap frequency (angular frequency) for a lattice potential (Vlat / 2) * sin(2 * pi * x / alat).
+    """[rad/s] Return the trap frequency (angular frequency) for a lattice potential (Vlat / 2) * sin(2 * pi * x / alat).
     
     This result is obtained by approximating the sites as harmonic traps and is valid for deep traps.
         Vlat: [J] lattice depth. Remember e.g. the factor of 1/9 in honeycomb lattices
         alat: [m] lattice constant
-        m: [kg] mass of particles'''
+        m: [kg] mass of particles"""
     return (2 * np.pi / alat) * np.sqrt(Vlat / 2 / m)
 
 def V0_from_I(Gamma, nu, fl, I, gF, mF, P_pol = 0, Delta_FS = 0):
-    '''[J] Gives the trap depth for a hyperfine state (hfs).
+    """[J] Gives the trap depth for a hyperfine state (hfs).
     
     See [Grimm99] eqn.20. This works for the large detuning (>> fine structure splitting of relevant excited states) limit.
         Gamma: [Hz] (average) linewidth of relevant excited states. Usually the 2P3/2 and 2P1/2 states.
@@ -184,7 +184,7 @@ def V0_from_I(Gamma, nu, fl, I, gF, mF, P_pol = 0, Delta_FS = 0):
         gF: gF of the (ground) state of trapped atoms.
         mF: mF value of the atom.
         P_pol: Polarization factor. 0 if linear or ignored, +/-1 if sigma+/- polarized
-        Delta_FS: [Hz] difference between the two excited state. Note that [Grimm99] use angular frequency [rad/s].'''
+        Delta_FS: [Hz] difference between the two excited state. Note that [Grimm99] use angular frequency [rad/s]."""
     w0 = 2 * np.pi * nu
     wl = 2 * np.pi * fl
     Gamma = 2 * np.pi * Gamma
@@ -193,40 +193,40 @@ def V0_from_I(Gamma, nu, fl, I, gF, mF, P_pol = 0, Delta_FS = 0):
     return (3 * np.pi * c_light**2 / 2 / w0**3) * (Gamma / Delta) * (1 + (P_pol * gF * mF / 3) * (Delta_FS / Delta)) * I
 
 def U_from_Vlat(Vlat, a_s, k_L):
-    '''Returns U for some lattice parameters under harmonic well assumption.
+    """Returns U for some lattice parameters under harmonic well assumption.
     
     See e.g. [Tarruell18] eqn.6 or [Bloch08] eqn.(49). Both U and Vlat are in units of photon recoil energy. For a triangular
     lattice, there is an additional factor of 8/9 for potential well depth, and an (approximate) factor of sqrt(3)/2 to
-    account for potential well size. (check the factor of 9/16)'''
+    account for potential well size. (check the factor of 9/16)"""
     return np.sqrt(8 / np.pi) * (k_L * np.sqrt(3)/2) * a_s * ((8/9) * Vlat * (9/16))**(3/4)
 
 def tUFromJx(J, x):
-    '''Given desired J := 4t^2/U and x := t/U, returns the value of t and U required.
+    """Given desired J := 4t^2/U and x := t/U, returns the value of t and U required.
     
     (x is not a commonly used notation in the community.)
     Fermi-Hubbard model is defined in terms of t (hopping integral) and U (on-site interaction), but the phase space
     is oftenmore conveniently expressed in other parameters. For example, the exact half-filling case is normally
     plotted for T (temperature) and x, and the T = 0 doped case J (spin superexchange) and delta (doping factor).
     In this sense it might be more natural to think about the relevant physics in terms of (T, x, J, delta), where
-    T and delta are themselves free experimental parameters already.'''
+    T and delta are themselves free experimental parameters already."""
     return (J / (4 * x), J / (4 * x**2)) # (t, U)
 
 def VaFortU(t, U, FBres, Vvst, VvsU):
-    '''(tentative) Generates a table that lists possible values of a and V resulting in desired t and U.
+    """(tentative) Generates a table that lists possible values of a and V resulting in desired t and U.
     
     This is useful when e.g. the phase diagram is actually dependent on also either t or U, or when some none-Fermi-
     Hubbard things are relevant, e.g. setting the time scale of evolution (with t I guess).
         FBres: a FeshbachResonance object that is used to calculate a (scattering length).
         Vvst and VvsU: relation between V (lattice depth) and t / U. Should probably be (2, n) arrays, where [0, i]
             are lattice depths, and [1, i] are corresponding t / U.
-    Might not implement because it would need some work, but want to remind myself of possible tradeoffs.'''
+    Might not implement because it would need some work, but want to remind myself of possible tradeoffs."""
     pass
 
 def LambDickeConst(V0):
-    '''(tentative) Returns the Lamb-Dicke constant for a given 532 lattice depth.
+    """(tentative) Returns the Lamb-Dicke constant for a given 532 lattice depth.
     
     This currently assumes using K D1 line cooling in a 532 triangular lattice and can be easily generalized.
-        V0: [kHz] 532 lattice depth'''
+        V0: [kHz] 532 lattice depth"""
     return (hbar * np.pi * a_sw_tri**2 / 2 / m_K40 / 1000)**(1/4) / lambda_K40_D1 * V0**(-1/4)
 
 #%% class HyperfineState
@@ -268,7 +268,7 @@ class HyperfineState():
         return BreitRabi(self.ahf, self.F, self.I, self.S, self.gI, self.gJ, mF, B)
     
     def PlotBreitRabi(self, ax = None, Bmin = 0, Bmax = 1000):
-        '''Plot the energy of all mF levels within B = [0, Bmax].'''
+        """Plot the energy of all mF levels within B = [0, Bmax]."""
         Bmid = (Bmin + Bmax) / 2
         BTesla = np.linspace(Bmin, Bmax, 500) / 1e4
         if ax == None:
@@ -292,12 +292,12 @@ class HyperfineState():
         return ax
     
     def PlotBreitRabiDiff(self, ax = None, Bmin = 0, Bmax = 1000, avg2zero = False, tolerance = 0):
-        '''Plot the Zeeman level splitting between all (mF, mF - 1) level pairs within B = [Bmin, Bmax].
+        """Plot the Zeeman level splitting between all (mF, mF - 1) level pairs within B = [Bmin, Bmax].
         
         If avg2zero = True, then a dynamical offset is added to each point such that all traces together average
         to zero. The value of splitting is then only relative.
         "tolerance" addes shades around each curve, which represents the resolution of rf drive (often set by the
-        stability of magnetic field). Unit is specified in MHz.'''
+        stability of magnetic field). Unit is specified in MHz."""
         def BRsplitting(mF, BTesla):
             return (self.GetBreitRabi(mF, BTesla) - self.GetBreitRabi(mF - 1, BTesla)) / hnobar / 1e6
         
@@ -338,30 +338,30 @@ Rb87_5_2S1o2_F2 = HyperfineState(m_Rb87, I_Rb87, 1/2, 2, gJ = gJ(1/2, 0, 1/2), a
 
 #%% class FeshbachResonance
 class FeshbachResonance():
-    '''For FeshbachResonance, (scattering) lengths are in a0, and magnetic fields are in Gauss.'''
+    """For FeshbachResonance, (scattering) lengths are in a0, and magnetic fields are in Gauss."""
     def __init__(self, a_bg, B0, DB):
         self.a_bg = a_bg
         self.B0 = B0
         self.DB = DB
     
     def Getasc(self, B):
-        '''Get the scattering length at field B (assuming that there's no nearby resonances).'''
+        """Get the scattering length at field B (assuming that there's no nearby resonances)."""
         return self.a_bg * (1 - self.DB / (B - self.B0))
     
     def GetB(self, a):
-        '''Get the field B required for scattering length a (assuming that there's no nearby resonances).'''
+        """Get the field B required for scattering length a (assuming that there's no nearby resonances)."""
         return self.B0 + self.DB / (1 - a / self.a_bg)
     
     def GetdadBfora(self, a):
-        '''Get da/dB at scattering length a.'''
+        """Get da/dB at scattering length a."""
         return self.a_bg * self.DB / (self.GetB(a) - self.B0)**2
     
     def GetdadBforB(self, B):
-        '''Get da/dB at field B.'''
+        """Get da/dB at field B."""
         return self.a_bg * self.DB / (B - self.B0)**2
     
     def Visualize(self, ax = None):
-        '''Plot Feshbach resonance in cgs unit.'''
+        """Plot Feshbach resonance in cgs unit."""
         B1s, B2s = np.linspace(max(0, self.B0 - 2 * abs(self.DB)), self.B0 - 1e-3, 200), np.linspace(self.B0 + 1e-3, self.B0 + 2 * abs(self.DB), 200)
         asc1s, asc2s = self.Getasc(B1s), self.Getasc(B2s)
         if ax == None:

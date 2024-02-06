@@ -5,6 +5,7 @@ import sys
 import simple_fermi_bose as sfb
 import simple_fermi_fermi as sff
 import fermi_with_reservoir as fwr
+import fermi_fermi_with_reservoir as ffwr
 sys.path.insert(1,
     "C:\\Users\\ken92\\Documents\\Studies\\E5\\simulation\\E9_simulations")
 from E9_fn import util
@@ -15,12 +16,12 @@ from E9_fn import util
 # then slowly ramp interaction to zero. Then the results should apply reasonably well.
 
 def main():
-    util.set_custom_plot_style(True, overwrite = {"font.size": 11})
+    util.set_custom_plot_style(True, overwrite = {"font.size": 10})
 
     # User inputs
     logpath = '' # '' if not logging to a file
     loglevel = logging.INFO
-    module = sff
+    module = ffwr
     kwargs = {"calculation_mode": "isentropic"
               } # any arguments that can be passed to the main() of the module
     

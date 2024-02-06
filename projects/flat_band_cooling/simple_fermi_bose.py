@@ -41,6 +41,64 @@ exp_fb = E9M.DoS_exp(T, [
 ])
 
 #%% simulation
+def calc_simple():
+    """Find the thermodynamical values at fixed T."""
+    exp_fb.find_outputs()
+    fig_exp = plt.figure(1, figsize = (5, 8))
+    ax_DoS = fig_exp.add_subplot(211)
+    ax_table = fig_exp.add_axes(212)
+    ax_table.set_axis_off()
+    exp_fb.plot_DoSs(ax_DoS)
+    exp_fb.tabulate_params(ax_table)
+    plt.tight_layout()
+
+def calc_isentropic():
+    """For a range of total entropy, find the equilibrium conditions."""
+    # Additional inputs
+    isen_S_list = np.linspace(10000, 20000, 11)
+    # Additional initialization
+    isen_T_list = np.zeros_like(isen_S_list)
+    isen_rrst_list = [None for _ in isen_S_list]
+    isen_exp_list = [None for _ in isen_S_list]
+
+    for i, S_now in enumerate(isen_S_list):
+        logging.info("working on loop #{}, S = {}...".format(i, S_now))
+        isen_T_list[i], isen_rrst_list[i] = eqfind.isentropic_solver(S_now, exp_fb)
+        
+        exp_now = deepcopy(exp_fb)
+        exp_now.T = isen_T_list[i]
+        exp_now.find_outputs()
+        isen_exp_list[i] = deepcopy(exp_now)
+    
+    # Plots
+    fig_exp = plt.figure(1, figsize = (5,8))
+    ax_SvsT = fig_exp.add_subplot(421)
+    ax_SvsT.plot(isen_S_list, isen_T_list)
+    ax_SvsT.set_xlabel(r"$S_{tot}$")
+    ax_SvsT.set_ylabel("T")
+
+    fermi_S = np.array([x.species_list[0]["S"] for x in isen_exp_list])
+    ax_Srel = fig_exp.add_subplot(422)
+    ax_Srel.plot(isen_S_list, fermi_S / isen_S_list)
+    ax_Srel.set_xlabel(r"$S_{tot}$")
+    ax_Srel.set_ylabel(r"$S_f/S_{tot}$")
+
+    bose_BEC = np.array([x.species_list[1]["N_BEC"] for x in isen_exp_list])
+    box_width = isen_S_list[1] - isen_S_list[0]
+    ax_BEC = fig_exp.add_subplot(423)
+    ax_BEC.bar(x = isen_S_list, height = bose_BEC, width = box_width)
+    ax_BEC.set_xlabel(r"$S_{tot}$")
+    ax_BEC.set_ylabel(r"$N_{BEC}^{b}$")
+
+    tabulated_run = 2
+    ax_tab = fig_exp.add_subplot(212)
+    ax_tab.set_axis_off()
+    isen_exp_list[tabulated_run].tabulate_params(ax_tab)
+    ax_tab.set_title("Showing S = {}".format(isen_S_list[tabulated_run]))
+    
+    fig_exp.suptitle("Simple fermi-bose experiment")
+    fig_exp.tight_layout()
+
 def main(**kwargs):
     # What to calculate: (inputs specific for each calculation mode are defined below)
     #   simple - Find basic thermodynamic parameters of the experiment defined above
@@ -49,61 +107,9 @@ def main(**kwargs):
     calculation_mode = kwargs["calculation_mode"]
 
     if calculation_mode == "simple":
-        exp_fb.find_outputs()
-
-        fig_exp = plt.figure(1, figsize = (5, 8))
-        ax_DoS = fig_exp.add_subplot(211)
-        ax_table = fig_exp.add_axes(212)
-        ax_table.set_axis_off()
-        exp_fb.plot_DoSs(ax_DoS)
-        exp_fb.tabulate_params(ax_table)
-        plt.tight_layout()
-    
+        calc_simple()    
     elif calculation_mode == "isentropic":
-        # Additional inputs
-        isen_S_list = np.linspace(10000, 20000, 11)
-        # Additional initialization
-        isen_T_list = np.zeros_like(isen_S_list)
-        isen_rrst_list = [None for _ in isen_S_list]
-        isen_exp_list = [None for _ in isen_S_list]
-
-        for i, S_now in enumerate(isen_S_list):
-            logging.info("working on loop #{}, S = {}...".format(i, S_now))
-            isen_T_list[i], isen_rrst_list[i] = eqfind.isentropic_solver(S_now, exp_fb)
-            
-            exp_now = deepcopy(exp_fb)
-            exp_now.T = isen_T_list[i]
-            exp_now.find_outputs()
-            isen_exp_list[i] = deepcopy(exp_now)
-        
-        # Plots
-        fig_exp = plt.figure(1, figsize = (5,8))
-        ax_SvsT = fig_exp.add_subplot(421)
-        ax_SvsT.plot(isen_S_list, isen_T_list)
-        ax_SvsT.set_xlabel(r"$S_{tot}$")
-        ax_SvsT.set_ylabel("T")
-
-        fermi_S = np.array([x.species_list[0]["S"] for x in isen_exp_list])
-        ax_Srel = fig_exp.add_subplot(422)
-        ax_Srel.plot(isen_S_list, fermi_S / isen_S_list)
-        ax_Srel.set_xlabel(r"$S_{tot}$")
-        ax_Srel.set_ylabel(r"$S_f/S_{tot}$")
-
-        bose_BEC = np.array([x.species_list[1]["N_BEC"] for x in isen_exp_list])
-        box_width = isen_S_list[1] - isen_S_list[0]
-        ax_BEC = fig_exp.add_subplot(423)
-        ax_BEC.bar(x = isen_S_list, height = bose_BEC, width = box_width)
-        ax_BEC.set_xlabel(r"$S_{tot}$")
-        ax_BEC.set_ylabel(r"$N_{BEC}^{b}$")
-
-        tabulated_run = 2
-        ax_tab = fig_exp.add_subplot(212)
-        ax_tab.set_axis_off()
-        isen_exp_list[tabulated_run].tabulate_params(ax_tab)
-        ax_tab.set_title("Showing S = {}".format(isen_S_list[tabulated_run]))
-        
-        fig_exp.suptitle("Simple fermi-bose experiment")
-        fig_exp.tight_layout()
+        calc_isentropic()
 
 if __name__ == "__main__":
     main(calculation_mode = "isentropic")

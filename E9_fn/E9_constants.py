@@ -199,21 +199,21 @@ def LinearFn(a, b, x):
     return a + b * x
 
 def Gaussian(x, sigma, mu = 0):
-    '''Gaussian function normalized such that Gaussian(x = mu) = 1. (Integrates to sigma * np.sqrt(2 * pi))'''
+    """Gaussian function normalized such that Gaussian(x = mu) = 1. (Integrates to sigma * np.sqrt(2 * pi))"""
     return np.exp(-(x - mu)**2 / 2 / sigma**2)
 
 #%% natural constants
 def gJ(S, L, J, gS = 2, gL = 1):
-    '''Returns g_J, i.e. the Lambde g-factor (see Rb data); replace gS and gL by actual values if that accuracy (~0.1%) is needed.
+    """Returns g_J, i.e. the Lambde g-factor (see Rb data); replace gS and gL by actual values if that accuracy (~0.1%) is needed.
     
-    This, and gF, are easily obtained by applying the projection theorem.'''
+    This, and gF, are easily obtained by applying the projection theorem."""
     return gL * (J * (J + 1) - S * (S + 1) + L * (L + 1)) / (2 * J * (J + 1)) \
         + gS * (J * (J + 1) + S * (S + 1) - L * (L + 1)) / (2 * J * (J + 1))
 
 def gF(I, J, F, gJ = 2, gI = 0):
-    '''Returns g_F (see Rb data), but note that gJ is often not ~2; replace gI by actual values if that accuracy (~0.1%) is needed.
+    """Returns g_F (see Rb data), but note that gJ is often not ~2; replace gI by actual values if that accuracy (~0.1%) is needed.
     
     Special case: for mF = F = J + I (stretched state), gF * mF = gJ * J
-    gF * mu_B / 1e4 / hnobar gives the change in energy difference between Zeeman sublevels, in MHz/Gauss'''
+    gF * mu_B / 1e4 / hnobar gives the change in energy difference between Zeeman sublevels, in MHz/Gauss"""
     return gJ * (F * (F + 1) - I * (I + 1) + J * (J + 1)) / (2 * F * (F + 1)) \
         + gI * (F * (F + 1) + I * (I + 1) - J * (J + 1)) / (2 * F * (F + 1))

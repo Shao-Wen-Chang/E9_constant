@@ -23,7 +23,7 @@ Rb_5S1o2_LOI = Rb_D12_doublett                                      # Use Rb_5S1
 
 #%% functions
 def alpha_pol(K, lamb_in, line_list, state, q = None, F = None, I = None):
-    '''[A2·s4·kg−1] Returns the (rank-K) polarizability given a list of lines, ignoring scattering.
+    """[A2·s4·kg−1] Returns the (rank-K) polarizability given a list of lines, ignoring scattering.
     
     See [Axner04], esp. for terminologies in Appendix A. You should understand what I mean by: the result applies for
         - a "hf state" to a "hf state," when q, F and I are all given
@@ -40,7 +40,7 @@ def alpha_pol(K, lamb_in, line_list, state, q = None, F = None, I = None):
            can ignore the coupling between different hyperfine state, i.e. when the Stark shift is small
            compared to hyperfine splitting. (In particular, this can be violated when one works with very
            very strong lattices used during microscope imaging.)
-        I: required for hyperfine states calculations.'''
+        I: required for hyperfine states calculations."""
     alpha = np.zeros_like(lamb_in)
     wl = 2 * np.pi * (c_light / lamb_in)
     for line in line_list:
@@ -93,25 +93,25 @@ def alpha_pol(K, lamb_in, line_list, state, q = None, F = None, I = None):
     return prefactor * alpha
 
 def C_av2B(hfs, ul = np.array([1, 0, 0])):
-    '''Calculate the conversion factor for effective B field (at E = 1 V/m).
+    """Calculate the conversion factor for effective B field (at E = 1 V/m).
     
     See [Le Kien13] eqn.(21). This can be treated as a magnetic field in almost every sense.
     B_eff = av2Beff * av * |E|**2
     Make sure that the quantization axis used here is consistent with the calculation in which this function is used.
     hfs: a HyperfineState object to get various quantities from
-    ul: polarization of light in spherical basis, (A_{-1}, A_0, A_1) = (\sigma_-, \pi, \sigma_+).'''
+    ul: polarization of light in spherical basis, (A_{-1}, A_0, A_1) = (\sigma_-, \pi, \sigma_+)."""
     u = util.Normalize(ul)
     pol_fac = abs(ul[0])**2 - abs(ul[2])**2 # this is the i(u* x u) term with all the algebra performed
     return pol_fac / (8 * mu_B * hfs.gF * hfs.F)
 
 def mark_important_lines(ax, lines, f_min, l_alpha = None, init_text_height = 0):
-    '''Label the important transitions on the plot.
+    """Label the important transitions on the plot.
     
     ax: an axes object where the lines are added to
     lines: a list of transition lines
     f_min: [dimless] minimum oscillator strength for a line to be considered important
     l_alpha: a line object to get color from
-    init_text_height: related to how the text labels for transitions are cycled through in height'''
+    init_text_height: related to how the text labels for transitions are cycled through in height"""
     y_min = ax.get_ylim()[0]
     text_ypos = init_text_height
     if l_alpha is None:

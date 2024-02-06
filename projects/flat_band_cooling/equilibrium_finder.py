@@ -15,7 +15,7 @@ def isentropic_solver(S0: float,
                       exp0: E9M.DoS_exp,
                       max_step: int = 50,
                       tol: float = 1e-4) -> (float, RootResults):
-    '''Find thermal equlibrium config, in particular T, given some total entropy.
+    """Find thermal equlibrium config, in particular T, given some total entropy.
     
     See my personal notes on 2024/01/15 for some physical considerations.
     Since I am using root_scalar, only the temperature of the system is returned.
@@ -32,9 +32,9 @@ def isentropic_solver(S0: float,
     Return:
         rrst.root: temperature of the equilibrated system.
         rrst: the RootResults object returned by root_scalar for full information.
-        # exp_eq: equilibrium configuration that satisfies the initial condition.'''
+        # exp_eq: equilibrium configuration that satisfies the initial condition."""
     def S_err(T_in, exp_in, S_in):
-        '''Deviation in entropy. (want to find zeros)'''
+        """Deviation in entropy. (want to find zeros)"""
         exp_eq = deepcopy(exp_in)
         exp_eq.T = T_in
         exp_eq.find_outputs()

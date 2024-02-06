@@ -4,13 +4,13 @@ import matplotlib.pyplot as plt
 from E9_fn.E9_constants import *
 
 def PPart(metal, T):
-    '''[Pa] Returns the partial pressure of some metal at temperature T.
+    """[Pa] Returns the partial pressure of some metal at temperature T.
     
     The formula is given by
                 PPart [mbar] = (T <= Tm, solid) 10**(cs - ds / T)
                                (T > Tm, liquid) 10**(cl - dl / T)
     Note that the values from various references might need to be adjusted to account for unit conversion.
-    torr -> mbar: -0.125; atm -> mbar: +3.006; mbar -> Pa: '''
+    torr -> mbar: -0.125; atm -> mbar: +3.006; mbar -> Pa: """
     # pairs of "metal": (cs, ds, cl, dl, Tm)
     cdLib = {"K": (7.9667, 4646, 7.4077, 4453, 336.8), "Rb": (7.863, 4215, 7.318, 4040, 312.45), \
              "Na": (8.304, 5603, 7.71, 5377, 370.95)}
@@ -21,12 +21,12 @@ def PPart(metal, T):
         return 10**(cl - dl / T) * 100
 
 def PlotPpartInAlloy(alloy, Ts = [300, 400], xA = (0, 1), ratio_in = 'liquid'):
-    '''Plot the partial pressure of species in an alloy.
+    """Plot the partial pressure of species in an alloy.
     
     See [Ishikawa17]. Note that this function assumes that the system is in the liquid - gas phase.
         alloy: string of the alloy of interest. e.g. "KRb" , "CsNa" ... (in alphabetical order; must be in RTlLib)
         T: [K] temperature. Either a value or a list.
-        ratio_in: either "liquid" or "gas" . For "liquid" , xA = xA in the paper; for "gas" , xA = yA.'''
+        ratio_in: either "liquid" or "gas" . For "liquid" , xA = xA in the paper; for "gas" , xA = yA."""
     if ratio_in != "liquid":
         print("not implemented yet")
         return
@@ -38,12 +38,12 @@ def PlotPpartInAlloy(alloy, Ts = [300, 400], xA = (0, 1), ratio_in = 'liquid'):
     def GetdeltaA(l0, l1, l2, xA, xB, xAB):
         return xB * (l0 + l1 * (2 * xAB + 1) + l2 * (3 * xAB + 2) * xAB)
     def GetaA(l0, l1, l2, xA, xB, xAB):
-        '''Activity'''
+        """Activity"""
         return np.exp((1 - xA) * GetdeltaA(l0, l1, l2, xA, xB, xAB)) * xA
     def GetdeltaB(l0, l1, l2, xA, xB, xAB):
         return xA * (l0 + l1 * (2 * xAB - 1) + l2 * (3 * xAB - 2) * xAB)
     def GetaB(l0, l1, l2, xA, xB, xAB):
-        '''Activity'''
+        """Activity"""
         return np.exp((1 - xB) * GetdeltaB(l0, l1, l2, xA, xB, xAB)) * xB
     # pairs of "alloy": (RTl0(T), RTl1(T), RTl2(T), pA*, pB*, Astr, Bstr)
     RTlLib = {"KRb": (LinearTFn(501.2, -0.831), LinearTFn(9.789, -0.728), LinearTFn(56.082, -0.16), "K", "Rb"), \
