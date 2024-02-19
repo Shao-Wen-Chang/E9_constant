@@ -1,6 +1,7 @@
 import logging
 import numpy as np
 import matplotlib.pyplot as plt
+import gftool as gt
 from typing import Iterable
 
 #%% dictionary manipulation
@@ -57,6 +58,8 @@ def VecTheta(theta):
     return np.array([np.cos(theta), np.sin(theta)])
 
 #%% Special functions not defined in scipy
+### Very physics
+# particle statistics
 def part_stat(E, tau, mu, xi, replace_inf = "Don't"):
     """Fermi (xi = +1) or Bose (xi = -1) statistics function.
     
@@ -87,27 +90,41 @@ def bose_stat(E, tau, mu = 0.):
     """The Bose statistics function."""
     return part_stat(E, tau, mu, xi = -1)
 
-def Gaussian_1D(x, s = 1, mu = 0):
-    """The Gaussian normal distribution (i.e. integrates to 1)."""
-    return np.exp(-(1/2) * (x - mu)**2 / s**2) / (s * np.sqrt(2 * np.pi))
-
 def fermi_stat(E, tau, mu = 0):
     """The Fermi statistics function."""
     return part_stat(E, tau, mu, xi = 1)
 
+# Density of states (lowest energy is 0 by convention)
+def kagome_DoS(E, t = 1.):
+    """The density of state of kagome lattice, EXCLUDING the flat band.
+    
+    I redefined the zero to be at the bottom of the band structure.
+    Inputs:
+        - t: tight-binding t.
+    See gftool.lattice.kagome.dos for more detail. Some notes of the original dos:
+        - This function integrates to 2/3 since the flat band is not included.
+        - It returns 0 at the VHS of the second band s.t. the lattice would be
+          half filled at E = 0."""
+    return gt.lattice.kagome.dos(E - t * (2 / 3), half_bandwidth = t)
+
+# General stuff
+def Gaussian_1D(x, s = 1, mu = 0):
+    """The Gaussian normal distribution (i.e. integrates to 1)."""
+    return np.exp(-(1/2) * (x - mu)**2 / s**2) / (s * np.sqrt(2 * np.pi))
+
 def LogisticFn(x, x0 = 0, k = 1):
     """Returns the logistic function, 1/(1 + exp(- k * (x - x0)))."""
     return 1/(1 + np.exp(- k * (x - x0)))
+
+def rect_fn(x, x0: float = 0, x1: float = 0):
+    """Returns the rectangular function, f = 1 for x1 >= x >= x0, f = 0 otherwise."""
+    return step_fn(x, x0) * step_fn(-x, -x1)
 
 def step_fn(x, x0: float = 0):
     """Returns the step function, f = 1 for x >= x0, f = 0 otherwise.
     
     Can easily extend to different behaviors at x0 if needed."""
     return np.array(x >= x0).astype(float)
-
-def rect_fn(x, x0: float = 0, x1: float = 0):
-    """Returns the rectangular function, f = 1 for x1 >= x >= x0, f = 0 otherwise."""
-    return step_fn(x, x0) * step_fn(-x, -x1)
 
 #%% Helper plotting functions
 #%% Plot parameters
