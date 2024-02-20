@@ -11,15 +11,15 @@ from E9_fn import util
 import E9_fn.E9_models as E9M
 # Algorithms for finding equilibrium conditions under different circumstances
 
-def isentropic_solver(S0: float,
+def isentropic_fix_filling_solver(S0: float,
                       exp0: E9M.DoS_exp,
                       max_step: int = 50,
                       tol: float = 1e-4) -> (float, RootResults):
-    """Find thermal equlibrium config, in particular T, given some total entropy.
+    """Find thermal equlibrium config, in particular T, given some total entropy
+    and target filling in systems.
     
-    See my personal notes on 2024/01/15 for some physical considerations.
-    Since I am using root_scalar, only the temperature of the system is returned.
-    This is a bit wasteful, but find_outputs() runs pretty fast.
+    See my personal notes on 2024/01/15 for some physical considerations. This function
+    is useful for finding the target particle number and temperature / total entropy.
     Arguments:
         S0: total entropy of the system. Physically this is given by e.g. how cold
             we can get after sympathetic evaporation.
@@ -32,7 +32,9 @@ def isentropic_solver(S0: float,
     Return:
         rrst.root: temperature of the equilibrated system.
         rrst: the RootResults object returned by root_scalar for full information.
-        # exp_eq: equilibrium configuration that satisfies the initial condition."""
+        # exp_eq: equilibrium configuration that satisfies the initial condition.
+    Since I am using root_scalar, only the temperature of the system is returned.
+    This is a bit wasteful, but find_outputs() runs pretty fast."""
     def S_err(T_in, exp_in, S_in):
         """Deviation in entropy. (want to find zeros)"""
         exp_eq = deepcopy(exp_in)
@@ -44,3 +46,20 @@ def isentropic_solver(S0: float,
                        rtol = tol, maxiter = max_step) # outputs a root_result object
     if not rrst.converged: logging.warning("Algorithm failed to converge!")
     return rrst.root, rrst
+
+def isentropic_canonical_solver(Ntot: tuple[float],
+                      Ntot_fn: tuple[function],
+                      S0: float,
+                      exp0: E9M.DoS_exp,
+                      max_step: int = 50,
+                      tol: float = 1e-4) -> (float, RootResults):
+    """Find thermal equlibrium config, in particular T, given some total entropy
+    and total particle number.
+    
+    This builds upon isentropic_fix_filling_solver. In actual experiments, we are often
+    given a fixed number of particle, and filling is whatever results from that number.
+    This is useful for simulating what would actually happen in experiments.
+    Arguments:
+        Ntot: the number of particles for each species.
+        Ntot_fn: functions that returns Ntot."""
+    pass

@@ -70,7 +70,7 @@ def main(**kwargs):
 
         for i, S_now in enumerate(isen_S_list):
             logging.info("working on loop #{}, S = {}...".format(i, S_now))
-            isen_T_list[i], isen_rrst_list[i] = eqfind.isentropic_solver(S_now, exp_fb)
+            isen_T_list[i], isen_rrst_list[i] = eqfind.isentropic_fix_filling_solver(S_now, exp_fb)
             
             exp_now = deepcopy(exp_fb)
             exp_now.T = isen_T_list[i]

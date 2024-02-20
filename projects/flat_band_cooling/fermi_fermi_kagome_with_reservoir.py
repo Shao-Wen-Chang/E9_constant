@@ -11,7 +11,7 @@ sys.path.insert(1,
     "C:\\Users\\ken92\\Documents\\Studies\\E5\\simulation\\E9_simulations")
 from E9_fn import util
 import E9_fn.E9_models as E9M
-# spin-1/2 fermions in a step potential with flat band dispersion
+# spin-1/2 fermions in a step potential with kagome lattice dispersion
 
 #%% Experiment initialization 
 #   "system": 1/10 of the number of sites, half-filled
@@ -52,7 +52,7 @@ exp_ffwr = E9M.DoS_exp(T, [
         "E_range": E_range_rsv, "reservoir": "fermi2", "comment": {}},
 ])
 
-#%% simulation
+#%% Available simulations
 def calc_simple():
     """Find the thermodynamical values at fixed T."""
     exp_ffwr.find_outputs()
@@ -75,7 +75,7 @@ def calc_isentropic():
 
     for i, S_now in enumerate(isen_S_list):
         logging.debug("working on loop #{}, S = {}...".format(i, S_now))
-        isen_T_list[i], isen_rrst_list[i] = eqfind.isentropic_solver(S_now, exp_ffwr)
+        isen_T_list[i], isen_rrst_list[i] = eqfind.isentropic_fix_filling_solver(S_now, exp_ffwr)
         
         exp_now = deepcopy(exp_ffwr)
         exp_now.T = isen_T_list[i]
@@ -130,13 +130,19 @@ def calc_isentropic():
 
     fig_sam.suptitle("Showing S = {}".format(isen_S_list[sampled_run]))
 
+#%% Code execution
+available_modes = {
+    "simple"    : calc_simple,
+    "isentropic": calc_isentropic,
+}
+
 def main(**kwargs):
     calculation_mode = kwargs["calculation_mode"]
 
-    if calculation_mode == "simple":
-        calc_simple()    
-    elif calculation_mode == "isentropic":
-        calc_isentropic()
+    if calculation_mode not in available_modes.keys():
+        raise Exception("{} is not defined".format(calculation_mode))
+    else:
+        available_modes[calculation_mode]()
 
 if __name__ == "__main__":
     main()
