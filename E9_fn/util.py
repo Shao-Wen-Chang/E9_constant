@@ -100,7 +100,7 @@ def kagome_DoS(E, t = 1.):
     
     I redefined the zero to be at the bottom of the band structure.
     Inputs:
-        - t: tight-binding t.
+        t: tight-binding t.
     See gftool.lattice.kagome.dos for more detail. Some notes of the original dos:
         - This function integrates to 2/3 since the flat band is not included.
         - It returns 0 at the VHS of the second band s.t. the lattice would be
@@ -108,6 +108,14 @@ def kagome_DoS(E, t = 1.):
     return gt.lattice.kagome.dos(E - t * (2 / 3), half_bandwidth = t)
 
 # General stuff
+def dirac_delta(x, x0 = 0, hw = 1e-6):
+    """An approximation of the Dirac delta function with norm 1.
+    
+    I am just using a narrow rectangle with width 2 * hw for now.
+        x0: position of the delta function.
+        hw: halfwidth of the rectangle."""
+    return rect_fn(x, x0 = x0 - hw, x1 = x0 + hw) / (2 * hw)
+
 def Gaussian_1D(x, s = 1, mu = 0):
     """The Gaussian normal distribution (i.e. integrates to 1)."""
     return np.exp(-(1/2) * (x - mu)**2 / s**2) / (s * np.sqrt(2 * np.pi))
@@ -116,7 +124,7 @@ def LogisticFn(x, x0 = 0, k = 1):
     """Returns the logistic function, 1/(1 + exp(- k * (x - x0)))."""
     return 1/(1 + np.exp(- k * (x - x0)))
 
-def rect_fn(x, x0: float = 0, x1: float = 0):
+def rect_fn(x, x0: float = 0, x1: float = 1.):
     """Returns the rectangular function, f = 1 for x1 >= x >= x0, f = 0 otherwise."""
     return step_fn(x, x0) * step_fn(-x, -x1)
 
