@@ -23,7 +23,7 @@ def main():
     logpath = '' # '' if not logging to a file
     loglevel = logging.INFO
     module = ffkwr
-    kwargs = {"calculation_mode": "isentropic"
+    kwargs = {"calculation_mode": "canonical"
               } # any arguments that can be passed to the main() of the module
     
     # Configuring logger (reset and reconfigured at each run)

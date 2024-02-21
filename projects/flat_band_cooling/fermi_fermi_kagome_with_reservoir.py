@@ -41,7 +41,7 @@ Np_sf1 = int(V * r_s * nu_sf1)        # number of particles in the system
 nu_sf2 = 3/6               # filling factor (1 is fully filled)
 Np_sf2 = int(V * r_s * nu_sf2)        # number of particles in the system
 
-exp_ffwr = E9M.DoS_exp(T, [
+exp_ffkwr = E9M.DoS_exp(T, [
     {"name": "fermi1", "V": V_s, "Np": Np_sf1, "stat": +1, "DoS": DoS_sys,
         "E_range": E_range_s, "reservoir": "", "comment": {}},
     {"name": "fermi1_rsv", "V": V_rsv, "Np": 0, "stat": +1, "DoS": DoS_rsv,
@@ -55,17 +55,18 @@ exp_ffwr = E9M.DoS_exp(T, [
 #%% Available simulations
 def calc_simple():
     """Find the thermodynamical values at fixed T."""
-    exp_ffwr.find_outputs()
+    exp_ffkwr.find_outputs()
     fig_exp = plt.figure(1, figsize = (5, 8))
     ax_DoS = fig_exp.add_subplot(211)
     ax_table = fig_exp.add_axes(212)
     ax_table.set_axis_off()
-    exp_ffwr.plot_DoSs(ax_DoS, offset_traces = True)
-    exp_ffwr.tabulate_params(ax_table)
+    exp_ffkwr.plot_DoSs(ax_DoS, offset_traces = True)
+    exp_ffkwr.tabulate_params(ax_table)
     plt.tight_layout()
 
 def calc_isentropic():
-    """For a range of total entropy, find the equilibrium conditions."""
+    """For a range of total entropy and fixed filling in system species, find the
+    equilibrium conditions."""
     # Additional inputs
     isen_S_list = np.linspace(10000, 20000, 11)
     # Additional initialization
@@ -75,9 +76,9 @@ def calc_isentropic():
 
     for i, S_now in enumerate(isen_S_list):
         logging.debug("working on loop #{}, S = {}...".format(i, S_now))
-        isen_T_list[i], isen_rrst_list[i] = eqfind.isentropic_fix_filling_solver(S_now, exp_ffwr)
+        isen_T_list[i], isen_rrst_list[i] = eqfind.isentropic_fix_filling_solver(S_now, exp_ffkwr)
         
-        exp_now = deepcopy(exp_ffwr)
+        exp_now = deepcopy(exp_ffkwr)
         exp_now.T = isen_T_list[i]
         exp_now.find_outputs()
         isen_exp_list[i] = deepcopy(exp_now)
@@ -130,13 +131,35 @@ def calc_isentropic():
 
     fig_sam.suptitle("Showing S = {}".format(isen_S_list[sampled_run]))
 
+def calc_canonical():
+    """For a range of total entropy and fixed number for each particle type, find the
+    equilibrium conditions."""
+    # Additional inputs
+    isen_S_list = np.linspace(10000, 20000, 3)
+    N_total = {"fermi1": 11000, "fermi2": 11000}
+    # Additional initialization
+    isen_TN_list = [None for _ in isen_S_list]
+    isen_rrst_list = [None for _ in isen_S_list]
+    isen_exp_list = [None for _ in isen_S_list]
+
+    for i, S_now in enumerate(isen_S_list):
+        logging.debug("working on loop #{}, S = {}...".format(i, S_now))
+        isen_TN_list[i], isen_rrst_list[i] = eqfind.isentropic_canonical_solver(N_total, S_now, exp_ffkwr)
+        
+        exp_now = deepcopy(exp_ffkwr)
+        exp_now.T = isen_TN_list[i][0]
+        exp_now.find_outputs()
+        isen_exp_list[i] = deepcopy(exp_now)
+
 #%% Code execution
 available_modes = {
     "simple"    : calc_simple,
     "isentropic": calc_isentropic,
+    "canonical" : calc_canonical
 }
 
 def main(**kwargs):
+    logging.debug("kwargs: {}".format(kwargs))
     calculation_mode = kwargs["calculation_mode"]
 
     if calculation_mode not in available_modes.keys():
