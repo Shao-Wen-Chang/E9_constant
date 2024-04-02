@@ -51,16 +51,17 @@ def isentropic_canonical_solver(N_tot_tar: dict,
                       S_tar: float,
                       exp0: E9M.DoS_exp,
                       N_tot_fn = None,
-                      max_step: int = 50000,
-                      tol: float = 1e-4) -> (float, RootResults):
+                      max_step: int = 100,
+                      tol: float = 1e-3) -> (float, RootResults):
+    # Doesn't work - input is [T, *N], but output is error of [S, *N]
     """Find thermal equlibrium config, in particular T, given some total entropy
     and total particle number.
     
-    This builds upon isentropic_fix_filling_solver. In actual experiments, we are often
-    given a fixed number of particle, and filling is whatever results from that number.
+    In actual experiments, we are often given a fixed number of particle, and
+    filling is whatever that results from that number.
     This is useful for simulating what would actually happen in experiments.
     Arguments:
-        N_tot: the number of particles for each particle type, expressed as e.g.:
+        N_tot_tar: the number of particles for each particle type, expressed as e.g.:
                {"fermi1": 3000, "fermi2": 5000}.
         N_tot_fn: function that returns N_tot: N_tot_fn(exp0) = N_tot_now.
         exp0: in this function, Np of each species in exp0 is also considered as an
@@ -80,6 +81,7 @@ def isentropic_canonical_solver(N_tot_tar: dict,
         Arguments:
             TN_in: a list of [T_now, Np1_now, Np2_now, ...]"""
         exp_eq = deepcopy(exp_in)
+        logging.debug("guess: T = {}, N = {}".format(TN_in[0], TN_in[1:]))
         exp_eq.T = TN_in[0]
         for k, i in enumerate(N_in.keys()):
             for sp in exp_eq.species_list:
@@ -88,12 +90,14 @@ def isentropic_canonical_solver(N_tot_tar: dict,
         exp_eq.find_outputs()
         N_out = N_tot_fn(exp_eq)
         S_err = abs(sum(exp_eq.Ss)- S_in)
-        N_err = [abs(N_out[k] - N_in[k]) for k in N_in.keys()]
+        N_err = [N_out[k] - N_in[k] for k in N_in.keys()]
+        logging.debug("S_err = {}, N_err = {}".format(S_err, N_err))
         return [S_err, *N_err]
     
     if N_tot_fn is None: N_tot_fn = default_N_tot_fn
     Np0 = [sp["Np"] for sp in exp0.species_list if sp["name"] in N_tot_tar.keys()]
+    # Didn't work: hybr
     rrst = root(NS_err, args = (exp0, N_tot_tar, S_tar, N_tot_fn), x0 = [exp0.T, *Np0],
-                method = "hybr", tol = tol, options = {"maxiter": max_step}) # outputs a root_result object
+                method = "hybr") # outputs a root_result object
     if not rrst.success: logging.warning("Algorithm failed to converge!")
     return rrst.x, rrst

@@ -163,6 +163,9 @@ if unit_system == 'SI':
     lambda_sw = 532e-9
     lambda_lw = 1064e-9
     lambda_vert = 1064e-9
+    k_sw = 2 * np.pi / lambda_sw
+    k_lw = 2 * np.pi / lambda_lw
+    G_sw = k_sw * np.sqrt(3)
     # beam waists, taken from [Claire] and [TBarter] (I believe those "w"'s are actually diameters, i.e. w0*2; usually beam waist is called w0)
     w0_sw = 40e-6
     w0_lw = 50e-6

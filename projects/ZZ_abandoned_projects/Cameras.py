@@ -1,17 +1,19 @@
 import numpy as np
+# I'm planning to slowly copy things from here to hardware.camera if they
+# are useful
 
 #%% Classes
-class Camera():
-    def __init__(self) -> None:
-        # Geometry
-        self.l_px = 0                   # [m] size of a single pixel
-        self.CCD_size = (0, 0)          # (#, #) number of pixels on each side
+# class Camera():
+#     def __init__(self) -> None:
+#         # Geometry
+#         self.l_px = 0                   # [m] size of a single pixel
+#         self.CCD_size = (0, 0)          # (#, #) number of pixels on each side
 
-        # (Photo-)Electronic
-        self.QE = 0                     # [dimless] Quantum efficiency at ~767 nm
+#         # (Photo-)Electronic
+#         self.QE = 0                     # [dimless] Quantum efficiency at ~767 nm
 
-        # Others
-        self.Tmin = 0                   # [Celcius] lowest temperature achievable
+#         # Others
+#         self.Tmin = 0                   # [Celcius] lowest temperature achievable
 
 class OpticalSystem():
     def __init__(self) -> None:

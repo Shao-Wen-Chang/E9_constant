@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.special import zeta
@@ -6,21 +7,31 @@ from E9_fn.E9_constants import *
 # See E0_constants for list of references and some file conventions
 
 #%% Thermodynamical properties of Bose gases
-def T_BEC_bose(wbar, N, a = 0, V = 0, m = m_Rb87):
+def T_BEC_bose(wbar, N, a_s: float = 0, V = 0, m = m_Rb87):
     """[K] Returns the BEC critical temperature of a Bose gas.
     
     See [BECDilute] p.23. When wbar is 0, assume that atoms are trapped in a box of volume V. In the case where a != 0, Tc is
     shifted accordingly ([Bloch08] eqn.11 & the equation to its right) and the effect is quite sizable (of order 0.1*Tc).
-        wbar: [Hz] Trap frequency
+        wbar: [rad/s] Trap frequency
         N: [#] atom number
-        a: [m] s-wave scattering length
+        a_s: [m] s-wave scattering length
         V: [m^3] (only for wbar = 0) box volume
         m: [kg] (only for wbar = 0) mass of the atom"""
     if wbar != 0:
-        if a != 0: print("interaction effect is not included yet in the case of harmonic potential")
-        return (1 + 1.32 * (N / V) * a) * hbar * wbar * (N * zeta(3))**(1/3) / k_B
+        if a_s != 0: print("interaction effect is not included yet in the case of harmonic potential")
+        return (1 + 1.32 * (N / V) * a_s) * hbar * wbar * (N * zeta(3))**(1/3) / k_B
     else:
-        return (1 + 1.32 * (N / V) * a) * (2 * np.pi * hbar**2 / m) * (N / V / zeta(3/2))**(2/3) / k_B
+        return (1 + 1.32 * (N / V) * a_s) * (2 * np.pi * hbar**2 / m) * (N / V / zeta(3/2))**(2/3) / k_B
+
+def mu_BEC_har(m, wbar, a_s, N):
+    """[E] Returns the chemical potential of an interacting BEC in a
+    harmonic potential at T = 0.
+    
+    See e.g. [BECDilute] eqn.(6.35)."""
+    if a_s == 0:
+        logging.warning("No interaction in mu_BEC_har, results might not make sense")
+    abar = np.sqrt(hbar / m / wbar)
+    return (15**(2/5) / 2) * (N * a_s / abar)**(2/5) * hbar * wbar
 
 def N_collapse_bose(a):
     """[#] Returns the (order of magnutide estimate) of critical number N_c for an attractive Bose gas, above which the
@@ -43,17 +54,30 @@ def fermi_energy_har(wbar, N):
     See e.g. Eqn.(33) in [Ketterle08]."""
     return hbar * wbar * (6 * N)**(1/3)
 
-def fermi_radius(m, w, N):
-    """Return the Fermi radius in the axis with trap frequency w."""
-    E_F = fermi_energy_har(w, N)
-    return np.sqrt(2 * E_F / (m * w**2))
+def fermi_radius(m, w, N, xi, a_s = 0.):
+    """Return the Fermi radius in the axis with trap frequency w.
+    
+    The expression is the same for Bose and Fermi gas, but E_F is different.
+        w: [rad/s] trap frequency, assumed to be isotropic.
+        xi: [#] -1 for Bose gases, +1 for fermi gases.
+    Note that
+        for Fermi gases, this is the NON-INTERACTING profile.
+        for Bose gases, this is the INTERACTING profile in T-F approx."""
+    if xi != 1 and xi != -1:
+        logging.error("xi = {}".format(xi))
+        raise Exception("xi must be 1 or -1 in fermi_radius")
+    elif xi == 1: # Non-interacting Fermi gas
+        mu0 = fermi_energy_har(w, N) # Fermi energy, i.e. mu(T = 0)
+    elif xi == -1: # Interacting Bose gas
+        mu0 = mu_BEC_har(m, w, a_s, N) # chemical potential at T = 0
+    return np.sqrt(2 * mu0 / (m * w**2))
 
 def density_profile(m, wx, wy, wz, N, pos_arr, z = 0):
-    """Given a harmonic trapping potential with specified trapping frequencies, for each point in pos (where the origin
+    """Given a harmonic trapping potential with specified trapping frequencies, for each point in pos_arr (where the origin
     is set at trap center), return the number density at zero temperature.
     
     See e.g. Eqn.(34) in [Ketterle08].
-        wx/y/z: [Hz] trapping frequencies in x / y / z direction
+        wx/y/z: [rad/s] trapping frequencies in x / y / z direction
         pos_arr: [m] a (2, L)-dim ndarray, where pos[:, i] = (x, y) of the i-th point. 
         z: [m] specifies the z-coordinate shared by all points in pos."""
     R = np.sqrt(pos_arr[0, :]**2 + pos_arr[1, :]**2 + z**2) # Distances from trap center
