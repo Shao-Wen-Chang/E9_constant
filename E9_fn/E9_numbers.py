@@ -6,6 +6,14 @@ from scipy.special import zeta
 from E9_fn.E9_constants import *
 # See E0_constants for list of references and some file conventions
 
+#%% Scattering properties
+def xsection_s(a_s, k, r_eff = 0):
+    """[m^2] Returns the s-wave scattering cross-section.
+    
+    I need to review the physics!
+    Also should I have a factor of 2?"""
+    return 4 * np.pi * abs(1 / (1 / a_s + r_eff * k**2 / 2 - 1j * k))**2
+
 #%% Thermodynamical properties of Bose gases
 def T_BEC_bose(wbar, N, a_s: float = 0, V = 0, m = m_Rb87):
     """[K] Returns the BEC critical temperature of a Bose gas.
@@ -246,12 +254,13 @@ def VaFortU(t, U, FBres, Vvst, VvsU):
     Might not implement because it would need some work, but want to remind myself of possible tradeoffs."""
     pass
 
-def LambDickeConst(V0):
+def LambDickeConst(V0, a_lat = a_sw_tri):
     """(tentative) Returns the Lamb-Dicke constant for a given 532 lattice depth.
     
     This currently assumes using K D1 line cooling in a 532 triangular lattice and can be easily generalized.
-        V0: [kHz] 532 lattice depth"""
-    return (hbar * np.pi * a_sw_tri**2 / 2 / m_K40 / 1000)**(1/4) / lambda_K40_D1 * V0**(-1/4)
+        V0:     [kHz] 532 lattice depth
+        a_lat:  [m] lattice constant"""
+    return (hbar * np.pi * a_lat**2 / 2 / m_K40 / 1000)**(1/4) / lambda_K40_D1 * V0**(-1/4)
 
 #%% class HyperfineState
 class HyperfineState():
