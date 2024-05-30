@@ -157,12 +157,12 @@ def set_custom_plot_style(actv: bool = True, overwrite: dict = {}):
     else:
         plt.rcdefaults()
 
-def make_simple_axes(ax = None, fignum = None):
+def make_simple_axes(ax = None, fignum = None, fig_kwarg = {}):
     """Make a figure with one single Axes if ax is None, and return (figure, axes).
     
     My favorite thing to have in the beginning of a plotting function."""
     if ax is None:
-        f = plt.figure(num = fignum)
+        f = plt.figure(num = fignum, **fig_kwarg)
         f.clf()
         ax = f.add_axes(111)
         return (f, ax)
