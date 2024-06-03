@@ -1,3 +1,4 @@
+# Recommended import call: import E9_fn.E9_numbers as E9n
 import logging
 import numpy as np
 import matplotlib.pyplot as plt

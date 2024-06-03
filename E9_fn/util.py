@@ -1,6 +1,7 @@
 import logging
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.path import Path
 import gftool as gt
 from typing import Iterable
 
@@ -58,7 +59,6 @@ def VecTheta(theta):
     return np.array([np.cos(theta), np.sin(theta)])
 
 #%% Special functions not defined in scipy
-### Very physics
 # particle statistics
 def part_stat(E, tau, mu, xi, replace_inf = "Don't"):
     """Fermi (xi = +1) or Bose (xi = -1) statistics function.
@@ -95,17 +95,18 @@ def fermi_stat(E, tau, mu = 0):
     return part_stat(E, tau, mu, xi = 1)
 
 # Density of states (lowest energy is 0 by convention)
-def kagome_DoS(E, t = 1.):
-    """The density of state of kagome lattice, EXCLUDING the flat band.
+def kagome_DoS(E, hbw = 1., fhbw = 0.1):
+    """The density of state of kagome lattice, INCLUDING the flat band.
     
     I redefined the zero to be at the bottom of the band structure.
     Inputs:
-        t: tight-binding t.
+        hbw: half bandwidth ( = tight-binding t x 3).
+        fhbw: half bandwidth of the flat band, typically a small finite number
     See gftool.lattice.kagome.dos for more detail. Some notes of the original dos:
         - This function integrates to 2/3 since the flat band is not included.
         - It returns 0 at the VHS of the second band s.t. the lattice would be
           half filled at E = 0."""
-    return gt.lattice.kagome.dos(E - t * (2 / 3), half_bandwidth = t)
+    return gt.lattice.kagome.dos(E - hbw * (2 / 3), half_bandwidth = hbw) + (1/3) * dirac_delta(E, x0 = 2 * hbw, hw = fhbw)
 
 # General stuff
 def dirac_delta(x, x0 = 0, hw = 1e-6):
@@ -136,7 +137,7 @@ def step_fn(x, x0: float = 0):
 
 #%% Helper plotting functions
 #%% Plot parameters
-def set_custom_plot_style(actv: bool = True, overwrite: dict = {}):
+def set_custom_plot_style(activate: bool = True, overwrite: dict = {}):
     """Use a set of rcParams that I prefer.
     
     To restore to default values, use plt.rcdefaults().
@@ -151,7 +152,7 @@ def set_custom_plot_style(actv: bool = True, overwrite: dict = {}):
                        "figure.autolayout": True,           # Use tight layout
                        } | overwrite
 
-    if actv:
+    if activate:
         for key, value in custom_rcParams.items():
             plt.rcParams[key] = value
     else:
@@ -205,3 +206,8 @@ def plot_delta_fn(ax,
     arr = ax.arrow(xi, yi, dx, dy, **kwargs)
     ax.text(tx, ty, text)
     return arr
+
+def GetClosedPolygon(vert):
+    '''Generate the Path defined by a set of vertices that define a closed polygon.'''
+    path_code = [Path.MOVETO] + [Path.LINETO for _ in vert[:-2]] + [Path.CLOSEPOLY]
+    return Path(vert, path_code)

@@ -1,5 +1,6 @@
 # Recommended import call: import E9_fn.E9_models as E9M
 import logging
+from collections import defaultdict
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.table import table as plot_table
@@ -18,17 +19,16 @@ import E9_fn.thermodynamics as thmdy
 class DoS_exp():
     """Models that focuses on the density of states (DoS) of possibly several species.
     
-    Each "experiment" or "system" contains one or more "species" in a finite size
-    system. Each "species" can be a single isotope in different spin states,
+    Each "experiment" contains one or more "species" in a finite size system.
+    Each "species" can be a single isotope in different spin states,
     several atomic species, or even the same spin state but with different DoS.
     They are defined by their own set of properties, such as the size of the
     system, DoS, # of particles, or interaction strength.
 
     A "reservoir" is a special kind of species that is actually the same species as some
-    other species ("system"), but with some different properties, such as a different
+    other species ("system"), but with some different properties, usually a different
     DoS. This is useful when e.g. one consider spinless fermions in a step potential trap.
-    The reservoir species will share the chemical potential with the system. They must
-    be listed at the end of the tuple.
+    The reservoir species will share the chemical potential with the system.
     
     Currently, the properties shared by all system are:
         1. Temperature (thermodynamical equilibrium);
@@ -147,6 +147,19 @@ class DoS_exp():
             sp["S"] = thmdy.find_S(sp["E_orbs"], self.T, sp["Np"], sp["stat"], sp["mu"], sp["E"], sp["N_BEC"])
         self.Ss = util.all_values_from_key(self.species_list, "S")
     
+    def find_N_tot(self) -> dict:
+        """Find the total number of particles for each species by summing over reservoirs.
+        
+        Output:
+            N_tot: looks like e.g. {"fermi1": 1300, "fermi2": 400, ...}"""
+        N_tot = defaultdict(int)
+        for sp in self.species_list:
+            if sp["reservoir"] == "":
+                N_tot[sp["name"]] += sp["Np"]
+            else:
+                N_tot[sp["reservoir"]] += sp["Np"]
+        return N_tot
+
     ### plot related methods
     def plot_DoSs(self, ax = None, offset_traces: bool = False):
         """Visulaization of DoS + filling.
@@ -160,7 +173,7 @@ class DoS_exp():
         for i, sp in enumerate(self.species_list):
             # Energies used for plotting is generated separately (less points than
             # E_orbs); ignore the ground state if there's a BEC
-            E_orbs_plot = np.linspace(sp["E_range"][0], sp["E_range"][1], 1000)
+            E_orbs_plot = np.linspace(sp["E_range"][0], sp["E_range"][1], 10000)
             if sp["N_BEC"] != 0: E_orbs_plot = E_orbs_plot[1:]
             DoS_values = sp["DoS"](E_orbs_plot)
             max_DoS[i] = max(DoS_values)
