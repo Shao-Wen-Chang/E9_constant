@@ -34,7 +34,7 @@ Np_1 = int(V * nu_1)        # number of fermions
 nu_2 = 3/6               # filling factor (1 is one particle per site)
 Np_2 = int(V * nu_2)        # number of bosons
 
-exp_fb = E9M.DoS_exp(T, [
+exp_fb = E9M.NVT_exp(T, [
     {"name": "fermion 1", "V": V, "Np": Np_1, "stat": 1, "DoS": DoS_exp,
         "E_range": E_range_exp, "reservoir": "", "comment": {}},
     {"name": "fermion 2", "V": V, "Np": Np_2, "stat": 1, "DoS": DoS_exp,
@@ -84,7 +84,7 @@ def main(**kwargs):
         ax_SvsT.set_xlabel(r"$S_{tot}$")
         ax_SvsT.set_ylabel("T")
 
-        fermi_S = np.array([x.species_list[0]["S"] for x in isen_exp_list])
+        fermi_S = np.array([x.subregion_list[0]["S"] for x in isen_exp_list])
         ax_Srel = fig_exp.add_subplot(222)
         ax_Srel.plot(isen_S_list, fermi_S / isen_S_list)
         ax_Srel.set_xlabel(r"$S_{tot}$")

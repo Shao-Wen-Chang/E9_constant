@@ -3,7 +3,7 @@ import sys
 from copy import deepcopy
 import logging
 import numpy as np
-from scipy.optimize import root_scalar, root, RootResults
+from scipy.optimize import root_scalar, root, RootResults, minimize
 # User defined modules
 sys.path.insert(1,
     "C:\\Users\\ken92\\Documents\\Studies\\E5\\simulation\\E9_simulations")
@@ -12,7 +12,7 @@ import E9_fn.E9_models as E9M
 # Algorithms for finding equilibrium conditions under different circumstances
 
 def isentropic_fix_filling_solver(S_tar: float,
-                      exp0: E9M.DoS_exp,
+                      exp0: E9M.NVT_exp,
                       max_step: int = 50,
                       tol: float = 1e-4) -> (float, RootResults):
     """Find thermal equlibrium config, in particular T, given some total entropy
@@ -20,7 +20,7 @@ def isentropic_fix_filling_solver(S_tar: float,
     
     See my personal notes on 2024/01/15 for some physical considerations. This function
     is useful for finding the target particle number and temperature / total entropy.
-    Arguments:
+    Args:
         S_tar: total entropy of the system. Physically this is given by e.g. how cold
                we can get after sympathetic evaporation.
         exp0: DoS_exp that specifies initial conditions. This object is left
@@ -42,17 +42,45 @@ def isentropic_fix_filling_solver(S_tar: float,
         exp_eq = deepcopy(exp_in)
         exp_eq.T = T_in
         exp_eq.find_outputs()
-        return sum(exp_eq.Ss)- S_in
+        return sum(exp_eq.Ss) - S_in
 
     rrst = root_scalar(S_err, args = (exp0, S_tar), x0 = exp0.T, method = "secant",
                        rtol = tol, maxiter = max_step) # outputs a root_result object
     if not rrst.converged: logging.warning("Algorithm failed to converge!")
     return rrst.root, rrst
 
+def muVT_from_NVS_solver(S_tar: float,
+                       N_tar: float,
+                       subregion_list: list[E9M.muVT_subregion],
+                       T0: float,
+                       mu0: float,
+                       Tbounds: tuple = (0, 5),
+                       mubounds: tuple = (0, 6),
+                       method: str = "Nelder-Mead",
+                       options_dict: dict = None) -> (np.ndarray[float], RootResults):
+    """Solve for mu and T given S and N (V is held constant).
+    
+    Returns:
+        rrst.root: an array of [T, mu] that will give the correct S and N.
+        orst: the OptimizeResult object returned by root_scalar for full information."""
+    # Assumes only one species for now; generalize if this works
+    sp_name = subregion_list[0].species
+    def err_fn(Tmu_guess):
+        T_guess = Tmu_guess[0]
+        mu_guess = Tmu_guess[1]
+        exp_guess = E9M.muVT_exp(T_guess, subregion_list, {sp_name: mu_guess})
+        S, T, N = exp_guess.S, exp_guess.T, exp_guess.N_dict[sp_name]
+        return abs(S - S_tar) + abs(N - N_tar)
+
+    orst = minimize(err_fn, x0 = [T0, mu0], bounds = [Tbounds, mubounds], method = method,
+                    options = options_dict)
+    if not orst.success: logging.warning("Algorithm failed to converge!")
+    return orst.x, orst
+
 #%% Method that don't work yet
 def isentropic_fix_Ntot_solver(N_tot_tar: dict,
                     S_tar: float,
-                    exp0: E9M.DoS_exp,
+                    exp0: E9M.NVT_exp,
                     max_step_S: int = 50,
                     tol_S: float = 1e-4) -> (list[float], RootResults):
     # Many syntax errors
@@ -65,7 +93,7 @@ def isentropic_fix_Ntot_solver(N_tot_tar: dict,
             Use isentropic_fix_filling_solver to find Np in reservoirs
             add Np in reservoirs and the sytem to find N_tot
     So it is basically two single-variable solvers stacked together.
-    Arguments:
+    Args:
         S_tar: total entropy of the system.
         N_tot_tar: the number of particles for each particle type, expressed as e.g.:
                    {"fermi1": 3000, "fermi2": 5000}. Includes reserviors.
@@ -89,10 +117,10 @@ def isentropic_fix_Ntot_solver(N_tot_tar: dict,
     def N_err(N_sys_guess, exp_in):
         """Given N_sys_guess, use update_exp to find the new N_tot, and calculate deviation from N_tot_tar.
         
-        Output: sum of |N_tot_tar - N_tot_now| for all species."""
+        Returns: sum of |N_tot_tar - N_tot_now| for all species."""
         all_sp = N_tot_tar.keys()
         for sp_name in all_sp:
-            for sp in exp_in.species_list:
+            for sp in exp_in.subregion_list:
                 if sp["name"] == sp_name:
                     sp["Np"] = N_sys_guess[sp_name]
                     continue
@@ -102,11 +130,11 @@ def isentropic_fix_Ntot_solver(N_tot_tar: dict,
     
     N_sys_init = []
     for k in N_tot_tar.keys():
-        for sp in exp0.species_list:
+        for sp in exp0.subregion_list:
             if sp["name"] == k:
                 N_sys_init.append(sp["Np"])
     rrst = root(N_err, args = exp0, x0 = N_sys_init) # outputs a root_result object
-    if not rrst.converged: logging.warning("Algorithm failed to converge!")
+    if not rrst.success: logging.warning("Algorithm failed to converge!")
     # Unfortunately for now I have to run isentropic_fix_filling_solver again
     # to re-obtain T
     for i, k in enumerate(N_tot_tar.keys()):
@@ -118,7 +146,7 @@ def isentropic_fix_Ntot_solver(N_tot_tar: dict,
 
 def isentropic_canonical_solver(N_tot_tar: dict,
                       S_tar: float,
-                      exp0: E9M.DoS_exp,
+                      exp0: E9M.NVT_exp,
                       N_tot_fn = None,
                       max_step: int = 100,
                       tol: float = 1e-3) -> (float, RootResults):
@@ -129,7 +157,7 @@ def isentropic_canonical_solver(N_tot_tar: dict,
     In actual experiments, we are often given a fixed number of particle, and
     filling is whatever that results from that number.
     This is useful for simulating what would actually happen in experiments.
-    Arguments:
+    Args:
         N_tot_tar: the number of particles for each particle type, expressed as e.g.:
                {"fermi1": 3000, "fermi2": 5000}. Includes reserviors.
         N_tot_fn: function that returns N_tot: N_tot_fn(exp0) = N_tot_now.
@@ -142,7 +170,7 @@ def isentropic_canonical_solver(N_tot_tar: dict,
         the species and reservoirs of that species, and add their total atom number."""
         N_tot = dict.fromkeys(N_tot_tar.keys(), 0.)
         for k in N_tot_tar.keys():
-            for sp in exp.species_list: # add particles from all species of the given particle type
+            for sp in exp.subregion_list: # add particles from all species of the given particle type
                 if sp["name"] == k or sp["reservoir"] == k:
                     N_tot[k] += sp["Np"]
         return N_tot
@@ -150,14 +178,14 @@ def isentropic_canonical_solver(N_tot_tar: dict,
     def NS_err(TN_in, exp_in, N_in, S_in, N_tot_fn):
         """Deviation in N_tot and S. (want N_tot = N_in and S = S_in)
         
-        Arguments:
+        Args:
             TN_in: a list of current guesses [T_now, Np1_now, Np2_now, ...]
-        Output: a list of [S_err, Np1_err, Np2_err, ...]"""
+        Returns: a list of [S_err, Np1_err, Np2_err, ...]"""
         exp_eq = deepcopy(exp_in)
         logging.debug("guess: T = {}, N = {}".format(TN_in[0], TN_in[1:]))
         exp_eq.T = TN_in[0]
         for k, i in enumerate(N_in.keys()):
-            for sp in exp_eq.species_list:
+            for sp in exp_eq.subregion_list:
                 if sp["name"] == k:
                     sp["Np"] = TN_in[i + 1]
         exp_eq.find_outputs()
@@ -168,7 +196,7 @@ def isentropic_canonical_solver(N_tot_tar: dict,
         return [S_err, *N_err]
     
     if N_tot_fn is None: N_tot_fn = default_N_tot_fn
-    Np0 = [sp["Np"] for sp in exp0.species_list if sp["name"] in N_tot_tar.keys()]
+    Np0 = [sp["Np"] for sp in exp0.subregion_list if sp["name"] in N_tot_tar.keys()]
     # Didn't work: hybr
     rrst = root(NS_err, x0 = [exp0.T, *Np0], args = (exp0, N_tot_tar, S_tar, N_tot_fn),
                 method = "krylov") # outputs a root_result object

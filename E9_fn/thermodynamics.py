@@ -66,11 +66,11 @@ def find_mu(E_orbs, T, Np, xi, max_step: int = 10000, tolerance = 1e-6):
     solver I guess) Remember that "BEC only occurs in 2D at T = 0" refers to 2D free
     particles. It is all about the leading power term of the DoS, and e.g. 2D harmonic
     confinement can result in BEC at T > 0.
-    Arguments:
+    Args:
         Np: number of (fermionic) particles (of a single spin species)
         max_setp: number of steps to try before the algorithm is terminated
         tolerance: acceptable fractional error on N.
-    Outputs:
+    Returns:
         mu: chemical potential such that error to Np is less than the tolerance.
         N_BEC: 0 if fermion or non-condensed bosons"""
     def mu_subroutine(mu_min, mu_max, Np, xi, tolerance):

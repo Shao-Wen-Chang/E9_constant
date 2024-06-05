@@ -2,11 +2,11 @@ import logging
 import time
 import sys
 
-import simple_fermi_bose as sfb
-import simple_fermi_fermi as sff
-import fermi_with_reservoir as fwr
-import fermi_fermi_with_reservoir as ffwr
-import fermi_fermi_kagome_with_reservoir as ffkwr
+# import simple_fermi_bose as sfb
+# import simple_fermi_fermi as sff
+# import fermi_with_reservoir as fwr
+# import fermi_fermi_with_reservoir as ffwr
+# import fermi_fermi_kagome_with_reservoir as ffkwr
 import fermi_kagome_scan_reservoir as fksr
 sys.path.insert(1,
     "C:\\Users\\ken92\\Documents\\Studies\\E5\\simulation\\E9_simulations")
@@ -23,7 +23,7 @@ def main():
     # User inputs
     logpath = '' # '' if not logging to a file
     loglevel = logging.INFO
-    module = ffkwr
+    module = fksr
     kwargs = {"calculation_mode": "isentropic"
               } # any arguments that can be passed to the main() of the module
     

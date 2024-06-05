@@ -99,7 +99,7 @@ def kagome_DoS(E, hbw = 1., fhbw = 0.1):
     """The density of state of kagome lattice, INCLUDING the flat band.
     
     I redefined the zero to be at the bottom of the band structure.
-    Inputs:
+    Args:
         hbw: half bandwidth ( = tight-binding t x 3).
         fhbw: half bandwidth of the flat band, typically a small finite number
     See gftool.lattice.kagome.dos for more detail. Some notes of the original dos:

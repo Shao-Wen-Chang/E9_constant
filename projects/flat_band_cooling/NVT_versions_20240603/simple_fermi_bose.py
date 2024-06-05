@@ -33,7 +33,7 @@ Np_f = int(V * nu_f)        # number of fermions
 nu_b = 2/6               # filling factor (1 is one particle per site)
 Np_b = int(V * nu_b)        # number of bosons
 
-exp_fb = E9M.DoS_exp(T, [
+exp_fb = E9M.NVT_exp(T, [
     {"name": "fermion", "V": V, "Np": Np_f, "stat": 1, "DoS": DoS_exp,
         "E_range": E_range_exp, "reservoir": "", "comment": {}},
     {"name": "boson", "V": V, "Np": Np_b, "stat": -1, "DoS": DoS_exp,
@@ -77,13 +77,13 @@ def calc_isentropic():
     ax_SvsT.set_xlabel(r"$S_{tot}$")
     ax_SvsT.set_ylabel("T")
 
-    fermi_S = np.array([x.species_list[0]["S"] for x in isen_exp_list])
+    fermi_S = np.array([x.subregion_list[0]["S"] for x in isen_exp_list])
     ax_Srel = fig_exp.add_subplot(422)
     ax_Srel.plot(isen_S_list, fermi_S / isen_S_list)
     ax_Srel.set_xlabel(r"$S_{tot}$")
     ax_Srel.set_ylabel(r"$S_f/S_{tot}$")
 
-    bose_BEC = np.array([x.species_list[1]["N_BEC"] for x in isen_exp_list])
+    bose_BEC = np.array([x.subregion_list[1]["N_BEC"] for x in isen_exp_list])
     box_width = isen_S_list[1] - isen_S_list[0]
     ax_BEC = fig_exp.add_subplot(423)
     ax_BEC.bar(x = isen_S_list, height = bose_BEC, width = box_width)

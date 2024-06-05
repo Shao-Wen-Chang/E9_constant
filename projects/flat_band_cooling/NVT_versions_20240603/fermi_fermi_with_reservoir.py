@@ -45,7 +45,7 @@ Np_sf1 = int(V * r_s * nu_sf1)        # number of particles in the system
 nu_sf2 = 5/6               # filling factor (1 is fully filled)
 Np_sf2 = int(V * r_s * nu_sf2)        # number of particles in the system
 
-exp_ffwr = E9M.DoS_exp(T, [
+exp_ffwr = E9M.NVT_exp(T, [
     {"name": "fermi1", "V": V_s, "Np": Np_sf1, "stat": +1, "DoS": DoS_sys,
         "E_range": E_range_s, "reservoir": "", "comment": {}},
     {"name": "fermi1_rsv", "V": V_rsv, "Np": 0, "stat": +1, "DoS": DoS_rsv,
@@ -94,14 +94,14 @@ def calc_isentropic():
     ax_SvsT.set_xlabel(r"$S_{tot}$")
     ax_SvsT.set_ylabel("T")
 
-    S_sys = np.array([x.species_list[0]["S"] + x.species_list[2]["S"] for x in isen_exp_list])
+    S_sys = np.array([x.subregion_list[0]["S"] + x.subregion_list[2]["S"] for x in isen_exp_list])
     ax_S_sys = fig_exp.add_subplot(222)
     ax_S_sys.plot(isen_S_list, S_sys / r_s / isen_S_list)
     ax_S_sys.set_xlabel(r"$S_{tot}$")
     ax_S_sys.set_ylabel(r"$S_{sys}/(r_s S_{tot})$")
     ax_S_sys.set_title("Effective reduction in the entropy of system")
 
-    S_fermi1 = np.array([x.species_list[0]["S"] for x in isen_exp_list])
+    S_fermi1 = np.array([x.subregion_list[0]["S"] for x in isen_exp_list])
     ax_Srel = fig_exp.add_subplot(223)
     ax_Srel.plot(isen_S_list, S_fermi1 / S_sys)
     ax_Srel.set_xlabel(r"$S_{tot}$")
