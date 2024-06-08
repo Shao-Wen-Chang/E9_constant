@@ -5,17 +5,27 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import colormaps
 # User defined modules
-from scipy.integrate import quad
 import equilibrium_finder as eqfind
 sys.path.insert(1,
     "C:\\Users\\ken92\\Documents\\Studies\\E5\\simulation\\E9_simulations")
 from E9_fn import util
 import E9_fn.E9_models as E9M
+import E9_fn.thermodynamics as thmdy
 # spin-1/2 fermions in a step potential with kagome lattice dispersion
+
+# Helper functions
+def make_offset_fn(offset, f0):
+    """Generator of reservoir DoS.
+    
+    My old code that uses lambda functions has some reference issues."""
+    def fn_out(x):
+        return f0(x - offset)
+    return fn_out
 
 #%% Experiment initialization 
 # values with _scan are used if it is being scanned in the calculation; otherwise, the value without _scan is used
 
+### input variables ###
 #   "system": 1/10 of the number of sites, half-filled
 #   "reservoir": 9/10 of the number of sites with lower on-site potential
 V = 3 * 500**2      # size of the experiment (imagine a kagome lattice with n*n unit cells)
@@ -24,44 +34,56 @@ bandwidth = 6       # bandwidth (of band structure; 6 for tight-binding kagome l
 # System
 sys_name = "system"
 r_s = 0.1           # ratio of the system size
-fhbw = 0.01         # half band width of the flat band
+fhbw = 0.0         # half band width of the flat band used in DoS, if not added as degenerate states
 E_range_s = (0, bandwidth + fhbw)  # energies considered in calculation
-    # Defining DoS
-DoS_sys = lambda x: util.kagome_DoS(x, hbw = bandwidth / 2, fhbw = fhbw)
-# print("DoS integrates to {}".format(quad(DoS_sys, E_range_s[0], E_range_s[1])))
-
-V_s = int(V * r_s)  # size of the system
-rsv_rel_size = 1 / r_s - 1      # relative size of the reservoir, V_rsv / V_s
+DoS_sys = lambda x: util.kagome_DoS(x, hbw = bandwidth / 2, fhbw = fhbw) # Density of states
 
 # Reservoirs
 res_name = "reservoir"
-offset = -2       # energy offsets in the DoS of reservoir
-offset_scan = np.arange(-2.1, -1.5, 0.1)
-V_rsv = int(V - V_s)            # size of the reservoir
+offset = -2.2       # energy offsets in the DoS of reservoir
+offset_scan = np.arange(-22, -16) / 10.
 
 # Whole experiment
 sp_name = "fermi1"
 T = 0.2             # Temperature
 T_scan = np.linspace(0.025, 1, 40)
-mu = 4              # chemical potential
-mu_scan = np.linspace(3.8, 4.2, 5)
+mu = 4.              # chemical potential
+mu_scan = np.arange(38, 43) / 10.
 
 # Utility variables
 calculation_mode = "offset_scan"
 colormap_traces = "Blues"       # Currently using matplotlib built-in colormaps
 nu_tar = 5/12       # Target filling factor
-    # Plot parameters
+
+### Derived variables ###
+# These parameters are used in default muVT systems, but may be overwritten if something
+# is being scanned (offset, r_s etc.)
+V_s = int(V * r_s)              # size of the system
+V_rsv = int(V - V_s)            # size of the reservoir
+rsv_rel_size = 1 / r_s - 1      # relative size of the reservoir, also = V_rsv / V_s
+
+E_range_rsv = (offset, offset + bandwidth + fhbw)
+DoS_rsv = make_offset_fn(offset, DoS_sys)
+
+dgn_list_s, dgn_list_rsv = [], []
+if fhbw == 0.: # actually set E = bandwidth for all the flat band states
+    dgn_list_s = [(bandwidth, int(V_s / 3.))]
+    dgn_list_rsv = [(bandwidth + offset, int(V_rsv / 3.))]
+sr_list = [E9M.muVT_subregion(sys_name, sp_name, V_s, +1, DoS_sys, E_range_s, dgn_list_s, None),
+           E9M.muVT_subregion(res_name, sp_name, V_rsv, +1, DoS_rsv, E_range_rsv, dgn_list_rsv, None)]
+
+### Plot parameters ###
 # xlim_DoS = None
 xlim_DoS = [0, 3]
 ylim_Srel = [0., 1.1]
 Tmu_sample = []
 # Tmu_sample = [(0, 0), (0, 4), (20, 0), (20, 4)]
 # Tmu_solve_sample = []
-Tmu_solve_sample = [0, 3, 6]
+Tmu_solve_sample = [0, 1, 2, 3, 6]
 
 # Initial conditions in terms of N, V and S (, which should set mu and T of the system)
 V_actual = 3 * 50**2    # For me to come up with some reasonable guesses in the thermodynamic limit
-nu_rsv = 5/6
+nu_rsv = 5/6 - 0.05
 s_target = 0.3          # Entropy per particle
 s_scan = np.arange(3, 7) / 10.
 
@@ -73,24 +95,12 @@ print("N_target = {}, S_target = {}".format(N_target, S_target))
 # Initial guesses for the muVT solver
 T_guess0 = 0.04
 mu_guess0 = 6 + offset
-
-def make_rsv_fn(offset):
-    """Generator of reservoir DoS.
-    
-    My old code that uses lambda functions has some reference issues."""
-    def fn_out(x):
-        return DoS_sys(x - offset)
-    return fn_out
+NS_tol = 100        # Tolerable error in resultant N and S to N_target and S_target or not
 
 #%% Available simulations
 def calc_simple():
     """Find the thermodynamical values at some fixed mu, T, and offset."""
-    E_range_rsv = (offset, offset + bandwidth + fhbw)
-    DoS_rsv = make_rsv_fn(offset)
-    exp_fksr = E9M.muVT_exp(T,
-                            [E9M.muVT_subregion(sys_name, sp_name, V_s, +1, DoS_sys, E_range_s),
-                             E9M.muVT_subregion(res_name, sp_name, V_rsv, +1, DoS_rsv, E_range_rsv)],
-                             {sp_name: mu})
+    exp_fksr = E9M.muVT_exp(T, sr_list, {sp_name: mu})
     fig_exp = plt.figure(1, figsize = (5, 8))
     ax_DoS = fig_exp.add_subplot(211)
     ax_table = fig_exp.add_axes(212)
@@ -100,22 +110,17 @@ def calc_simple():
     plt.tight_layout()
     if xlim_DoS is not None: ax_DoS.set_xlim(xlim_DoS)
 
-    # exp_fksr.plot_E_orb(2.1 * fhbw)
+    # exp_fksr.plot_E_orb(fbw = 0.01)
 
 def calc_T_scan():
     """Find the thermodynamical values at some fixed mu and offset while scanning T."""
     # Initialization
-    E_range_rsv = (offset, offset + bandwidth + fhbw)
-    DoS_rsv = make_rsv_fn(offset)
     exp_list = [None for _ in T_scan]
 
     # Calculation (done when an muVT_exp is instantiated)
     for i, T in enumerate(T_scan):
         logging.debug("working on loop #{}, T = {}...".format(i, T))
-        exp_list[i] = E9M.muVT_exp(T,
-                                [E9M.muVT_subregion(sys_name, sp_name, V_s, +1, DoS_sys, E_range_s),
-                                 E9M.muVT_subregion(res_name, sp_name, V_rsv, +1, DoS_rsv, E_range_rsv)],
-                                 {sp_name: mu})
+        exp_list[i] = E9M.muVT_exp(T, sr_list, {sp_name: mu})
     S_tot_arr = np.array([ex.S for ex in exp_list])
     S_sys_arr = np.array([ex.results["system"]["S"] for ex in exp_list])
     S_rsv_arr = np.array([ex.results["reservoir"]["S"] for ex in exp_list])
@@ -170,7 +175,7 @@ def calc_T_mu_scan():
     fig_exp = plt.figure(1)
     ax_TvsS = fig_exp.add_subplot(221)
     ax_TvsS.set_xlabel(r"$k_B T / t$")
-    ax_TvsS.set_ylabel(r"$_{tot}$")
+    ax_TvsS.set_ylabel(r"$S_{tot}$")
 
     ax_TvsN = fig_exp.add_subplot(222)
     ax_TvsN.set_xlabel(r"$k_B T / t$")
@@ -190,19 +195,14 @@ def calc_T_mu_scan():
     # Calculation (done when an muVT_exp is instantiated)
     for j, mu in enumerate(mu_scan):
         # Initialization
-        E_range_rsv = (offset, offset + bandwidth + fhbw)
-        DoS_rsv = make_rsv_fn(offset)
         exp_list = [None for _ in T_scan]
         c_mu = colormap_mu(color_offset + j)
         for i, T in enumerate(T_scan):
             logging.debug("working on mu = {}, T = {}...".format(mu, T))
-            exp_list[i] = E9M.muVT_exp(T,
-                                    [E9M.muVT_subregion(sys_name, sp_name, V_s, +1, DoS_sys, E_range_s),
-                                    E9M.muVT_subregion(res_name, sp_name, V_rsv, +1, DoS_rsv, E_range_rsv)],
-                                    {sp_name: mu})
+            exp_list[i] = E9M.muVT_exp(T, sr_list, {sp_name: mu})
             # Plot samples
             if (i, j) in Tmu_sample:
-                fig_sam = plt.figure(figsize = (8, 5))
+                fig_sam = plt.figure(figsize = (5, 8))
 
                 ax_DoS = fig_sam.add_subplot(211)
                 exp_list[i].plot_DoSs(ax_DoS)
@@ -212,7 +212,7 @@ def calc_T_mu_scan():
                 ax_tab.set_axis_off()
                 exp_list[i].tabulate_params(ax_tab)
 
-                fig_sam.suptitle("Showing T = {:.2f}, mu = {:.2f}".format(T, mu))
+                fig_sam.suptitle("Showing T = {:.4f}, mu = {:.4f}".format(T, mu))
         
         # Plot traces for this mu
         S_tot_arr = np.array([ex.S for ex in exp_list])
@@ -249,13 +249,18 @@ def calc_offset_scan():
 
     for i, offset in enumerate(offset_scan):
         print("working on offset = {}...".format(offset))
+        # overwrite relevant subregion parameters 
+        E_range_rsv = (offset, offset + bandwidth + fhbw)
+        DoS_rsv = make_offset_fn(offset, DoS_sys)
+        dgn_list_rsv = []
+        if fhbw == 0: dgn_list_rsv = [(bandwidth + offset, int(V_rsv / 3.))]
+        subregion_list = [E9M.muVT_subregion(sys_name, sp_name, V_s, +1, DoS_sys, E_range_s, dgn_list_s, None),
+                        E9M.muVT_subregion(res_name, sp_name, V_rsv, +1, DoS_rsv, E_range_rsv, dgn_list_rsv, None)]
+        
+        # Update guess values, and find the new equilibrium states
         T_guess, mu_guess = all_T[i - 1], all_mu[i - 1]
         if T_guess == 0: T_guess = T_guess0
         if mu_guess == 0: mu_guess = mu_guess0
-        E_range_rsv = (offset, offset + bandwidth + fhbw)
-        DoS_rsv = make_rsv_fn(offset)
-        subregion_list = [E9M.muVT_subregion(sys_name, sp_name, V_s, +1, DoS_sys, E_range_s),
-                        E9M.muVT_subregion(res_name, sp_name, V_rsv, +1, DoS_rsv, E_range_rsv)]
         Tmu_out, orst = eqfind.muVT_from_NVS_solver(S_target,
                                                     N_target,
                                                     subregion_list,
@@ -272,10 +277,12 @@ def calc_offset_scan():
             all_N[i] = exp_fksr.N_dict[sp_name]
             all_nu_sys[i] = exp_fksr.results[sys_name]["Np"] / V_s
             all_exp[i] = exp_fksr
-            if all_N[i] - N_target < 100 and all_S[i] - S_target < 100: # pretty arbitrary
+            N_err, S_err = all_N[i] - N_target, all_S[i] - S_target
+            if abs(N_err) < NS_tol and abs(S_err) < NS_tol:
                 all_success[i] = True
             else:
-                logging.warning("offset = {} didn't converge, but the minimizer thought it did!".format(offset))
+                logging.warning("The solution of offset = {} doesn't satisfy the specified tolerance!".format(offset))
+                logging.warning("(NS_tol = {}, N_err = {}, S_err = {})".format(NS_tol, N_err, S_err))
             if i in Tmu_solve_sample:
                 fig_exp = plt.figure(figsize = (5, 8))
                 ax_DoS = fig_exp.add_subplot(211)
@@ -319,9 +326,10 @@ def calc_S_scan():
     This shows that the cooling effect of the flat band only works if the temperature is very low."""
     # Initialization
     E_range_rsv = (offset, offset + bandwidth + fhbw)
-    DoS_rsv = make_rsv_fn(offset)
-    subregion_list = [E9M.muVT_subregion(sys_name, sp_name, V_s, +1, DoS_sys, E_range_s),
-                      E9M.muVT_subregion(res_name, sp_name, V_rsv, +1, DoS_rsv, E_range_rsv)]
+    DoS_rsv = make_offset_fn(offset, DoS_sys)
+    E_orbs_rsv = thmdy.E_orbs_from_DoS(DoS_rsv, E_range_rsv, V_rsv)
+    subregion_list = [E9M.muVT_subregion(sys_name, sp_name, V_s, +1, DoS_sys, E_range_s, E_orbs_s),
+                      E9M.muVT_subregion(res_name, sp_name, V_rsv, +1, DoS_rsv, E_range_rsv, E_orbs_rsv)]
     all_T = np.zeros_like(s_scan)
     all_mu = np.zeros_like(s_scan)
     all_S = np.zeros_like(s_scan)
@@ -344,7 +352,7 @@ def calc_S_scan():
                                                     mu_guess,
                                                     Tbounds = (0, 20),
                                                     mubounds = (0, 10),
-                                                    options_dict = {"fatol": 1e-8, "xatol": 1e-8})
+                                                    options_dict = {"fatol": 1e-10, "xatol": 1e-10})
         if orst.success:
             exp_fksr = E9M.muVT_exp(Tmu_out[0], subregion_list, {sp_name: Tmu_out[1]})
             all_T[i] = Tmu_out[0]

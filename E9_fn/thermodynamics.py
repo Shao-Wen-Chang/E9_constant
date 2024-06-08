@@ -41,6 +41,18 @@ def E_orbs_from_DoS(DoS, E_range, sample_num: int, bin_num: int = 500):
         E_orbs[i1:i2] = np.linspace(E1, E2, s, endpoint = False)
     return E_orbs
 
+def E_orbs_with_deg(DoS, E_range, sample_num: int, dgn_list: list[tuple] = [], bin_num: int = 500):
+    """Generate E_orbs with a list of degenaracies added to the dispersive E_orbs.
+    
+    sample_num is the number of orbitals sampled in DoS, so the total number of states will be
+    sample_num + sum([dl[1] for dl in dgn_list])
+    Args:
+        dgn_list: a list of tuple(energy: float, num_of_degenerate_orbitals: int)."""
+    E_orbs = E_orbs_from_DoS(DoS, E_range, sample_num, bin_num = bin_num)
+    for dgn in dgn_list: 
+        E_orbs = np.hstack((E_orbs, np.ones(dgn[1]) * dgn[0]))
+    return E_orbs
+
 #%% Find thermodynamic values
 def find_Np(E_orbs, T, mu, xi) -> float:
     """(Still returning float!) Find the number of (non-condensed) particle of a system.

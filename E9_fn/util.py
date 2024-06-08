@@ -95,17 +95,19 @@ def fermi_stat(E, tau, mu = 0):
     return part_stat(E, tau, mu, xi = 1)
 
 # Density of states (lowest energy is 0 by convention)
-def kagome_DoS(E, hbw = 1., fhbw = 0.1):
-    """The density of state of kagome lattice, INCLUDING the flat band.
+def kagome_DoS(E, hbw: float = 1., fhbw: float = 0.):
+    """The density of state of kagome lattice, possibly including a 'flat-ish' band.
     
+    The dispersive part integrates to 2/3. If fhbw != 0, then there is also a "flat band"
+    that integrates to 1/3.
     I redefined the zero to be at the bottom of the band structure.
     Args:
-        hbw: half bandwidth ( = tight-binding t x 3).
-        fhbw: half bandwidth of the flat band, typically a small finite number
+        hbw:    half bandwidth ( = tight-binding t x 3).
+        fhbw:   half bandwidth of the flat band, typically a small finite number
+                (if zero, the flat band is omitted, and the function only integrates to 2/3.)
     See gftool.lattice.kagome.dos for more detail. Some notes of the original dos:
         - This function integrates to 2/3 since the flat band is not included.
-        - It returns 0 at the VHS of the second band s.t. the lattice would be
-          half filled at E = 0."""
+        - It returns 0 at the VHS of the second band."""
     return gt.lattice.kagome.dos(E - hbw * (2 / 3), half_bandwidth = hbw) + (1/3) * dirac_delta(E, x0 = 2 * hbw, hw = fhbw)
 
 # General stuff
@@ -115,7 +117,10 @@ def dirac_delta(x, x0 = 0, hw = 1e-6):
     I am just using a narrow rectangle with width 2 * hw for now.
         x0: position of the delta function.
         hw: halfwidth of the rectangle."""
-    return rect_fn(x, x0 = x0 - hw, x1 = x0 + hw) / (2 * hw)
+    if hw == 0:
+        return 0
+    else:
+        return rect_fn(x, x0 = x0 - hw, x1 = x0 + hw) / (2 * hw)
 
 def Gaussian_1D(x, s = 1, mu = 0):
     """The Gaussian normal distribution (i.e. integrates to 1)."""

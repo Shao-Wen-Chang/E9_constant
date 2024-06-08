@@ -201,37 +201,73 @@ class NVT_exp():
                    rowLabels = displayed_keys, loc = 'center')
         return ax_table
 
-muVT_subregion = namedtuple("muVT_species", ["name", "species", "V", "stat", "DoS", "E_range"])
+muVT_subregion = namedtuple("muVT_species", ["name", "species", "V", "stat", "DoS", "E_range", "dgn_list", "E_orbs"])
 # "name": str                    # name of the subregion
 # "species": str                 # name of the species
 # "V": int                       # number of orbitals / size of the subregion
 # "stat": 1 or -1                # 1 for fermions, -1 for bosons
     # Probalby won't work well for bosons - I haven't included N_BEC yet
-# "DoS": callable like f(E)      # density of states
-# "E_range": (float, float)      # energies considered in calculation
+# "DoS": callable like f(E)      # density of states (Mainly used for plots)
+# "E_range": (float, float)      # energies considered in calculation and plots
+# "dgn_list": list[tuple]        # A list of tuple(energy: float, num_of_degenerate_orbitals: int)
+# "E_orbs": array_like[float]    # (can be None) A complete list of energies of all orbitals considered
+
 class muVT_exp():
     """Grand canonical ensemble (fix (mu, V, T))."""
     def __init__(self, T: float, subregion_list: list[muVT_subregion], mu_dict: dict[float]):
         """Find all the thermal dynamical values and store them as attributes of the object.
         
         Reservoirs are treated on equal footings with systems.
-        Np (number of particles) in each species is NOT rounded to integer."""
+        Np (number of particles) in each species is NOT rounded to integer.
+        Args:
+            T: temperature of the system.
+            subregion_list: list[muVT_subregion] that defines the experiment parameters.
+            mu_dict: a dictionary that contains the chemical potentials of each species.
+                e.g. {"fermi1": 0.4, "fermi2": 0.05, "bose1": -0.1}
+        Attr:
+            subregion_list: the E_orbs are generated in __init__ if they are None in the input.
+                Otherwise this list is the same as the input subregion_list.
+            _input_subregion_list: this is exactly the same as the input.
+            results: stores derived quantities as their values, with the subregion names being the keys.
+                e.g. {"system": {"Np": 777.8, ...}
+                      "reservoir": {"Np": 11111.3, ...}}
+            N_dict: total particle number for each species.
+            S: total entropy of all the subregions in the experiment.
+            E: total energy of all the subregions in the experiment."""
         self.T = T
-        self.subregion_list = subregion_list
+        self._input_subregion_list = subregion_list
         self.mu_dict = mu_dict
+        processed_sr_list = [None for _ in subregion_list]
 
-        # self.results stores derived quantities as their values, with the subregion names being the keys
+        # Subregion specific values
         self.results = dict()
-        for sr in subregion_list:
+        for i, sr in enumerate(subregion_list):
+            # E_orbs is usually automatically generated, but can be overridden if the input
+            # passes the consistency check
+            if sr.E_orbs is None:
+                V_dgn = sum([dgn[1] for dgn in sr.dgn_list])
+                E_orbs_sr = thmdy.E_orbs_with_deg(sr.DoS, sr.E_range, sr.V - V_dgn, dgn_list = sr.dgn_list)
+                sr = muVT_subregion(sr.name, sr.species, sr.V, sr.stat, sr.DoS, sr.E_range, sr.dgn_list, E_orbs_sr)
+            if len(sr.E_orbs) != sr.V:
+                logging.error("Number of orbits for {} is inconsistent".format(sr.name))
+                logging.error("(V = {}, len(E_orbs) = {})".format(sr.V, len(sr.E_orbs)))
+                raise(Exception("E_orbs_number_error"))
+            else:
+                processed_sr_list[i] = sr
+
+            # Initialization
             result_i = dict()
             mu_i = mu_dict[sr.species]
-            result_i["E_orb"] = thmdy.E_orbs_from_DoS(sr.DoS, sr.E_range, sr.V)
-            result_i["Np"] = thmdy.find_Np(result_i["E_orb"], self.T, mu_i, sr.stat)
-            result_i["E"] = thmdy.find_E(result_i["E_orb"], self.T, mu_i, sr.stat)
-            result_i["S"] = thmdy.find_S(result_i["E_orb"], self.T, result_i["Np"], sr.stat, mu_i, result_i["E"])
+            
+            # Calculate thermodynamical values
+            result_i["Np"] = thmdy.find_Np(sr.E_orbs, self.T, mu_i, sr.stat)
+            result_i["E"] = thmdy.find_E(sr.E_orbs, self.T, mu_i, sr.stat)
+            result_i["S"] = thmdy.find_S(sr.E_orbs, self.T, result_i["Np"], sr.stat, mu_i, result_i["E"])
             result_i["nu"] = result_i["Np"] / sr.V
             self.results[sr.name] = result_i
+        self.subregion_list = processed_sr_list
         
+        # Experiment-level values
         self.N_dict = self.find_N_tot()
         self.S = sum([rst["S"] for rst in self.results.values()])
         self.E = sum([rst["E"] for rst in self.results.values()])
@@ -325,18 +361,13 @@ class muVT_exp():
             ax_scat = f.add_subplot(121)
             ax_hist = f.add_subplot(122)
 
-            E_orb = self.results[sr.name]["E_orb"]
-            EOI = (sr.E_range[1] - fbw, sr.E_range[1])
-            num_in_EOI = sum(np.logical_and(E_orb > EOI[0], E_orb < EOI[1]))
-            random_offsets = 0.3 * np.random.default_rng().standard_normal(len(E_orb))
-            ax_scat.scatter(random_offsets, E_orb, s = 1, marker = ".")
+            EOI = (sr.E_range[1] - fbw, sr.E_range[1] + fbw)
+            num_in_EOI = sum(np.logical_and(sr.E_orbs > EOI[0], sr.E_orbs < EOI[1]))
+            random_offsets = 0.3 * np.random.default_rng().standard_normal(len(sr.E_orbs))
+            ax_scat.scatter(random_offsets, sr.E_orbs, s = 1, marker = ".")
             ax_scat.fill_between(ax_scat.get_xlim(), (EOI[0], EOI[0]), (EOI[1], EOI[1]), alpha = 0.3)
 
             E_bins = np.linspace(sr.E_range[0], sr.E_range[1], 500)
-            N, bins, patches = ax_hist.hist(E_orb, bins = E_bins)
-            f.suptitle("Ratio of orbitals in ({}, {}): {} (num = {})".format(EOI[0], EOI[1], num_in_EOI / len(E_orb), num_in_EOI))
+            N, bins, patches = ax_hist.hist(sr.E_orbs, bins = E_bins)
+            f.suptitle("Ratio of orbitals in ({}, {}): {} (num = {})".format(EOI[0], EOI[1], num_in_EOI / len(sr.E_orbs), num_in_EOI))
         return ax_scat, ax_hist
-#%% simulation
-if __name__ == "__main__":
-    # Moved to projects on 20240114
-    pass
