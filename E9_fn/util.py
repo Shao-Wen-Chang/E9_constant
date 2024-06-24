@@ -177,38 +177,35 @@ def make_simple_axes(ax = None, fignum = None, fig_kwarg = {}):
         
 def plot_delta_fn(ax,
                   x0: float = 0,
-                  a0: float = 1,
                   a_plt: float = 1,
-                  text: str = None,
+                  text: str = "",
+                  text_height: float = 0.,
                   axis = 'x',
                   **kwargs):
-    """Plot the delta function, a0 * delta(x - x0), as an arrow.
+    """Plot the delta function, a0 * delta(x - x0), as an arrow, and put a0 next to it.
     
     The arrow must be plotted after limits have changed.
         ax: the Axes object to be plotted on.
         x0: position of the delta function peak.
-        a0: actual value that the delta function integrates to. Only affects the text.
-        a0: length of the arrow.
-        text: the text to be added next to the arrow to indicate the actual value of
-              a0. Default to a0 if None.
+        text: What to display next to the arrow.
+        a_plt: length of the arrow.
+        text_height: moves the position of the text up or down by a certain amount.
         axis: which axis is used as the variable. Default is x (horizontal axis).
         *kwargs: must be plot-related arguments accepted by arrow()."""
     # Initialize arguments to arrow()
-    if text is None: text = '{:.2f}'.format(a0)
-
     xlims, ylims = ax.get_xlim(), ax.get_ylim()
     xc, xr = (xlims[0] + xlims[1]) / 2., xlims[1] - xlims[0]
     yc, yr = (ylims[0] + ylims[1]) / 2., ylims[1] - ylims[0]
     if axis == 'x':
         (xi, yi, dx, dy) = (x0, 0, 0, a_plt)
-        tx, ty = xi + dx + 0.05 * xr, yi + dy
+        tx, ty = xi + dx + 0.05 * xr, yi + dy + text_height
     elif axis == 'y':
         (xi, yi, dx, dy) = (0, x0, a_plt, 0)
-        tx, ty = xi + dx, yi + dy + 0.05 * yr
+        tx, ty = xi + dx, yi + dy + 0.05 * yr + text_height
     else:
         raise Exception("axis must be \'x\' or \'y\'")
     
-    arr = ax.arrow(xi, yi, dx, dy, **kwargs)
+    arr = ax.arrow(xi, yi, dx, dy, head_width = 0.5, head_length = 0.1, **kwargs)
     ax.text(tx, ty, text)
     return arr
 

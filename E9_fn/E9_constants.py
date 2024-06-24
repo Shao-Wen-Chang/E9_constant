@@ -1,7 +1,7 @@
 # Recommended import call: import E9_fn.E9_constants as E9c
 import numpy as np
 from matplotlib.colors import ListedColormap
-import seaborn as sns
+# import seaborn as sns
 # All in SI units unless otherwise noted. Also, I try to use FREQUENCIES instead of ANGULAR FREQUENCIES all the time, and if
 # I ever use ANGULAR FREQUENCIES I prefer to include the factor of 2pi explicitly. e.g. (2 * pi) * 20. The units for ANGULAR
 # FREQUENCIES is [rad/s].
@@ -36,15 +36,18 @@ import seaborn as sns
 #%% natural constants
 # all values are in SI unit, and (perhaps in the future) adjusted to different
 # units based on some conversion factor
-c_light = 299792458          # speed of light
-hbar = 1.054571817e-34       # reduced Planck constant
+c_light = 299792458             # speed of light
+hbar = 1.054571817e-34          # reduced Planck constant
 hnobar = hbar * 2 * np.pi       # Planck constant
-k_B = 1.380649e-23           # Boltzmann constant
-e_ele = 1.602176634e-19      # Charge of electrons
-m_e = 9.1093837015e-31       # Mass of electrons
-epsilon_0 = 8.8541878128e-12 # vacuum permittivity
-mu_0 = 1.25663706212e-6      # vacuum permeability
-R_gas = 8.31446261815324     # Ideal gass constant (exact)
+k_B = 1.380649e-23              # Boltzmann constant
+e_ele = 1.602176634e-19         # Charge of electrons
+m_e = 9.1093837015e-31          # Mass of electrons
+m_u = 1.66053906892e-27         # Atomic mass unit
+epsilon_0 = 8.8541878128e-12    # vacuum permittivity
+mu_0 = 1.25663706212e-6         # vacuum permeability
+Z_0 = np.sqrt(mu_0 / epsilon_0) # vacuum impedance
+R_gas = 8.31446261815324        # Ideal gass constant (exact)
+N_A = 6.02214076e23             # Avogadro's number
 g_earth = 9.8
 
 # Bohr stuff aka atomic units in SI
@@ -183,7 +186,7 @@ E_R532_K40   = hbar**2 / 2 / m_K40 * (2*np.pi/lambda_sw)**2 # 532 photon recoil 
 BZcolor_PRL = ['red', '#B3FFB3', '#B3FFFF', '#FFB3B3', '#B3B3FF']
 BZcolor_white = ['white', 'white', 'white', 'white', 'white']
 BZcolor_trans = ['none', 'none', 'none', 'none', 'none']
-cmp_husl = ListedColormap(sns.color_palette('husl', 256)) # for plotting phase information
+# cmp_husl = ListedColormap(sns.color_palette('husl', 256)) # for plotting phase information
 
 #%% Utility functions
 def LinearFn(a, b, x):

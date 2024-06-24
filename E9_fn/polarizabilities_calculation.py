@@ -130,88 +130,90 @@ def mark_important_lines(ax, lines, f_min, l_alpha = None, init_text_height = 0)
             horizontalalignment = 'right', verticalalignment = 'bottom')
 
 #%% Calculate polarizibilities (This step is fast, plotting is the slow part)
-alpha_s_K_4S1o2 = alpha_pol(0, wavelengths, K_4S1o2_LOI, '4S1o2')
-alpha_s_Rb_5S1o2 = alpha_pol(0, wavelengths, Rb_5S1o2_LOI, '5S1o2')
-alpha_s_K_4P1o2 = alpha_pol(0, wavelengths, K_4P1o2_LOI, '4P1o2')
-alpha_s_K_4P3o2 = alpha_pol(0, wavelengths, K_4P3o2_LOI, '4P3o2')
+if __name__ == "__main__":
+    alpha_s_K_4S1o2 = alpha_pol(0, wavelengths, K_4S1o2_LOI, '4S1o2')
+    alpha_s_Rb_5S1o2 = alpha_pol(0, wavelengths, Rb_5S1o2_LOI, '5S1o2')
+    alpha_s_K_4P1o2 = alpha_pol(0, wavelengths, K_4P1o2_LOI, '4P1o2')
+    alpha_s_K_4P3o2 = alpha_pol(0, wavelengths, K_4P3o2_LOI, '4P3o2')
 
-# alpha_v_K_4S1o2 = alpha_pol(1, wavelengths, K_4S1o2_lines, '4S1o2')
-alpha_v_K_4S1o2_F9o2 = alpha_pol(1, wavelengths, K_4S1o2_LOI, '4S1o2', F = 9/2, I = 4)
-alpha_v_K_4S1o2_F7o2 = alpha_pol(1, wavelengths, K_4S1o2_LOI, '4S1o2', F = 7/2, I = 4)
-alpha_v_Rb_5S1o2_F2 = alpha_pol(1, wavelengths, Rb_5S1o2_LOI, '5S1o2', F = 2, I = 3/2)
-alpha_v_Rb_5S1o2_F1 = alpha_pol(1, wavelengths, Rb_5S1o2_LOI, '5S1o2', F = 1, I = 3/2)
+    # alpha_v_K_4S1o2 = alpha_pol(1, wavelengths, K_4S1o2_lines, '4S1o2')
+    alpha_v_K_4S1o2_F9o2 = alpha_pol(1, wavelengths, K_4S1o2_LOI, '4S1o2', F = 9/2, I = 4)
+    alpha_v_K_4S1o2_F7o2 = alpha_pol(1, wavelengths, K_4S1o2_LOI, '4S1o2', F = 7/2, I = 4)
+    alpha_v_Rb_5S1o2_F2 = alpha_pol(1, wavelengths, Rb_5S1o2_LOI, '5S1o2', F = 2, I = 3/2)
+    alpha_v_Rb_5S1o2_F1 = alpha_pol(1, wavelengths, Rb_5S1o2_LOI, '5S1o2', F = 1, I = 3/2)
 
-avoas_K_4S1o2_F9o2 = alpha_v_K_4S1o2_F9o2/alpha_s_K_4S1o2
-avoas_Rb_5S1o2_F2 = alpha_v_Rb_5S1o2_F2/alpha_s_Rb_5S1o2
-avoas_Rb_5S1o2_F1 = alpha_v_Rb_5S1o2_F1/alpha_s_Rb_5S1o2
+    avoas_K_4S1o2_F9o2 = alpha_v_K_4S1o2_F9o2/alpha_s_K_4S1o2
+    avoas_Rb_5S1o2_F2 = alpha_v_Rb_5S1o2_F2/alpha_s_Rb_5S1o2
+    avoas_Rb_5S1o2_F1 = alpha_v_Rb_5S1o2_F1/alpha_s_Rb_5S1o2
 
 #%% Plot (bare polarizabilities)
-### Scalar polarizability
-ylim_s = 2e3
-notable_f = 0.001
-mark_line_bool = True
 
-fig_alpha = plt.figure(0, figsize = (20,14))
-fig_alpha.clf()
-ax_s = fig_alpha.add_subplot(211)
-ax_s.set_ylim(-ylim_s, ylim_s)
-l_K_4S1o2 = ax_s.plot(wavelengths * 1e9, alpha_s_K_4S1o2 * pol_SI2au, label = r'$\alpha_s(K-4S_{1/2})$')
-l_Rb_5S1o2 = ax_s.plot(wavelengths * 1e9, alpha_s_Rb_5S1o2 * pol_SI2au, label = r'$\alpha_s(Rb-5S_{1/2})$')
-l_4P1o2 = ax_s.plot(wavelengths * 1e9, alpha_s_K_4P1o2 * pol_SI2au, label = r'$\alpha_s(K-4P_{1/2})$')
-l_4P3o2 = ax_s.plot(wavelengths * 1e9, alpha_s_K_4P3o2 * pol_SI2au, label = r'$\alpha_s(K-4P_{3/2})$')
-if mark_line_bool:
-    mark_important_lines(ax_s, K_4S1o2_lines, notable_f, l_alpha = l_K_4S1o2[0])
-    mark_important_lines(ax_s, Rb_5S1o2_lines, notable_f, l_alpha = l_Rb_5S1o2[0], init_text_height = 1)
-    # mark_important_lines(ax_s, K_4P1o2_lines, notable_f, l_alpha = l_4P1o2[0], init_text_height = 4)
-    # mark_important_lines(ax_s, K_4P3o2_lines, notable_f, l_alpha = l_4P3o2[0], init_text_height = 6)
-ax_s.plot(wavelengths * 1e9, np.zeros_like(wavelengths), 'k--')
-ax_s.axvline(x = lambda_sw * 1e9, color = 'green', alpha = 0.7, linestyle = '-')
-ax_s.axvline(x = lambda_lw * 1e9, color = 'red', alpha = 0.7, linestyle = '-')
-ax_s.set_title('Scalar polarizabilities (trap depth assumes a 1W Gaussian beam with beam waist = {:.1f} um)'.format(beam_waist * 1e6))
-ax_s.set_ylabel(r'$\alpha$' + ' [a.u.]')
-ax_s.legend()
+    ### Scalar polarizability
+    ylim_s = 2e3
+    notable_f = 0.001
+    mark_line_bool = True
 
-# Add a secondary axis to calculate effective trap depth (at Gaussian beam center)
-ryax_s = ax_s.secondary_yaxis('right', functions = (lambda x: x * alpha2uK, lambda x: x / alpha2uK))
-ryax_s.set_ylabel('Trap depth [uK]')
+    fig_alpha = plt.figure(0, figsize = (20,14))
+    fig_alpha.clf()
+    ax_s = fig_alpha.add_subplot(211)
+    ax_s.set_ylim(-ylim_s, ylim_s)
+    l_K_4S1o2 = ax_s.plot(wavelengths * 1e9, alpha_s_K_4S1o2 * pol_SI2au, label = r'$\alpha_s(K-4S_{1/2})$')
+    l_Rb_5S1o2 = ax_s.plot(wavelengths * 1e9, alpha_s_Rb_5S1o2 * pol_SI2au, label = r'$\alpha_s(Rb-5S_{1/2})$')
+    l_4P1o2 = ax_s.plot(wavelengths * 1e9, alpha_s_K_4P1o2 * pol_SI2au, label = r'$\alpha_s(K-4P_{1/2})$')
+    l_4P3o2 = ax_s.plot(wavelengths * 1e9, alpha_s_K_4P3o2 * pol_SI2au, label = r'$\alpha_s(K-4P_{3/2})$')
+    if mark_line_bool:
+        mark_important_lines(ax_s, K_4S1o2_lines, notable_f, l_alpha = l_K_4S1o2[0])
+        mark_important_lines(ax_s, Rb_5S1o2_lines, notable_f, l_alpha = l_Rb_5S1o2[0], init_text_height = 1)
+        # mark_important_lines(ax_s, K_4P1o2_lines, notable_f, l_alpha = l_4P1o2[0], init_text_height = 4)
+        # mark_important_lines(ax_s, K_4P3o2_lines, notable_f, l_alpha = l_4P3o2[0], init_text_height = 6)
+    ax_s.plot(wavelengths * 1e9, np.zeros_like(wavelengths), 'k--')
+    ax_s.axvline(x = lambda_sw * 1e9, color = 'green', alpha = 0.7, linestyle = '-')
+    ax_s.axvline(x = lambda_lw * 1e9, color = 'red', alpha = 0.7, linestyle = '-')
+    ax_s.set_title('Scalar polarizabilities (trap depth assumes a 1W Gaussian beam with beam waist = {:.1f} um)'.format(beam_waist * 1e6))
+    ax_s.set_ylabel(r'$\alpha$' + ' [a.u.]')
+    ax_s.legend()
 
-### Vector polarizability
-ylim_v = 20
-mark_line_bool = False
+    # Add a secondary axis to calculate effective trap depth (at Gaussian beam center)
+    ryax_s = ax_s.secondary_yaxis('right', functions = (lambda x: x * alpha2uK, lambda x: x / alpha2uK))
+    ryax_s.set_ylabel('Trap depth [uK]')
 
-ax_v = fig_alpha.add_subplot(212)
-ax_v.set_ylim(-ylim_v, ylim_v)
-# ax_v.plot(wavelengths * 1e9, alpha_v_K_4S1o2 * pol_SI2au, label = r'$\alpha_v(K-4S_{1/2})$')
-ax_v.plot(wavelengths * 1e9, alpha_v_K_4S1o2_F9o2 * pol_SI2au, label = r'$\alpha_v(K-4S_{1/2}; F = 9/2)$')
-ax_v.plot(wavelengths * 1e9, alpha_v_K_4S1o2_F7o2 * pol_SI2au, label = r'$\alpha_v(K-4S_{1/2}; F = 7/2)$')
-ax_v.plot(wavelengths * 1e9, alpha_v_Rb_5S1o2_F2 * pol_SI2au, label = r'$\alpha_v(Rb-5S_{1/2}; F = 2)$')
-ax_v.plot(wavelengths * 1e9, alpha_v_Rb_5S1o2_F1 * pol_SI2au, label = r'$\alpha_v(Rb-5S_{1/2}; F = 1)$')
-if mark_line_bool:
-    mark_important_lines(ax_v, K_4S1o2_lines, notable_f)
-    mark_important_lines(ax_v, Rb_5S1o2_lines, notable_f, init_text_height = 2)
-ax_v.plot(wavelengths * 1e9, np.zeros_like(wavelengths), 'k--')
-ax_v.axvline(x = lambda_sw * 1e9, color = 'green', alpha = 0.7, linestyle = '-')
-ax_v.axvline(x = lambda_lw * 1e9, color = 'red', alpha = 0.7, linestyle = '-')
-ax_v.set_title('Vector polarizabilities')
-ax_v.set_xlabel(r'$\lambda$' + ' [nm]')
-ax_v.set_ylabel(r'$\alpha$' + ' [a.u.]')
-ax_v.legend(loc = 'upper right')
+    ### Vector polarizability
+    ylim_v = 20
+    mark_line_bool = False
 
-# The factor of 1/2 is cancelled out by the difference in polarization
-ryax_v = ax_v.secondary_yaxis('right', functions = (lambda x: x * alpha2kHz, lambda x: x / alpha2kHz))
-ryax_v.set_ylabel(r'$\Delta_{\sigma^+ - \sigma^-}/m_F$' + ' [kHz]')
+    ax_v = fig_alpha.add_subplot(212)
+    ax_v.set_ylim(-ylim_v, ylim_v)
+    # ax_v.plot(wavelengths * 1e9, alpha_v_K_4S1o2 * pol_SI2au, label = r'$\alpha_v(K-4S_{1/2})$')
+    ax_v.plot(wavelengths * 1e9, alpha_v_K_4S1o2_F9o2 * pol_SI2au, label = r'$\alpha_v(K-4S_{1/2}; F = 9/2)$')
+    ax_v.plot(wavelengths * 1e9, alpha_v_K_4S1o2_F7o2 * pol_SI2au, label = r'$\alpha_v(K-4S_{1/2}; F = 7/2)$')
+    ax_v.plot(wavelengths * 1e9, alpha_v_Rb_5S1o2_F2 * pol_SI2au, label = r'$\alpha_v(Rb-5S_{1/2}; F = 2)$')
+    ax_v.plot(wavelengths * 1e9, alpha_v_Rb_5S1o2_F1 * pol_SI2au, label = r'$\alpha_v(Rb-5S_{1/2}; F = 1)$')
+    if mark_line_bool:
+        mark_important_lines(ax_v, K_4S1o2_lines, notable_f)
+        mark_important_lines(ax_v, Rb_5S1o2_lines, notable_f, init_text_height = 2)
+    ax_v.plot(wavelengths * 1e9, np.zeros_like(wavelengths), 'k--')
+    ax_v.axvline(x = lambda_sw * 1e9, color = 'green', alpha = 0.7, linestyle = '-')
+    ax_v.axvline(x = lambda_lw * 1e9, color = 'red', alpha = 0.7, linestyle = '-')
+    ax_v.set_title('Vector polarizabilities')
+    ax_v.set_xlabel(r'$\lambda$' + ' [nm]')
+    ax_v.set_ylabel(r'$\alpha$' + ' [a.u.]')
+    ax_v.legend(loc = 'upper right')
 
-#%% Plot (things derived from alphas)
-fig_r = plt.figure(1, figsize = (20,7))
-fig_r.clf()
-ax_r = fig_r.add_subplot(111)
-ax_r.set_ylim(-0.2, 0.2)
-ax_r.plot(wavelengths * 1e9, avoas_K_4S1o2_F9o2, label = r'$\alpha_v/\alpha_s(K-4S_{1/2}); F = 9/2$')
-ax_r.plot(wavelengths * 1e9, avoas_Rb_5S1o2_F2, label = r'$\alpha_v/\alpha_s(Rb-5S_{1/2}); F = 2$')
-ax_r.plot(wavelengths * 1e9, avoas_Rb_5S1o2_F1, label = r'$\alpha_v/\alpha_s(Rb-5S_{1/2}); F = 1$')
-ax_r.plot(wavelengths * 1e9, np.zeros_like(wavelengths), 'k--')
-ax_r.axvline(x = lambda_sw * 1e9, color = 'green', alpha = 0.7, linestyle = '-')
-ax_r.axvline(x = lambda_lw * 1e9, color = 'red', alpha = 0.7, linestyle = '-')
-ax_r.set_xlabel(r'$\lambda$' + ' [nm]')
-ax_r.set_ylabel(r'$\alpha_v/\alpha_s$')
-ax_r.legend()
+    # The factor of 1/2 is cancelled out by the difference in polarization
+    ryax_v = ax_v.secondary_yaxis('right', functions = (lambda x: x * alpha2kHz, lambda x: x / alpha2kHz))
+    ryax_v.set_ylabel(r'$\Delta_{\sigma^+ - \sigma^-}/m_F$' + ' [kHz]')
+
+    #%% Plot (things derived from alphas)
+    fig_r = plt.figure(1, figsize = (20,7))
+    fig_r.clf()
+    ax_r = fig_r.add_subplot(111)
+    ax_r.set_ylim(-0.2, 0.2)
+    ax_r.plot(wavelengths * 1e9, avoas_K_4S1o2_F9o2, label = r'$\alpha_v/\alpha_s(K-4S_{1/2}); F = 9/2$')
+    ax_r.plot(wavelengths * 1e9, avoas_Rb_5S1o2_F2, label = r'$\alpha_v/\alpha_s(Rb-5S_{1/2}); F = 2$')
+    ax_r.plot(wavelengths * 1e9, avoas_Rb_5S1o2_F1, label = r'$\alpha_v/\alpha_s(Rb-5S_{1/2}); F = 1$')
+    ax_r.plot(wavelengths * 1e9, np.zeros_like(wavelengths), 'k--')
+    ax_r.axvline(x = lambda_sw * 1e9, color = 'green', alpha = 0.7, linestyle = '-')
+    ax_r.axvline(x = lambda_lw * 1e9, color = 'red', alpha = 0.7, linestyle = '-')
+    ax_r.set_xlabel(r'$\lambda$' + ' [nm]')
+    ax_r.set_ylabel(r'$\alpha_v/\alpha_s$')
+    ax_r.legend()

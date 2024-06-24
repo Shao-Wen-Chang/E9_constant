@@ -51,7 +51,7 @@ mu = 4.              # chemical potential
 mu_scan = np.arange(38, 43) / 10.
 
 # Utility variables
-calculation_mode = "offset_scan"
+calculation_mode = "simple"
 colormap_traces = "Blues"       # Currently using matplotlib built-in colormaps
 nu_tar = 5/12       # Target filling factor
 
@@ -325,11 +325,6 @@ def calc_S_scan():
     
     This shows that the cooling effect of the flat band only works if the temperature is very low."""
     # Initialization
-    E_range_rsv = (offset, offset + bandwidth + fhbw)
-    DoS_rsv = make_offset_fn(offset, DoS_sys)
-    E_orbs_rsv = thmdy.E_orbs_from_DoS(DoS_rsv, E_range_rsv, V_rsv)
-    subregion_list = [E9M.muVT_subregion(sys_name, sp_name, V_s, +1, DoS_sys, E_range_s, E_orbs_s),
-                      E9M.muVT_subregion(res_name, sp_name, V_rsv, +1, DoS_rsv, E_range_rsv, E_orbs_rsv)]
     all_T = np.zeros_like(s_scan)
     all_mu = np.zeros_like(s_scan)
     all_S = np.zeros_like(s_scan)
@@ -347,14 +342,14 @@ def calc_S_scan():
 
         Tmu_out, orst = eqfind.muVT_from_NVS_solver(S_target,
                                                     N_target,
-                                                    subregion_list,
+                                                    sr_list,
                                                     T_guess,
                                                     mu_guess,
                                                     Tbounds = (0, 20),
                                                     mubounds = (0, 10),
                                                     options_dict = {"fatol": 1e-10, "xatol": 1e-10})
         if orst.success:
-            exp_fksr = E9M.muVT_exp(Tmu_out[0], subregion_list, {sp_name: Tmu_out[1]})
+            exp_fksr = E9M.muVT_exp(Tmu_out[0], sr_list, {sp_name: Tmu_out[1]})
             all_T[i] = Tmu_out[0]
             all_mu[i] = Tmu_out[1]
             all_S[i] = exp_fksr.S
