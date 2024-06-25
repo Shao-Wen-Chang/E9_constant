@@ -1,7 +1,7 @@
 # Recommended import call: import E9_fn.E9_constants as E9c
 import numpy as np
 from matplotlib.colors import ListedColormap
-# import seaborn as sns
+import seaborn as sns
 # All in SI units unless otherwise noted. Also, I try to use FREQUENCIES instead of ANGULAR FREQUENCIES all the time, and if
 # I ever use ANGULAR FREQUENCIES I prefer to include the factor of 2pi explicitly. e.g. (2 * pi) * 20. The units for ANGULAR
 # FREQUENCIES is [rad/s].
@@ -186,7 +186,7 @@ E_R532_K40   = hbar**2 / 2 / m_K40 * (2*np.pi/lambda_sw)**2 # 532 photon recoil 
 BZcolor_PRL = ['red', '#B3FFB3', '#B3FFFF', '#FFB3B3', '#B3B3FF']
 BZcolor_white = ['white', 'white', 'white', 'white', 'white']
 BZcolor_trans = ['none', 'none', 'none', 'none', 'none']
-# cmp_husl = ListedColormap(sns.color_palette('husl', 256)) # for plotting phase information
+cmp_husl = ListedColormap(sns.color_palette('husl', 256)) # for plotting phase information
 
 #%% Utility functions
 def LinearFn(a, b, x):
