@@ -202,15 +202,15 @@ class NVT_exp():
         return ax_table
 
 muVT_subregion = namedtuple("muVT_species", ["name", "species", "V", "stat", "DoS", "E_range", "dgn_list", "E_orbs"])
-# "name": str                    # name of the subregion
-# "species": str                 # name of the species
-# "V": int                       # number of orbitals / size of the subregion
-# "stat": 1 or -1                # 1 for fermions, -1 for bosons
+# "name": str                       # name of the subregion
+# "species": str                    # name of the species
+# "V": int                          # number of orbitals / size of the subregion
+# "stat": 1 or -1                   # 1 for fermions, -1 for bosons
     # Probalby won't work well for bosons - I haven't included N_BEC yet
-# "DoS": callable like f(E)      # density of states (Mainly used for plots)
-# "E_range": (float, float)      # energies considered in calculation and plots
-# "dgn_list": list[tuple]        # A list of tuple(energy: float, num_of_degenerate_orbitals: int)
-# "E_orbs": array_like[float]    # (can be None) A complete list of energies of all orbitals considered
+# "DoS": callable like f(E) or None # density of states (Mainly used for plots)
+# "E_range": (float, float)         # energies considered in calculation and plots
+# "dgn_list": list[tuple]           # A list of tuple(energy: float, num_of_degenerate_orbitals: int)
+# "E_orbs": array_like[float]       # (can be None) A complete list of energies of all orbitals considered
 
 class muVT_exp():
     """Grand canonical ensemble (fix (mu, V, T))."""
@@ -293,34 +293,37 @@ class muVT_exp():
 
         # Plot DoS and filling
         max_DoS = np.zeros(len(self.subregion_list))
-        colors_used = dict()
         for i, sr in enumerate(self.subregion_list):
             mu_i = self.mu_dict[sr.species]
-            # Energies used for plotting is generated separately (less points than E_orbs and don't reflect DoS)
-            E_orbs_plot = np.linspace(sr.E_range[0] - 0.5, sr.E_range[1] + 0.5, 1000)
-            DoS_plot = sr.DoS(E_orbs_plot)
-            max_DoS[i] = max(DoS_plot)
-            filling = DoS_plot * util.part_stat(E_orbs_plot, self.T, mu_i, sr.stat)
-            
-            # plotting
-            off_h = 0
-            if offset_traces:
-                off_h = offset_traces * i * max_DoS[i]
-                ax_DoS.axvline(off_h, color = 'k', ls = '-', lw = 0.5)
-            pDoS = ax_DoS.plot(DoS_plot + off_h, E_orbs_plot, '-', label = sr.name)
-            clr = pDoS[0].get_color()
-            # if sr.species not in colors_used.keys():
-            #     colors_used[sr.species] = pDoS[0].get_color()
-            ax_DoS.fill_betweenx(E_orbs_plot, x1 = filling + off_h, x2 = off_h
-                                 , ls = '--', alpha = 0.3)
-            ax_DoS.axhline(mu_i, color = clr, ls = '--'
-                        , label = r'$\mu = ${:.3f}, $s = ${:.4f}'.format(mu_i, self.results[sr.name]["S"] / self.results[sr.name]["Np"]))
-            print("xlim = {}, ylim = {}".format(ax_DoS.get_xlim(), ax_DoS.get_ylim()))
-            for dgn in sr.dgn_list:
-                nu_dgn = util.part_stat(dgn[0], self.T, mu_i, sr.stat)
-                N_dgn = dgn[1] * nu_dgn
-                util.plot_delta_fn(ax_DoS, dgn[0], 2, text = r"$N_{orbs} = $" + "{:.2f}".format(dgn[1]), axis = "y", color = clr)
-                util.plot_delta_fn(ax_DoS, dgn[0], 2 * nu_dgn, text = r"$N_{fill} = $" + "{:.2f}".format(N_dgn), axis = "y", color = clr, alpha = 0.3, text_height = -1)
+            if sr.DoS is None:
+                # Consider plotting something similar with histograms
+                print("No DoS is given for {}".format(sr.name))
+            else:
+                # Energies used for plotting is generated separately (less points than E_orbs and don't reflect DoS)
+                E_orbs_plot = np.linspace(sr.E_range[0] - 0.5, sr.E_range[1] + 0.5, 1000)
+                DoS_plot = sr.DoS(E_orbs_plot)
+                max_DoS[i] = max(DoS_plot)
+                filling = DoS_plot * util.part_stat(E_orbs_plot, self.T, mu_i, sr.stat)
+                
+                # plotting
+                off_h = 0
+                if offset_traces:
+                    off_h = offset_traces * i * max_DoS[i]
+                    ax_DoS.axvline(off_h, color = 'k', ls = '-', lw = 0.5)
+                pDoS = ax_DoS.plot(DoS_plot + off_h, E_orbs_plot, '-', label = sr.name)
+                clr = pDoS[0].get_color()
+                # if sr.species not in colors_used.keys():
+                #     colors_used[sr.species] = pDoS[0].get_color()
+                ax_DoS.fill_betweenx(E_orbs_plot, x1 = filling + off_h, x2 = off_h
+                                    , ls = '--', alpha = 0.3)
+                ax_DoS.axhline(mu_i, color = clr, ls = '--'
+                            , label = r'$\mu = ${:.3f}, $s = ${:.4f}'.format(mu_i, self.results[sr.name]["S"] / self.results[sr.name]["Np"]))
+                print("xlim = {}, ylim = {}".format(ax_DoS.get_xlim(), ax_DoS.get_ylim()))
+                for dgn in sr.dgn_list:
+                    nu_dgn = util.part_stat(dgn[0], self.T, mu_i, sr.stat)
+                    N_dgn = dgn[1] * nu_dgn
+                    util.plot_delta_fn(ax_DoS, dgn[0], 2, text = r"$N_{orbs} = $" + "{:.2f}".format(dgn[1]), axis = "y", color = clr)
+                    util.plot_delta_fn(ax_DoS, dgn[0], 2 * nu_dgn, text = r"$N_{fill} = $" + "{:.2f}".format(N_dgn), axis = "y", color = clr, alpha = 0.3, text_height = -1)
 
         ax_DoS.set_xlabel("DoS [arb.]")
         ax_DoS.set_ylabel("E/t")

@@ -141,7 +141,7 @@ def step_fn(x, x0: float = 0):
     return np.array(x >= x0).astype(float)
 
 #%% Helper plotting functions
-#%% Plot parameters
+#%% Plot related
 def set_custom_plot_style(activate: bool = True, overwrite: dict = {}):
     """Use a set of rcParams that I prefer.
     

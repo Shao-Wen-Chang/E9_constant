@@ -11,7 +11,7 @@ sys.path.insert(1,
 from E9_fn import util
 import E9_fn.E9_models as E9M
 import E9_fn.thermodynamics as thmdy
-# spin-1/2 fermions in a step potential with kagome lattice dispersion
+# spinless fermions in a variable step potential with kagome lattice dispersion
 
 # Helper functions
 def make_offset_fn(offset, f0):
