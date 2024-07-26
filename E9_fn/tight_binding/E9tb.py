@@ -57,11 +57,17 @@ class tbmodel_2D:
         # Attributes derived from inputs
         self.n_cells = lat_dim[0] * lat_dim[1]
         self.n_orbs = self.n_cells * self.n_basis
-        self.H = self.build_H()
+        self.H, self._as_closed_bc = self.build_H()
     
     def get_reduced_index(self, i, j, k):
         """Returns the reduced index that represents the k-th orbital in the (i, j)-th unit cell."""
-        return self.n_basis * (self.lat_dim[0] * j + i) + k
+        if k >= self.n_basis or k < 0:
+            raise(Exception("index out of range"))
+        if (np.any(i >= self.lat_dim[0]) and self.lat_bc[0] == 0) or \
+           (np.any(j >= self.lat_dim[1]) and self.lat_bc[1] == 0):
+            raise(Exception("index out of range"))
+        ii, jj = i % self.lat_dim[0], j % self.lat_dim[1]
+        return self.n_basis * (self.lat_dim[0] * jj + ii) + k
     
     def get_natural_index(self, indices):
         """Unpacks the reduced indices as (i, j, k), the k-th orbital in the (i, j)-th unit cell."""
@@ -75,12 +81,8 @@ class tbmodel_2D:
     
     def build_H(self):
         """Construct the Hamiltonian of the given tight binding model."""
-        if self.lat_bc[0] == 1:
-            raise(Exception("I haven't added closed bc for dimension 0 yet"))
-        if self.lat_bc[1] == 1:
-            raise(Exception("I haven't added closed bc for dimension 1 yet"))
-        
         H = np.zeros((self.n_orbs, self.n_orbs), dtype = complex)
+        _as_closed_bc = set()
         # Put offsets on each sites (they lie on diagonals)
         for i, offset in enumerate(self.sublat_offsets):
             diag_ind = np.arange(i, self.n_orbs, self.n_basis)
@@ -88,16 +90,32 @@ class tbmodel_2D:
         # Put hoppings between sites (they lie on diagonals with offsets)
         for t, i, j, R in self.hoppings:
             logging.debug("hopping: ({}, {}, {}, {})".format(t, i, j, R))
+            # For every sublattice site, figure out if the site they want to hop to is
+            # allowed by the boundary condition (this code is pretty messy)
+
+            # Generate the list of all "beginning" and "target" sites
             # I may not need the inner list - consider removing it when generalize to other dimensions
             uc1_natural_uc_ind = np.array([[(ii, jj) for jj in range(self.lat_dim[1])]
                                                      for ii in range(self.lat_dim[0])])
             uc2_natural_uc_ind = np.array([[(ii + R[0], jj + R[1]) for jj in range(self.lat_dim[1])]
                                                                    for ii in range(self.lat_dim[0])])
-            uc2_allowed_uc_ind = np.logical_and.reduce((            # Basically we require: (ii, jj) are cell indices
-                (uc2_natural_uc_ind >= 0)[:, :, 0],                 # ii >= 0
-                (uc2_natural_uc_ind < self.lat_dim[0])[:, :, 0],    # ii < self.lat_dim[0]
-                (uc2_natural_uc_ind >= 0)[:, :, 1],                 # jj >= 0
-                (uc2_natural_uc_ind < self.lat_dim[1])[:, :, 1]))   # jj < self.lat_dim[1]
+
+            # Generate the list of allowed sites if the b.c. is open
+            uc2_allowed_uc_ind0 = np.ones((self.lat_dim[0], self.lat_dim[1]))
+            uc2_allowed_uc_ind1 = np.ones((self.lat_dim[0], self.lat_dim[1]))
+            #                                                                                   # For closed b.c. we require: ((ii, jj) are cell indices)
+            uc2_closed_ind0 = np.logical_and((uc2_natural_uc_ind >= 0)[:, :, 0],                # ii >= 0
+                                             (uc2_natural_uc_ind < self.lat_dim[0])[:, :, 0])   # ii < self.lat_dim[0]
+            uc2_closed_ind1 = np.logical_and((uc2_natural_uc_ind >= 0)[:, :, 1],                # jj >= 0
+                                             (uc2_natural_uc_ind < self.lat_dim[1])[:, :, 1])   # jj < self.lat_dim[1]
+            if self.lat_bc[0] == 0:
+                uc2_allowed_uc_ind0 = uc2_closed_ind0
+            else:                   # All hoppings are allowed, but record the ones that constitutes the closed b.c.
+                pass                # I think I don't want to use a set - think again
+            if self.lat_bc[1] == 0:
+                uc2_allowed_uc_ind1 = uc2_closed_ind1
+            uc2_allowed_uc_ind = np.logical_and(uc2_allowed_uc_ind0, uc2_allowed_uc_ind1)               
+            
             # Below it is the easiest to think of each natural_uc_ind as (m, n) arrays, each element being a 2-tuple
             uc1_natural_uc_ind = uc1_natural_uc_ind[uc2_allowed_uc_ind, :]
             uc2_natural_uc_ind = uc2_natural_uc_ind[uc2_allowed_uc_ind, :]
@@ -107,13 +125,13 @@ class tbmodel_2D:
             logging.debug(uc2_ind)
             H[uc1_ind, uc2_ind] = t
             H[uc2_ind, uc1_ind] = t.conjugate() # make sure that H is Hermitian
-        return H
+        return H, _as_closed_bc
     
     def get_lat_pos(self, ind):
         """Return the position of the lattice site specified by ind.
         
         ind can either be a reduced index or a (tuple = (i, j, k) of) natural index."""
-        if type(ind) is int:
+        if type(ind) in {int, np.int64}:
             i, j, k = self.get_natural_index(ind)
         else:
             i, j, k = ind
@@ -121,7 +139,7 @@ class tbmodel_2D:
         logging.debug("ind = {}: i = {}, j = {}, k = {}".format(ind, i, j, k))
         return (i + b0) * self.lat_vec[0] + (j + b1) * self.lat_vec[1]
     
-    def plot_H(self, ax = None, H = None):
+    def plot_H(self, ax = None, H = None, t_farthest = 1):
         """Plot the lattice in the specified axes using the Hamiltonian.
         
         One can add stuff to the Hamiltonian after it is initialized, and use this fuction to plot
@@ -131,7 +149,8 @@ class tbmodel_2D:
         not indicated by any means yet. Consider using an arrow.
         Lattice site offsets should be real, otherwise we are working with a non-Hermitian system.
         Args:
-            H: Hamiltonian to be plotted."""
+            H: Hamiltonian to be plotted.
+            t_farthest: the longest hopping distance without closed boundary condition."""
         if ax is None: _fig, ax = util.make_simple_axes()
         if H is None: H = self.H
         sublat_colors = ["#1f77b4", "#7fbf7f", "#ff5b2b", "ffcc3f"]
@@ -162,15 +181,18 @@ class tbmodel_2D:
                 else:
                     if H[ri1, ri2] != 0: # There is some hopping between the two sites
                         pos1, pos2 = self.get_lat_pos(ri1), self.get_lat_pos(ri2)
+                        ls = "-"
+                        if np.linalg.norm(pos1 - pos2) > t_farthest:
+                            ls = "--"
                         if not np.isclose(H[ri1, ri2].imag, 0):
                             if np.angle(H[ri1, ri2]) > 0:
                                 xa, ya, dxa, dya = pos1[0], pos1[1], pos2[0] - pos1[0], pos2[1] - pos1[1]
                             else:
                                 xa, ya, dxa, dya = pos2[0], pos2[1], pos1[0] - pos2[0], pos1[1] - pos2[1]
-                            ax.arrow(xa, ya, dxa, dya, color = "black", length_includes_head = True,
+                            ax.arrow(xa, ya, dxa, dya, color = "black", length_includes_head = True, ls = ls,
                                      width = 0.03, head_width = 0.15, head_length = 0.15, alpha = get_t_alpha(H[ri1, ri2]), zorder = -100)
                         else:
-                            ax.plot([pos1[0], pos2[0]], [pos1[1], pos2[1]], ls = "-", lw = 1, color = "black",
+                            ax.plot([pos1[0], pos2[0]], [pos1[1], pos2[1]], ls = ls, lw = 1, color = "black",
                                     alpha = get_t_alpha(H[ri1, ri2]), zorder = -100)
         ax.set_aspect("equal")
         return ax

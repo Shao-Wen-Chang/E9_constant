@@ -49,11 +49,11 @@ fig = plt.figure(figsize = (9, 9))
 fig.suptitle(file_name)
 ax_S = fig.add_subplot(221)
 ax_N = fig.add_subplot(222)
-ax_nu = fig.add_subplot(223)
+ax_nsys = fig.add_subplot(223)
 n_cntr = 10
-for ttl, data, ax in zip(["s", "N", r"$\nu_{sys}$"],
+for ttl, data, ax in zip(["s", "N", r"$\n_{sys}$"],
                          [s_list, N_list, nu_sys_list],
-                         [ax_S, ax_N, ax_nu]):
+                         [ax_S, ax_N, ax_nsys]):
     img = ax.imshow(data, aspect = (mu_scan[-1] - mu_scan[0]) / (T_scan[-1] - T_scan[0]),
               extent = [mu_scan[0], mu_scan[-1], T_scan[0], T_scan[-1]], origin = "lower")
     ax.set_xlabel(r"$\mu$")
