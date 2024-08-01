@@ -6,8 +6,7 @@ from pathlib import Path
 
 import sys
 E9path = Path("C:/", "Users", "ken92", "Documents", "Studies", "E5", "simulation", "E9_simulations")
-import equilibrium_finder as eqfind # For some reason removing this line gives an error (ModuleNotFoundError: No module named 'E9_fn')
-sys.path.insert(1, E9path)
+sys.path.insert(1, str(E9path))
 from E9_fn import util
 from E9_fn.tight_binding import E9tb
 
@@ -27,7 +26,7 @@ lattice_str = "kagome"
 lattice_len = 10
 tnnn = -0.02
 lattice_dim = (lattice_len, lattice_len+2)
-tb_params = E9tb.get_model_params(lattice_str, tnnn = tnnn, overwrite_param = {"lat_bc": (1, 1)})
+tb_params = E9tb.get_model_params(lattice_str, tnnn = tnnn)#, overwrite_param = {"lat_bc": (1, 1)})
 my_tb_model= E9tb.tbmodel_2D(lat_dim = lattice_dim, **tb_params)
 H_bare = my_tb_model.H
 

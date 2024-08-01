@@ -123,6 +123,8 @@ class tbmodel_2D:
             uc2_ind = self.get_reduced_index(uc2_natural_uc_ind[:, 0], uc2_natural_uc_ind[:, 1], j)
             logging.debug(uc1_ind)
             logging.debug(uc2_ind)
+            if any(uc1_ind == uc2_ind):
+                raise(Exception("somehow you're putting the hopping terms in the diagonal! (Do you have a closed b.c. on a small dimension?)"))
             H[uc1_ind, uc2_ind] = t
             H[uc2_ind, uc1_ind] = t.conjugate() # make sure that H is Hermitian
         return H, _as_closed_bc
@@ -145,15 +147,14 @@ class tbmodel_2D:
         One can add stuff to the Hamiltonian after it is initialized, and use this fuction to plot
         the new Hamiltonian. Otherwise, this function plots the bare Hamiltonian.
         The lattice sites (links) are more transparent if they are at a lower energy (weaker).
-        Imaginary hopping values are currently indicated with dashed lines, but their directions are
-        not indicated by any means yet. Consider using an arrow.
+        Imaginary hopping values are indicated with arrows.
         Lattice site offsets should be real, otherwise we are working with a non-Hermitian system.
         Args:
             H: Hamiltonian to be plotted.
             t_farthest: the longest hopping distance without closed boundary condition."""
         if ax is None: _fig, ax = util.make_simple_axes()
         if H is None: H = self.H
-        sublat_colors = ["#1f77b4", "#7fbf7f", "#ff5b2b", "ffcc3f"]
+        sublat_colors = ["#1f77b4", "#7fbf7f", "#ff5b2b", "#ffcc3f", "#b97c5a", "#b75bd4"]
         
         # Find the maximum offset and bond strengths (for plotting purposes)
         Hd = H.diagonal().real
@@ -190,9 +191,9 @@ class tbmodel_2D:
                             else:
                                 xa, ya, dxa, dya = pos2[0], pos2[1], pos1[0] - pos2[0], pos1[1] - pos2[1]
                             ax.arrow(xa, ya, dxa, dya, color = "black", length_includes_head = True, ls = ls,
-                                     width = 0.03, head_width = 0.15, head_length = 0.15, alpha = get_t_alpha(H[ri1, ri2]), zorder = -100)
+                                     width = 0.015, head_width = 0.3, head_length = 0.3, alpha = get_t_alpha(H[ri1, ri2]), zorder = -100)
                         else:
-                            ax.plot([pos1[0], pos2[0]], [pos1[1], pos2[1]], ls = ls, lw = 1, color = "black",
+                            ax.plot([pos1[0], pos2[0]], [pos1[1], pos2[1]], ls = ls, lw = 1.5, color = "black",
                                     alpha = get_t_alpha(H[ri1, ri2]), zorder = -100)
         ax.set_aspect("equal")
         return ax
@@ -224,12 +225,15 @@ def get_model_params(model_in,
                      tnn = -1,      # Only use abs(tnn) = 1
                      tnnn = -0.1,
                      tnnnc = 0.1 * np.exp(2j * np.pi * (1/3)),
+                     ky = 0.,
                      overwrite_param: dict = {}):
     """Get parameters required by tbmodel_2D.
     
     Args:
         tnn, tnnn, tnnnc, ...:  Hubbard model parameters. See specific models for how
             they are used.
+        ky: quasimomentum in y direction. Only used in the semi-infinite direction. 1st BZ = [-pi, pi).
+            See specific models for how it is used.
         overwrite_param:        Directly overwrite some of the tbmodel_2D parameters defined
             in the model_dirctionary."""
     
@@ -239,16 +243,16 @@ def get_model_params(model_in,
             "basis_vec": [np.array([0, 0])],
             "lat_bc": (0, 0),
             "sublat_offsets": [0],
-            "hoppings": [(tnn, 0, 0, (1, 0)),
+            "hoppings": [(tnn * np.exp(-1j * ky), 0, 0, (1, 0)),
                         (tnn, 0, 0, (0, 1)),]
         },
 
         "kagome":{
             "lat_vec": [np.array([0, 1]),
-                    np.array([-np.sqrt(3)/2, 1/2])],
+                        np.array([-np.sqrt(3)/2, 1/2])],
             "basis_vec": [np.array([0, 0]),
-                        np.array([0.5, 0]),
-                        np.array([0, 0.5])],
+                          np.array([0.5, 0]),
+                          np.array([0, 0.5])],
             "lat_bc": (0, 0),
             "sublat_offsets": [0, 0, 0],
             "hoppings": [(tnn, 0, 1, (0, 0)),
@@ -261,62 +265,87 @@ def get_model_params(model_in,
 
         "kagome_nnn":{ # a model where nnn hopping is included to mimic actual dispersion
             "lat_vec": [np.array([0, 1]),
-                    np.array([-np.sqrt(3)/2, 1/2])],
+                        np.array([-np.sqrt(3)/2, 1/2])],
             "basis_vec": [np.array([0, 0]),
-                        np.array([0.5, 0]),
-                        np.array([0, 0.5])],
+                          np.array([0.5, 0]),
+                          np.array([0, 0.5])],
             "lat_bc": (0, 0),
             "sublat_offsets": [0, 0, 0],
             "hoppings": [(tnn, 0, 1, (0, 0)),
-                        (tnn, 0, 2, (0, 0)),
-                        (tnn, 1, 2, (0, 0)),
-                        (tnn, 0, 1, (-1, 0)),
-                        (tnn, 0, 2, (0, -1)),
-                        (tnn, 1, 2, (1, -1)),
-                        (tnnn, 0, 1, (-1, 1)),
-                        (tnnn, 0, 1, (0, -1)),
-                        (tnnn, 1, 2, (1, 0)),
-                        (tnnn, 1, 2, (0, -1)),
-                        (tnnn, 2, 0, (1, 0)),
-                        (tnnn, 2, 0, (-1, 1))]
+                         (tnn, 0, 2, (0, 0)),
+                         (tnn, 1, 2, (0, 0)),
+                         (tnn, 0, 1, (-1, 0)),
+                         (tnn, 0, 2, (0, -1)),
+                         (tnn, 1, 2, (1, -1)),
+                         (tnnn, 0, 1, (-1, 1)),
+                         (tnnn, 0, 1, (0, -1)),
+                         (tnnn, 1, 2, (1, 0)),
+                         (tnnn, 1, 2, (0, -1)),
+                         (tnnn, 2, 0, (1, 0)),
+                         (tnnn, 2, 0, (-1, 1))]
         },
 
         "kagome_Haldane":{ # a "Haldane-like" model where there are complex hoppings between nnn
             "lat_vec": [np.array([0, 1]),
-                    np.array([-np.sqrt(3)/2, 1/2])],
+                        np.array([-np.sqrt(3)/2, 1/2])],
             "basis_vec": [np.array([0, 0]),
-                        np.array([0.5, 0]),
-                        np.array([0, 0.5])],
+                          np.array([0.5, 0]),
+                          np.array([0, 0.5])],
             "lat_bc": (0, 0),
             "sublat_offsets": [0, 0, 0],
             "hoppings": [(tnn, 0, 1, (0, 0)),
-                        (tnn, 0, 2, (0, 0)),
-                        (tnn, 1, 2, (0, 0)),
-                        (tnn, 0, 1, (-1, 0)),
-                        (tnn, 0, 2, (0, -1)),
-                        (tnn, 1, 2, (1, -1)),
-                        (tnnnc, 0, 1, (-1, 1)),
-                        (tnnnc, 0, 1, (0, -1)),
-                        (tnnnc, 1, 2, (1, 0)),
-                        (tnnnc, 1, 2, (0, -1)),
-                        (tnnnc, 2, 0, (1, 0)),
-                        (tnnnc, 2, 0, (-1, 1))]
+                         (tnn, 0, 2, (0, 0)),
+                         (tnn, 1, 2, (0, 0)),
+                         (tnn, 0, 1, (-1, 0)),
+                         (tnn, 0, 2, (0, -1)),
+                         (tnn, 1, 2, (1, -1)),
+                         (tnnnc, 0, 1, (-1, 1)),
+                         (tnnnc, 0, 1, (0, -1)),
+                         (tnnnc, 1, 2, (1, 0)),
+                         (tnnnc, 1, 2, (0, -1)),
+                         (tnnnc, 2, 0, (1, 0)),
+                         (tnnnc, 2, 0, (-1, 1))]
         },
 
         "kagome_visualize":{    # kagome lattice with energies chosen to make visualizing the hamiltonian easier
             "lat_vec": [np.array([0, 1]),
-                    np.array([-np.sqrt(3)/2, 1/2])],
+                        np.array([-np.sqrt(3)/2, 1/2])],
             "basis_vec": [np.array([0, 0]),
-                        np.array([0.5, 0]),
-                        np.array([0, 0.5])],
+                          np.array([0.5, 0]),
+                          np.array([0, 0.5])],
             "lat_bc": (0, 0),
             "sublat_offsets": [-6, -6, -6],
             "hoppings": [(1, 0, 1, (0, 0)),
-                        (2, 0, 2, (0, 0)),
-                        (3, 1, 2, (0, 0)),
-                        (4, 0, 1, (-1, 0)),
-                        (5, 0, 2, (0, -1)),
-                        (6, 1, 2, (1, -1))]
+                         (2, 0, 2, (0, 0)),
+                         (3, 1, 2, (0, 0)),
+                         (4, 0, 1, (-1, 0)),
+                         (5, 0, 2, (0, -1)),
+                         (6, 1, 2, (1, -1))]
+        },
+
+        "kagome_str_spk":{    # test - a particular termination of a kagome stripe
+            "lat_vec": [np.array([2 * np.sqrt(3), 0]),
+                        np.array([0, 2])],
+            "basis_vec": [np.array([0, 0]),
+                          np.array([0, 0.5]),
+                          np.array([0.25, -0.25]),
+                          np.array([0.5, 0]),
+                          np.array([0.5, 0.5]),
+                          np.array([0.75, 0.25]),],
+            "lat_bc": (0, 0),
+            "sublat_offsets": [0, 0, 0, 0, 0, 0],
+            "hoppings": [(tnn, 0, 1, (0, 0)),
+                         (tnn, 0, 2, (0, 0)),
+                         (tnn, 2, 3, (0, 0)),
+                         (tnn, 3, 4, (0, 0)),
+                         (tnn, 4, 5, (0, 0)),
+                         (tnn, 3, 5, (0, 0)),
+                         (tnn, 5, 0, (1, 0)),
+                         (tnn, 5, 1, (1, 0)),
+                         (tnn * np.exp(-1j * ky), 1, 0, (0, 1)),
+                         (tnn * np.exp(-1j * ky), 1, 2, (0, 1)),
+                         (tnn * np.exp(-1j * ky), 4, 3, (0, 1)),
+                         (tnn * np.exp(-1j * ky), 4, 2, (0, 1)),]
         },
     }
 
