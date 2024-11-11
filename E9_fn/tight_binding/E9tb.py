@@ -347,6 +347,18 @@ def get_model_params(model_in,
                          (tnn * np.exp(-1j * ky), 4, 3, (0, 1)),
                          (tnn * np.exp(-1j * ky), 4, 2, (0, 1)),]
         },
+
+        "sawtooth":{            # sawtooth lattice - 2nd dimension is supposed to be 1
+            "lat_vec": [np.array([1, 0]),
+                        np.array([0, np.sqrt(3)])],
+            "basis_vec": [np.array([0, 0]),
+                          np.array([0.5, 0.5])],
+            "lat_bc": (0, 0),   # 2nd dimension should have bc = 0
+            "sublat_offsets": [0, 0],
+            "hoppings": [(tnn * np.sqrt(2), 0, 1, (0, 0)),
+                         (tnn, 0, 0, (1, 0)),
+                         (tnn * np.sqrt(2), 1, 0, (1, 0)),]
+        },
     }
 
     p = model_dictionary[model_in]

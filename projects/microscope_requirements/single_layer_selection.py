@@ -1,7 +1,14 @@
-from E9_constants import *
+import sys
+from pathlib import Path
+
+# User defined modules
+E9path = Path("C:/", "Users", "ken92", "Documents", "Studies", "E5", "simulation", "E9_simulations")
+if str(E9path) not in sys.path:
+    sys.path.insert(1, str(E9path))
+from E9_fn.E9_constants import *
 import numpy as np
 import matplotlib.pyplot as plt
-from E9_numbers import QuadrupoleBField
+from E9_fn.E9_numbers import QuadrupoleBField
 
 def BFieldAtZSlice(z, rad_axis, coil_coeff, I):
     """Returns (3 x n) array of B field values at a fixed z over n points defined by rad_axis."""

@@ -1,5 +1,8 @@
-from E9_constants import *
-from E9_numbers import *
+import sys
+sys.path.insert(1,
+    "C:\\Users\\ken92\\Documents\\Studies\\E5\\simulation\\E9_simulations")
+from E9_fn.E9_constants import *
+from E9_fn.E9_numbers import *
 import numpy as np
 import matplotlib.pyplot as plt
 

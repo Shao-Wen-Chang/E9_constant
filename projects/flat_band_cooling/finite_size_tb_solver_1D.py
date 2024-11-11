@@ -22,27 +22,22 @@ save_data = False
 file_name = ""  # This will overwrite the default file name
 
 #%% Define the model and solve it
-lattice_str = "kagome"
+lattice_str = "sawtooth"
 lattice_len = 10
-tnnn = -0.02
-lattice_dim = (lattice_len, lattice_len)
-tb_params = E9tb.get_model_params(lattice_str, tnnn = tnnn)#, overwrite_param = {"lat_bc": (1, 1)})
+lattice_dim = (lattice_len, 1)
+tb_params = E9tb.get_model_params(lattice_str)#, overwrite_param = {"lat_bc": (1, 0)})
 my_tb_model= E9tb.tbmodel_2D(lat_dim = lattice_dim, **tb_params)
 H_bare = my_tb_model.H
 
 # Add offset to the bare model
-sys_len = 6
-sys_range = ((lattice_len - sys_len) // 2, (lattice_len + sys_len) // 2)
-n_sys = sys_len**2
+sys_len = 5
+sys_range = ((lattice_len - sys_len) // 2, 1)
+n_sys = sys_len
 V_rsv_offset = -2
 # Find what unit cells are in the reservoir by excluding the unit cells in the system
-sys_natural_uc_ind = set([(ii, jj) for jj in range(my_tb_model.lat_dim[1]) if sys_range[0] <= jj and jj < sys_range[1]
-                                    for ii in range(my_tb_model.lat_dim[0]) if sys_range[0] <= ii and ii < sys_range[1]])
-rsv_natural_uc_ind = set([(ii, jj) for jj in range(my_tb_model.lat_dim[1])
-                                    for ii in range(my_tb_model.lat_dim[0])])
-rsv_natural_uc_ind -= sys_natural_uc_ind
-rsv_natural_uc_ind = np.array(list(rsv_natural_uc_ind))
-logging.debug(rsv_natural_uc_ind)
+sys_natural_uc_ind = np.array([(ii, 0) for ii in range(sys_len)])
+rsv_natural_uc_ind = np.array([(my_tb_model.lat_dim[0] - 1 - ii, 0)
+                               for ii in range(my_tb_model.lat_dim[0] - sys_len)])
 rsv_ind = np.hstack(
     [my_tb_model.get_reduced_index(rsv_natural_uc_ind[:,0], rsv_natural_uc_ind[:,1], k)
         for k in range(my_tb_model.n_basis)])
@@ -68,8 +63,11 @@ pass
 plot_real_space = True
 plot_state_list = []
 
-# fig_H, ax_H = util.make_simple_axes(fignum = 100)
-# ax_H.matshow(H_total)
+# if np.all(np.isreal(H_total)):
+#     fig_H, ax_H = util.make_simple_axes(fignum = 100)
+#     ax_H.matshow(H_total.real)
+# else:
+#     print("H_total is not all real, not plotting H for now")
 
 fig_E = plt.figure(figsize = (8, 8))
 fig_E.suptitle("{} (total {}, system {}, reservoir offset = {})".format(
@@ -105,8 +103,6 @@ if save_data:
     else:
         str_offset_config = "sys{}x{}_Vrsv{}".format(sys_len, sys_len, V_rsv_offset)
     if not file_name:
-        if lattice_str == "kagome_nnn":
-            lattice_str = lattice_str + str(tnnn)
         file_name = "{}_lat{}x{}_{}".format(lattice_str, lattice_dim[0], lattice_dim[1], str_offset_config).replace(".", "p") + ".npz"
     
     full_path = Path(save_folder, file_name)
