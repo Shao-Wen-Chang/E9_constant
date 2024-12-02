@@ -82,13 +82,25 @@ lambda_K40_D1 = 770.108136507e-9
 lambda_K40_D2 = 766.700674872e-9
 gamma_40K_D2 = 6.035e6
 # 87Rb
-nu_Rb87_4_2P1o2 = 377.107463380e12 # 87Rb D1 line
-nu_Rb87_4_2P3o2 = 384.2304844685e12 # 87Rb D2 line
-nu_Rb87_4_2P = (nu_Rb87_4_2P1o2 + nu_Rb87_4_2P3o2) / 2 # average of D1 & D2 line for convenience
-Delta_Rb87_4_2P = (nu_Rb87_4_2P3o2 - nu_Rb87_4_2P1o2) # diffference of D1 & D2 line for convenience
+nu_Rb87_4_2P1o2 = 377.107463380e12      # 87Rb D1 line
+nu_Rb87_4_2P3o2 = 384.2304844685e12     # 87Rb D2 line
+nu_Rb87_4_2P = (nu_Rb87_4_2P1o2 + nu_Rb87_4_2P3o2) / 2  # average of D1 & D2 line for convenience
+Delta_Rb87_4_2P = (nu_Rb87_4_2P3o2 - nu_Rb87_4_2P1o2)   # diffference of D1 & D2 line for convenience
 lambda_Rb87_D2 = 780.241209686e-9
 gamma_Rb87_D2 = 6.0666e6
 I_sat_Rb87_D2 = 16.6933
+
+# Trap loss constants
+# naming convention is loosely Gxloss(_situation)_species(_state), where x is the number of particles involved
+# "situation" might include
+#   _MOT (MOT; light assisted) (G2)
+#   _sdr (spin dipole relaxation) (G2)
+# units are in [m^(3 * x) s-1]; values are for thermal gases, divide by 6 for atoms in a condensate
+G2loss_MOT_Rb87 = 5.8e-12 * 1e-6        # Rb MOT, Phys. Rev. Lett. 69, 897 (1992).
+G3loss_Rb87_F1mFm1 = 4.3e-29 * 1e-12    # Rb |1, -1>, Phys. Rev. Lett. 79, 337 (1997).
+G3loss_Rb87_F2mF2 = 1.1e-28 * 1e-12     # Rb |2, 2>, Appl Phys B 69, 257 (1999).
+# hard to quote a number for K39 due to its many low-lying Feshbach resonances - see Phys. Rev. A 106, 043320 (2022).
+G3loss_Rb87_K40 = 2.8e-28 * 1e-12       # Rb-Rb-K40, C Ospelkaus thesis
 
 # Non-Rb or K constants
 m_Li6 = 9.9883414e-27

@@ -58,6 +58,23 @@ def VecTheta(theta):
     """Return the unit vector with polar angle theta."""
     return np.array([np.cos(theta), np.sin(theta)])
 
+#%% Simple physics stuff
+def I_from_power(P0, w0):
+    """[W/m^2] Return peak intensity of a gaussian beam with power P and beam waist w0.
+    
+    Also, I = (c_light * n * epsilon_0 / 2) * |E|**2 .
+    P0: [W] Power
+    w0: [m] beam WAIST (the RADIUS of the beam at 1/e^2 intensity)"""
+    return 2 * P0 / np.pi / w0**2
+
+def quadrupole_Bfield(pos, coil_coeff, I):
+    """Returns the B field at pos (relative to coil center) when the coil pair is configured to generate a quadrupole field.
+    
+    pos: a (3 x n) array, where pos[:,i] is the i-th spatial point
+    This is only accurate near the center. For off-center fields, consider modelling with magpylib instead."""
+    M = np.diag([0.5, 0.5, -1])
+    B = M @ (I * coil_coeff * pos)
+    return B
 #%% Special functions not defined in scipy
 # particle statistics
 def part_stat(E, tau, mu, xi, replace_inf = "Don't"):

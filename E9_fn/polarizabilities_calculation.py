@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from sympy.physics.wigner import wigner_6j
 
 from E9_fn.E9_constants import *
-from E9_fn.E9_numbers import *
+from E9_fn.E9_atom import *
 from E9_fn.datasets.transition_line_data import *
 from E9_fn import util
 

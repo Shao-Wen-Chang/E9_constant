@@ -6,7 +6,7 @@ import sys
 sys.path.insert(1,
     "C:\\Users\\ken92\\Documents\\Studies\\E5\\simulation\\E9_simulations")
 import E9_fn.E9_constants as E9c
-import E9_fn.E9_numbers as E9n
+import E9_fn.E9_atom as E9a
 
 # Initialization
 vzero = np.array([0, 0])
