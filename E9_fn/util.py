@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 from matplotlib.path import Path
 import gftool as gt
 from typing import Iterable
+from sympy.physics.wigner import wigner_6j
+from sympy.core.numbers import Rational
 
 #%% dictionary manipulation
 def all_values_from_key(dict_iter: Iterable[dict], key, default = 'raise_error'):
@@ -67,6 +69,9 @@ def I_from_power(P0, w0):
     w0: [m] beam WAIST (the RADIUS of the beam at 1/e^2 intensity)"""
     return 2 * P0 / np.pi / w0**2
 
+def rayleigh_range(w0, lamb_in):
+    return np.pi * w0**2 / lamb_in
+
 def quadrupole_Bfield(pos, coil_coeff, I):
     """Returns the B field at pos (relative to coil center) when the coil pair is configured to generate a quadrupole field.
     
@@ -76,6 +81,18 @@ def quadrupole_Bfield(pos, coil_coeff, I):
     B = M @ (I * coil_coeff * pos)
     return B
 #%% Special functions not defined in scipy
+def wigner_6j_safe(j1, j2, j3, j4, j5, j6):
+    """Pitfall-free version of Wigner 6j symbol."""
+    # Check that the inputs are half-integers - note that inputs such as 9/2 or 4.5 are not necessarily converted
+    # to half integers. See e.g. https://github.com/sympy/sympy/issues/26219
+    original_js = (j1, j2, j3, j4, j5, j6)
+    new_js = [Rational(j).limit_denominator(3) for j in original_js]
+    for nj, oj in zip(new_js, original_js):
+        if abs(float(nj) * 2 - oj * 2) > 1e-7:
+            raise ValueError("invalid j in input: j = {}".format(oj))
+    
+    return wigner_6j(*new_js)
+
 # particle statistics
 def part_stat(E, tau, mu, xi, replace_inf = "Don't"):
     """Fermi (xi = +1) or Bose (xi = -1) statistics function.

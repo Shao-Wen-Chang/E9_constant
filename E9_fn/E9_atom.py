@@ -4,8 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.special import zeta
 
-from E9_fn.E9_constants import *
-# See E0_constants for list of references and some file conventions
+import E9_fn.E9_constants as E9c
+# See E9_constants for list of references and some file conventions
 
 #%% Scattering properties
 def xsection_s(a_s, k, r_eff = 0):
@@ -20,15 +20,15 @@ def xsection_s(a_s, k, r_eff = 0):
 # By convention I print a more convenient form and return SI unit values, but check 
 def BreitRabi(ahf, F, I, S, gI, gJ, mF, B):
     """Breit-Rabi formula for Zeeman level splitting for all fields for the special case L = 0 & S = 1/2"""
-    x = (gJ - gI) * mu_B / (ahf * (I + 1/2)) * B
+    x = (gJ - gI) * E9c.mu_B / (ahf * (I + 1/2)) * B
     if abs(mF) == I + S:
         # This is the special case where there is only one state with the given mF, and ...
         sgn = np.sign(mF / F)
-        return - ahf / 4 + gI * mu_B * mF * B + (ahf * (I + 1/2) / 2) * (1 + sgn * x)
+        return - ahf / 4 + gI * E9c.mu_B * mF * B + (ahf * (I + 1/2) / 2) * (1 + sgn * x)
     else:
         # ... for other cases we have mF = mI + 1/2 and mF = mI' - 1/2, so we need to diagonalize a 2x2 matrix
         sgn = np.sign((F - I) / S)
-        return - ahf / 4 + gI * mu_B * mF * B + (sgn * ahf * (I + 1/2) / 2) * np.sqrt(1 + 4 * mF * x / (2 * I + 1) + x**2)
+        return - ahf / 4 + gI * E9c.mu_B * mF * B + (sgn * ahf * (I + 1/2) / 2) * np.sqrt(1 + 4 * mF * x / (2 * I + 1) + x**2)
 
 def InterationParameter(T, FBres):
     """Returns |k_F * a|, which characterizes interaction strength and therefore BEC-BCS crossover."""
@@ -36,21 +36,14 @@ def InterationParameter(T, FBres):
 
 def gravity_compensation_BGrad(mass, gF, mF):
     """B gradient required to compensate gravity; obtained by setting dE/dz = mg. Returns T/m"""
-    BGradSI = mass * g_earth / (gF * mu_B * mF)
+    BGradSI = mass * E9c.g_earth / (gF * E9c.mu_B * mF)
     print("{} Gauss/cm".format(BGradSI * 1e4 / 1e2))
     return BGradSI
-
-def majorana_loss_rate(hfs, mF, Bgrad, T):
-    """Returns an approximation of Majorana spin flip loss rate in an unplugged magnetic trap.
-    
-    See e.g. Y-J Lin's paper.
-        mu: = g-factor * mu_B"""
-    return 1.85 * hbar / hfs.mass * (hfs.gF * mF * mu_B * Bgrad / k_B / T)**2
 
 def SpinSeparationBGradMSF(m, gF, t, dx):
     """B gradient required to separate neighboring Zeeman sublevels by dx during MSF t. Returns T/m"""
     # omega = pi / (2 * t)
-    # BGradSI = m * dx * omega**2 / (gF * mu_B)
+    # BGradSI = m * dx * omega**2 / (gF * E9c.mu_B)
     # print("{} Gauss/cm".format(BGradSI * 1e4 / 1e2))
     # return BGradSI
     print("not worked out yet")
@@ -58,20 +51,20 @@ def SpinSeparationBGradMSF(m, gF, t, dx):
 # Too many helper functions!
 def ZeemanSplitting(gF):
     """Splitting between Zeeman sublevels as a function of B field. Returns J/Tesla"""
-    ZsplitSI = gF * mu_B
-    print("{} MHz/Gauss".format(ZsplitSI / 1e4 / hnobar / 1e6))
+    ZsplitSI = gF * E9c.mu_B
+    print("{} MHz/Gauss".format(ZsplitSI / 1e4 / E9c.hnobar / 1e6))
     return ZsplitSI
 
 def ZeemanSplittingdx(gF, dx):
     """Change in Zeeman splitting between lattice sites separated by dx along B gradient. Returns J*m*T^-1"""
-    ZsplitGradSI = gF * mu_B * dx
-    print("{} Hz*(Gauss/cm)^-1".format(ZsplitGradSI / 1e4 * 1e2 / hnobar))
+    ZsplitGradSI = gF * E9c.mu_B * dx
+    print("{} Hz*(Gauss/cm)^-1".format(ZsplitGradSI / 1e4 * 1e2 / E9c.hnobar))
     return ZsplitGradSI
 
 def ZeemanSplittingdBdx(gF, dBdx):
     """Change in Zeeman splitting given some B gradient dBdx. Returns J*m^-1"""
-    ZsplitGradSI = gF * mu_B * dBdx
-    print("{} Hz/um".format(ZsplitGradSI / 1e6 / hnobar))
+    ZsplitGradSI = gF * E9c.mu_B * dBdx
+    print("{} Hz/um".format(ZsplitGradSI / 1e6 / E9c.hnobar))
     return ZsplitGradSI
 
 #%% class HyperfineState
@@ -100,7 +93,7 @@ class HyperfineState():
     def GetZeemanSplitting(self):
         return ZeemanSplitting(self.gF)
     
-    def GetZeemanSplittingdx(self, dx = lambda_sw / np.sqrt(3)):
+    def GetZeemanSplittingdx(self, dx = E9c.lambda_sw / np.sqrt(3)):
         return ZeemanSplittingdx(self.gF, dx)
     
     def GetZeemanSplittingdBdx(self, dBdx = 0.01):
@@ -120,13 +113,13 @@ class HyperfineState():
             ax.grid()
         E_mF = np.zeros([int(2 * self.F + 1), len(BTesla)])
         for i, mFnow in enumerate(np.arange(- self.F, self.F + 1, 1)):
-            E_mF[i, :] = self.GetBreitRabi(mFnow, BTesla) / hnobar / 1e6
+            E_mF[i, :] = self.GetBreitRabi(mFnow, BTesla) / E9c.hnobar / 1e6
         # Plot the first line to make legend handle and get line color etc., then plot the rest of the lines
         p1 = ax.plot(BTesla * 1e4, E_mF[0, :], label = 'F = {}'.format(self.F))
         for i in range(1, int(2 * self.F + 1)):
             ax.plot(BTesla * 1e4, E_mF[i, :], color = p1[0].get_color())
-        ax.plot(Bmid, self.GetBreitRabi(self.F, Bmid / 1e4) / hnobar / 1e6, '+', markersize = 20, color = p1[0].get_color())
-        ax.plot(Bmid, self.GetBreitRabi(-self.F, Bmid / 1e4) / hnobar / 1e6, '_', markersize = 20, color = p1[0].get_color())
+        ax.plot(Bmid, self.GetBreitRabi(self.F, Bmid / 1e4) / E9c.hnobar / 1e6, '+', markersize = 20, color = p1[0].get_color())
+        ax.plot(Bmid, self.GetBreitRabi(-self.F, Bmid / 1e4) / E9c.hnobar / 1e6, '_', markersize = 20, color = p1[0].get_color())
         ax.legend()
         ax.set_xlabel("B [G]")
         ax.set_ylabel("E/h [MHz]")
@@ -141,7 +134,7 @@ class HyperfineState():
         "tolerance" addes shades around each curve, which represents the resolution of rf drive (often set by the
         stability of magnetic field). Unit is specified in MHz."""
         def BRsplitting(mF, BTesla):
-            return (self.GetBreitRabi(mF, BTesla) - self.GetBreitRabi(mF - 1, BTesla)) / hnobar / 1e6
+            return (self.GetBreitRabi(mF, BTesla) - self.GetBreitRabi(mF - 1, BTesla)) / E9c.hnobar / 1e6
         
         Bmid = (Bmin + Bmax) / 2
         BTesla = np.linspace(Bmin, Bmax, 500) / 1e4
@@ -171,12 +164,12 @@ class HyperfineState():
         return ax
 
 # format: (isotope)_n_(term symbol)_F(F value); 9/2 -> 9o2 etc
-K40_4_2S1o2_F9o2 = HyperfineState(m_K40, I_K40, 1/2, 9/2, gJ = gJ(1/2, 0, 1/2), ahf = ahf_40K_4S1o2)
-K40_4_2S1o2_F7o2 = HyperfineState(m_K40, I_K40, 1/2, 7/2, gJ = gJ(1/2, 0, 1/2), ahf = ahf_40K_4S1o2)
-K39_4_2S1o2_F1 = HyperfineState(m_K39, I_K39, 1/2, 1, gJ = gJ(1/2, 0, 1/2), ahf = ahf_39K_4S1o2)
-K39_4_2S1o2_F2 = HyperfineState(m_K39, I_K39, 1/2, 2, gJ = gJ(1/2, 0, 1/2), ahf = ahf_39K_4S1o2)
-Rb87_5_2S1o2_F1 = HyperfineState(m_Rb87, I_Rb87, 1/2, 1, gJ = gJ(1/2, 0, 1/2), ahf = ahf_87Rb_5S1o2)
-Rb87_5_2S1o2_F2 = HyperfineState(m_Rb87, I_Rb87, 1/2, 2, gJ = gJ(1/2, 0, 1/2), ahf = ahf_87Rb_5S1o2)
+K40_4_2S1o2_F9o2 = HyperfineState(E9c.m_K40, E9c.I_K40, 1/2, 9/2, gJ = E9c.gJ(1/2, 0, 1/2), ahf = E9c.ahf_40K_4S1o2)
+K40_4_2S1o2_F7o2 = HyperfineState(E9c.m_K40, E9c.I_K40, 1/2, 7/2, gJ = E9c.gJ(1/2, 0, 1/2), ahf = E9c.ahf_40K_4S1o2)
+K39_4_2S1o2_F1 = HyperfineState(E9c.m_K39, E9c.I_K39, 1/2, 1, gJ = E9c.gJ(1/2, 0, 1/2), ahf = E9c.ahf_39K_4S1o2)
+K39_4_2S1o2_F2 = HyperfineState(E9c.m_K39, E9c.I_K39, 1/2, 2, gJ = E9c.gJ(1/2, 0, 1/2), ahf = E9c.ahf_39K_4S1o2)
+Rb87_5_2S1o2_F1 = HyperfineState(E9c.m_Rb87, E9c.I_Rb87, 1/2, 1, gJ = E9c.gJ(1/2, 0, 1/2), ahf = E9c.ahf_87Rb_5S1o2)
+Rb87_5_2S1o2_F2 = HyperfineState(E9c.m_Rb87, E9c.I_Rb87, 1/2, 2, gJ = E9c.gJ(1/2, 0, 1/2), ahf = E9c.ahf_87Rb_5S1o2)
 
 #%% class FeshbachResonance
 class FeshbachResonance():
@@ -221,11 +214,11 @@ class FeshbachResonance():
 
 # format: (mononuclear) FBres_(isotope)_mF1_mF2[_x]; 9/2 -> 9o2 etc
 #         (heteronuclear) FBres_(isotope1)_F_mF1_(isotope2)_F_mF2[_x]
-FBres_K40_9o2_7o2 = FeshbachResonance(174, 202.1, 7.8)
-FBres_K40_9o2_5o2 = FeshbachResonance(174, 224.21, 9.7)
-FBres_K40_1o2_n1o2 = FeshbachResonance(174, 389.7, 26.7)
-FBres_K39_n1_n1_1 = FeshbachResonance(-19, 32.6, -55)
-FBres_K39_n1_n1_2 = FeshbachResonance(-19, 162.8, 37)
-FBres_K40_9o2_9o2_Rb87_1_1 = FeshbachResonance(-215, 545.4, -1.2)
-FBres_Li6_1_2 = FeshbachResonance(-1405, 834, -300) # not sure about a_bg
+FBres_K40_9o2_7o2 = FeshbachResonance(E9c.a_bg_K40, 202.1, 7.8)
+FBres_K40_9o2_5o2 = FeshbachResonance(E9c.a_bg_K40, 224.21, 9.7)
+FBres_K40_1o2_n1o2 = FeshbachResonance(E9c.a_bg_K40, 389.7, 26.7)
+FBres_K39_n1_n1_1 = FeshbachResonance(E9c.a_bg_K39, 32.6, -55)
+FBres_K39_n1_n1_2 = FeshbachResonance(E9c.a_bg_K39, 162.8, 37)
+FBres_K40_9o2_9o2_Rb87_1_1 = FeshbachResonance(E9c.a_bg_K40_Rb87, 545.4, -1.2)
+FBres_Li6_1_2 = FeshbachResonance(E9c.a_bg_Li6, 834, -300) # not sure about a_bg
 #%%

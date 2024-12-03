@@ -1,3 +1,5 @@
+# Recommended import call: import E9_fn.datasets.transition_line_data as TLData
+
 # All the data is from NIST database (line data for Rb I)
 # format: (isotope)_gs[n(term symbol)]_es[n(term symbol)]; 9/2 -> 9o2 etc
 # lambda: [m] wavelength of the transition; USE VACUUM WAVELENGTH! (I use Ritz wavelength if available)
@@ -148,7 +150,7 @@ Rb_5S1o2_nP3o2_lines = [Rb_5S1o2_5P3o2, Rb_5S1o2_6P3o2, Rb_5S1o2_7P3o2, Rb_5S1o2
                         Rb_5S1o2_10P3o2, Rb_5S1o2_11P3o2]
 Rb_5S1o2_other_lines = [Rb_5S1o2_4D5o2, Rb_5S1o2_4D3o2]
 Rb_5S1o2_lines = Rb_5S1o2_nP1o2_lines + Rb_5S1o2_nP3o2_lines + Rb_5S1o2_other_lines
-Rb_D12_doublett = [Rb_5S1o2_5P1o2, Rb_5S1o2_5P3o2]
+Rb_D12_doublet = [Rb_5S1o2_5P1o2, Rb_5S1o2_5P3o2]
 
 # K
 K_4S1o2_nP1o2_lines = [K_4S1o2_4P1o2, K_4S1o2_5P1o2, K_4S1o2_6P1o2, K_4S1o2_7P1o2, K_4S1o2_8P1o2,

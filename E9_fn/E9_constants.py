@@ -51,10 +51,13 @@ N_A = 6.02214076e23             # Avogadro's number
 g_earth = 9.8
 
 # Bohr stuff aka atomic units in SI
-a0 = 0.529177210903e-10      # Bohr radius, = 4 * pi * epsilon_0 * hbar^2 / (m_e * e_ele**2)
-mu_B = 9.274009994e-24       # Bohr magneton, = e_ele * hbar / (2 * m_e)
+a0 = 0.529177210903e-10         # Bohr radius, = 4 * pi * epsilon_0 * hbar^2 / (m_e * e_ele**2)
+mu_B = 9.274009994e-24          # Bohr magneton, = e_ele * hbar / (2 * m_e)
 
-# isotope specific constants (from [SteckRb] and [TieckeK] unless otherwise noted)
+# Other unit conversion constants
+pol_SI2au = 1/1.64877727436e-41 # Conversion factor from SI to a.u. for polarizability | TODO: from where?
+
+########## isotope specific constants (from [SteckRb] and [TieckeK] unless otherwise noted) ##########
 m_Rb87 = 1.4431606e-25
 m_K40 = 6.636178e-26
 m_K39 = 6.470076e-26
@@ -67,6 +70,18 @@ gJ_Rb_5S1o2 = 2.00233113
 ahf_39K_4S1o2 = 230.8598601e6 * hnobar
 ahf_40K_4S1o2 = -285.7308e6 * hnobar
 ahf_87Rb_5S1o2 = 3.417341305452145e9 * hnobar
+
+# scattering lengths
+# also see FeshbachResonance in E9_atom.py
+# TODO: add references
+# format: (mononuclear) a_bg_(isotope)
+#         (heteronuclear) a_bg_(isotope1)_(isotope2)
+a_bg_Rb87 = 100.4 * a0      # https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.88.093201
+a_bg_K40 = 174 * a0
+a_bg_K39 = -19 * a0
+a_bg_K40_Rb87 = -215 * a0   # or -185? not sure, both from C Ospelkaus thesis
+a_bg_Li6 = -1405 * a0       # not sure
+
 # Line constants organized by species
     # Saturation intensities are in [W/m^2]; divide by 10 for [mW/cm^2]. Assuming circularly polarized light
     # nu's and gamma's are in FREQUENCIES, not ANGULAR FREQUENCIES

@@ -92,6 +92,16 @@ def n_peak_lin(N, Vg_perp, T):
     """
     return 2 * N * Vg_perp**3 / (2 * k_B * T)**3
 
+def majorana_loss_rate(hfs, mF, Bgrad_z, T):
+    """[1/s] Returns an approximation of Majorana spin flip loss rate in an unplugged magnetic trap.
+    
+    See e.g. Y-J Lin's paper. This probably only works for Rb |1, -1> atoms, and probably underestimates the loss
+    rate for |2, 2> atoms.
+
+    Args:
+        Bgrad_z:    Gradient along the z-axis (the tight direction)."""
+    return 1.85 * hbar / hfs.mass * (hfs.gF * mF * mu_B * Bgrad_z / k_B / T)**2
+
 #%% Thermodynamical properties of Bose gases
 def T_BEC_bose(wbar, N, a_s: float = 0, V = 0, m = m_Rb87):
     """[K] Returns the BEC critical temperature of a Bose gas.
