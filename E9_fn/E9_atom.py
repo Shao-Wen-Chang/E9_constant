@@ -1,20 +1,26 @@
 # Recommended import call: import E9_fn.E9_atom as E9a
+import E9_fn.E9_constants as E9c
+
 import logging
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.special import zeta
-
-import E9_fn.E9_constants as E9c
 # See E9_constants for list of references and some file conventions
 
 #%% Scattering properties
-def xsection_s(a_s, k, r_eff = 0):
+def xsection_s(a_s, k, x2: bool, r_eff = 0):
     """[m^2] Returns the s-wave scattering cross-section.
     
-    I need to review the physics!
-    Also should I have a factor of 2?
+    See e.g. [Fermi] eqn.84. Obviously this doesn't work with Fermi gases.
+    I think that you need to multiply the returned value by a factor of 2 if the gas is a single-species
+    bosonic thermal gas. This is made into a required input so I don't forget about it.
+
+    Args:
+        a_s:    [m] background scattering length.
+        k:      [1/m] wavevector of the atom.
+        x2:     multiply by 2 or not. See above.
+        r_eff:  [m] "effective interaction range" of the particles under consideration. They're rare!
     """
-    return 4 * np.pi * abs(1 / (1 / a_s + r_eff * k**2 / 2 - 1j * k))**2
+    return (int(x2) + 1) * 4 * np.pi * abs(1 / (-1 / a_s + r_eff * k**2 / 2 - 1j * k))**2
 
 #%% (Mainly) values that depends on B field but not optical beams
 # By convention I print a more convenient form and return SI unit values, but check 
@@ -77,7 +83,7 @@ class HyperfineState():
         self.J = J
         self.gJ = gJ
         self.gI = gI
-        self.gF = gF(I, J, F, gJ, gI)
+        self.gF = E9c.gF(I, J, F, gJ, gI)
         self.ahf = ahf
         self.bhf = bhf
         self.nu = nu # energy relative to ground state (in frequency unit, not radial frequency); ground state should

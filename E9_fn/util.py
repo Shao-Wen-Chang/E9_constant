@@ -61,24 +61,70 @@ def VecTheta(theta):
     return np.array([np.cos(theta), np.sin(theta)])
 
 #%% Simple physics stuff
+# Gaussian beam related
 def I_from_power(P0, w0):
     """[W/m^2] Return peak intensity of a gaussian beam with power P and beam waist w0.
     
     Also, I = (c_light * n * epsilon_0 / 2) * |E|**2 .
-    P0: [W] Power
-    w0: [m] beam WAIST (the RADIUS of the beam at 1/e^2 intensity)"""
+
+    Args:
+        P0: [W] Power
+        w0: [m] beam WAIST (the RADIUS of the beam at 1/e^2 INTENSITY)"""
     return 2 * P0 / np.pi / w0**2
 
 def rayleigh_range(w0, lamb_in):
+    """Returns the Rayleigh range of a Gaussian beam."""
     return np.pi * w0**2 / lamb_in
 
-def quadrupole_Bfield(pos, coil_coeff, I):
+def w_gaussian_beam(z, w0, lamb_in):
+    """Returns the beam waist at z of a Gaussian beam."""
+    return w0 * np.sqrt(1 + (z / rayleigh_range(w0, lamb_in))**2)
+
+def I_gaussian_beam_3D(r, z, w0, lamb_in):
+    """Returns the intensity of a Gaussian beam at (r, z).
+    
+    z-axis is taken to be the axis of beam propagation. Note that this experssion
+        i)   is for intensity, not electric field.
+        ii)  doesn't include phases.
+        iii) is different from the normal distribution (no 1/2 in the exponent).
+    Beam intensity is normalized to be 1 at the maximum.
+    """
+    wz = w_gaussian_beam(z, w0, lamb_in)
+    return ((w0 / wz) * np.exp(-(r / wz)**2))**2
+
+def x2approx_gaussian_beam_3D(w0, lamb_in, theta = 0):
+    """Returns the harmonic oscillator approximation (i.e. taylor expansion up to x^2) of a gaussian beam.
+    
+    For a gaussian beam given by I(r, z) = I_max * I_gaussian(r = l * cos(theta), z = l * sin(theta), ...)
+    , the expansion around l = 0 is
+        I(r, z) = I_max * (1 - (return value of this function) * l^2 + O(l^4))
+    , and to approximate trap frequency, use: (V_max = I_max * polarizibility)
+        V(r, z) = V_max * (return) = (1 / 2) * m * w_eff^2 (up to 2nd order)
+    to get, for example,
+        w_eff(theta = np.pi/2) = np.sqrt(4 * V_max / m / w0**2)
+    
+    One gets the result for arbitrary theta easily by "adding up" the contribution from the (w0/w(z)) term
+    and the gaussian term.
+
+    Args:
+        theta:  angle with respect to the z (optical) axis."""
+    z_part = 1 / rayleigh_range(w0, lamb_in)**2
+    r_part = 2 / w0**2
+    return np.cos(theta)**2 * z_part + np.sin(theta)**2 * r_part
+
+# Others
+def quadrupole_Bfield_vec(pos, Bz_grad):
     """Returns the B field at pos (relative to coil center) when the coil pair is configured to generate a quadrupole field.
     
-    pos: a (3 x n) array, where pos[:,i] is the i-th spatial point
-    This is only accurate near the center. For off-center fields, consider modelling with magpylib instead."""
+    This is only accurate near the center. For off-center fields, consider modelling with magpylib instead.
+    TODO: bad function, why should n be 1-dim?
+    
+    Args:
+        pos:        a (3 x n) array, where pos[:,i] is the i-th spatial point
+        Bz_grad:    Magnetic field gradient in the z-direction (the most tightly confined direction).
+    """
     M = np.diag([0.5, 0.5, -1])
-    B = M @ (I * coil_coeff * pos)
+    B = M @ (Bz_grad * pos)
     return B
 #%% Special functions not defined in scipy
 def wigner_6j_safe(j1, j2, j3, j4, j5, j6):
@@ -145,6 +191,10 @@ def kagome_DoS(E, hbw: float = 1., fhbw: float = 0.):
     return gt.lattice.kagome.dos(E - hbw * (2 / 3), half_bandwidth = hbw) + (1/3) * dirac_delta(E, x0 = 2 * hbw, hw = fhbw)
 
 # General stuff
+def is_int(num):
+    """Check if num is an integer or not."""
+    return np.isclose(num % 1, 0)
+
 def dirac_delta(x, x0 = 0, hw = 1e-6):
     """An approximation of the Dirac delta function with norm 1.
     
@@ -159,6 +209,37 @@ def dirac_delta(x, x0 = 0, hw = 1e-6):
 def Gaussian_1D(x, s = 1, mu = 0):
     """The Gaussian normal distribution (i.e. integrates to 1)."""
     return np.exp(-(1/2) * (x - mu)**2 / s**2) / (s * np.sqrt(2 * np.pi))
+
+def gaussian_1D_integral(s):
+    """The integral of a gaussian with width s and amplitude 1."""
+    return np.sqrt(2 * np.pi) * s
+
+def two_gaussian_1D_max_product(s1, s2, mu):
+    """The maximum value of two Gaussians multiplied together.
+    
+    Both Gaussians are normalized such that they individually integrate to 1.
+
+    Args:
+        s1, s2: The standard deviations of the two Gaussians.
+        mu:     The difference in the center of the two Gaussians."""
+    return np.exp(-(1/2) * mu**2 / (s1**2 + s2**2)) / (s1 * s2 * 2 * np.pi)
+
+def two_gaussian_1D_max_product_pos(s1, s2, mu):
+    """The position at which two Gaussians multiplied together has the maximum value."""
+    return mu * s1**2 / (s1**2 + s2**2)
+
+def two_gaussian_1D_integral(s1, s2, mu):
+    """The integral of two normal gaussian distributions multiplied together."""
+    return two_gaussian_1D_power_integral(s1, s2, mu, 1, 1)
+
+def two_gaussian_1D_power_integral(s1, s2, mu, p1, p2):
+    """The integral of two normal gaussian distributions raised to some power and then multiplied together.
+    
+    See my notes on Gaussian integrals."""
+    s1p, s2p = s1 / np.sqrt(p1), s2 / np.sqrt(p2)
+    S = 1 / np.sqrt(1 / s1p**2 + 1 / s2p**2)
+    c1, c2, cS = gaussian_1D_integral(s1), gaussian_1D_integral(s2), gaussian_1D_integral(S)
+    return cS / (c1**p1 * c2**p2) * np.exp(-mu**2 / 2 / (s1p**2 + s2p**2))
 
 def LogisticFn(x, x0 = 0, k = 1):
     """Returns the logistic function, 1/(1 + exp(- k * (x - x0)))."""

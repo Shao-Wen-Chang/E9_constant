@@ -79,7 +79,10 @@ ahf_87Rb_5S1o2 = 3.417341305452145e9 * hnobar
 a_bg_Rb87 = 100.4 * a0      # https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.88.093201
 a_bg_K40 = 174 * a0
 a_bg_K39 = -19 * a0
-a_bg_K40_Rb87 = -215 * a0   # or -185? not sure, both from C Ospelkaus thesis
+# K40-Rb87 values are from S. Aubin ... Thywissen, Nature Phys 2, 384 (2006)
+a_bg_K40_Rb87 = -9.9e-9     # -187 * a0, with +/- ~30% uncertainty
+r_eff_K40_Rb87 = 20.2e-9    # effective range, 381.7 * a0; not sure about the sign since the f(k) formula quoted
+                            # in the paper is flipped from the usual one
 a_bg_Li6 = -1405 * a0       # not sure
 
 # Line constants organized by species
@@ -110,7 +113,7 @@ I_sat_Rb87_D2 = 16.6933
 # "situation" might include
 #   _MOT (MOT; light assisted) (G2)
 #   _sdr (spin dipole relaxation) (G2)
-# units are in [m^(3 * x) s-1]; values are for thermal gases, divide by 6 for atoms in a condensate
+# units are in [m^(3 * (x - 1) s-1]; values are for thermal gases, divide by 6 for atoms in a condensate
 G2loss_MOT_Rb87 = 5.8e-12 * 1e-6        # Rb MOT, Phys. Rev. Lett. 69, 897 (1992).
 G3loss_Rb87_F1mFm1 = 4.3e-29 * 1e-12    # Rb |1, -1>, Phys. Rev. Lett. 79, 337 (1997).
 G3loss_Rb87_F2mF2 = 1.1e-28 * 1e-12     # Rb |2, 2>, Appl Phys B 69, 257 (1999).
