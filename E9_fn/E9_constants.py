@@ -98,12 +98,12 @@ nu_K40_4_2P = (nu_K40_4_2P1o2 + nu_K40_4_2P3o2) / 2 # average of D1 & D2 line fo
 Delta_K40_4_2P = (nu_K40_4_2P3o2 - nu_K40_4_2P1o2) # diffference of D1 & D2 line for convenience
 lambda_K40_D1 = 770.108136507e-9
 lambda_K40_D2 = 766.700674872e-9
-gamma_40K_D2 = 6.035e6
+gamma_K40_D2 = 6.035e6
 # 87Rb
-nu_Rb87_4_2P1o2 = 377.107463380e12      # 87Rb D1 line
-nu_Rb87_4_2P3o2 = 384.2304844685e12     # 87Rb D2 line
-nu_Rb87_4_2P = (nu_Rb87_4_2P1o2 + nu_Rb87_4_2P3o2) / 2  # average of D1 & D2 line for convenience
-Delta_Rb87_4_2P = (nu_Rb87_4_2P3o2 - nu_Rb87_4_2P1o2)   # diffference of D1 & D2 line for convenience
+nu_Rb87_5_2P1o2 = 377.107463380e12      # 87Rb D1 line
+nu_Rb87_5_2P3o2 = 384.2304844685e12     # 87Rb D2 line
+nu_Rb87_5_2P = (nu_Rb87_5_2P1o2 + nu_Rb87_5_2P3o2) / 2  # average of D1 & D2 line for convenience
+Delta_Rb87_5_2P = (nu_Rb87_5_2P3o2 - nu_Rb87_5_2P1o2)   # diffference of D1 & D2 line for convenience
 lambda_Rb87_D2 = 780.241209686e-9
 gamma_Rb87_D2 = 6.0666e6
 I_sat_Rb87_D2 = 16.6933

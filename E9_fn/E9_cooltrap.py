@@ -91,12 +91,25 @@ def n_peak_har(N, wbar, T, m):
     """
     return N / np.pi**(3/2) / r0_thermal_har(wbar, T, m)**3
 
+def PSD_har(N, wbar, T, m):
+    return n_peak_har(N, wbar, T, m) * util.lambda_de_broglie(m, T)**3
+
 def r0_thermal_har(w0, T, m):
     """[m] Returns the cloud radius for a non-interacting thermal gas in a harmonic trap.
     
     Args:
         w0: trap ANGULAR frequency in the axis of interest."""
     return np.sqrt(2 * E9c.k_B * T / m / w0**2)
+
+def wr_TOP(B_grad_q, B_bias, mu, m):
+    """[rad * Hz] Returns the trap frequency of a TOP trap.
+    
+    This is the radial direction. wz is sqrt(8) times stronger, and the geometric average is sqrt(2) times stronger.
+    
+    Args:
+        B_grad_q:   quadrupole field gradient in the radial direction.
+        B_bias:     TOP bias field in the radial direction, assuming a circular orbit."""
+    return np.sqrt(mu * B_grad_q**2 / (2 * B_bias * m))
 
 # arbitrary potential
 def n_thermal_norm1_from_V(V, T):
@@ -107,6 +120,28 @@ def n_thermal_norm1_from_V(V, T):
     """
     n_not_norm = np.exp(- V / (E9c.k_B * T))
     return n_not_norm / np.sum(n_not_norm)
+
+# Optical dipole traps
+def FORT_scattering_rate(I, species: str, f_light):
+    """[Hz] Photon scattering rate for far-off-resonance optical traps.
+    
+    From Grimm eqn.(21); only works for delta >> HFS splitting. For us we don't have
+    delta >> FS splitting."""
+    if species == "Rb":
+        delta1 = 2 * np.pi * (E9c.nu_Rb87_5_2P1o2 - f_light)
+        delta2 = 2 * np.pi * (E9c.nu_Rb87_5_2P3o2 - f_light)
+        gamma = E9c.gamma_Rb87_D2
+        w0 = 2 * np.pi * E9c.nu_Rb87_5_2P
+    elif species == "K":
+        delta1 = 2 * np.pi * (E9c.nu_K40_4_2P1o2 - f_light)
+        delta2 = 2 * np.pi * (E9c.nu_K40_4_2P3o2 - f_light)
+        gamma = E9c.gamma_K40_D2
+        w0 = 2 * np.pi * E9c.nu_K40_4_2P
+    else:
+        raise ValueError(f"species = {species} is not supported")
+    
+    return (np.pi * E9c.c_light**2 * gamma**2 / (2 * E9c.hbar * w0**3)
+            * (2 / delta2**2 + 1 / delta1**2)) * I
 
 # Collisional properties
 def collision_rate(n: float, sigma: float, m1: float, T1: float, m2: float = None, T2: float = None):

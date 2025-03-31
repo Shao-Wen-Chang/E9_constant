@@ -1,3 +1,4 @@
+import E9_fn.E9_constants as E9c
 import logging
 import numpy as np
 import matplotlib.pyplot as plt
@@ -61,6 +62,10 @@ def VecTheta(theta):
     return np.array([np.cos(theta), np.sin(theta)])
 
 #%% Simple physics stuff
+# Basic thermodynamical stuff
+def lambda_de_broglie(m, T):
+    return E9c.hnobar / np.sqrt(2 * np.pi * m * E9c.k_B * T)
+
 # Gaussian beam related
 def I_from_power(P0, w0):
     """[W/m^2] Return peak intensity of a gaussian beam with power P and beam waist w0.
