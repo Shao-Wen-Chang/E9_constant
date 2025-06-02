@@ -60,7 +60,7 @@ def calc_isentropic():
             ])
 
         logging.debug("working on loop #{}, offset = {}...".format(i, offset))
-        isen_T_list[i], isen_rrst_list[i] = eqfind.isentropic_fix_filling_solver(S_tot, exp_fksr)
+        isen_T_list[i], isen_rrst_list[i] = eqfind.NVT_from_NVS_solver(S_tot, exp_fksr)
         
         exp_now = deepcopy(exp_fksr)
         exp_now.T = isen_T_list[i]

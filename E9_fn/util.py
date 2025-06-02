@@ -36,9 +36,23 @@ def find_y_by_nearest_x(xarr, yarr, val):
     return (xnear, yarr[idx])
 
 #%% Linear algebra
+def dagger(mat, axis = None):
+    """Return the conjugate transpose of the input matrix.
+    
+    I guess ndarray doesn't incorporate .H for arrays because it can be multidimensional."""
+    if mat.ndim <= 2:
+        return mat.conj().T
+    else:
+        # TODO: implement for dim >= 3, where the dimensions to be acted on are specified by axis.
+        raise Exception("Hermitian conjugate for dim >= 3 is not implemented yet")
+
 def IsHermitian(mat):
     """Determine if input matrix is Hermitian."""
     return np.allclose(mat, np.asmatrix(mat).H)
+
+def is_unitary(mat):
+    """Determine if input matrix is unitary."""
+    return np.allclose(np.eye(mat.shape[0]), np.asmatrix(mat).H * mat)
 
 def IsReal(mat):
     """Determine if input matrix is purely real."""

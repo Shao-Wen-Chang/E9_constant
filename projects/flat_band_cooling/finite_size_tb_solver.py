@@ -23,7 +23,7 @@ file_name = ""  # This will overwrite the default file name
 
 #%% Define the model and solve it
 lattice_str = "kagome"
-lattice_len = 10
+lattice_len = 8
 tnnn = -0.02
 lattice_dim = (lattice_len, lattice_len)
 tb_params = E9tb.get_model_params(lattice_str, tnnn = tnnn)#, overwrite_param = {"lat_bc": (1, 1)})
@@ -31,7 +31,7 @@ my_tb_model= E9tb.tbmodel_2D(lat_dim = lattice_dim, **tb_params)
 H_bare = my_tb_model.H
 
 # Add offset to the bare model
-sys_len = 6
+sys_len = 5
 sys_range = ((lattice_len - sys_len) // 2, (lattice_len + sys_len) // 2)
 n_sys = sys_len**2
 V_rsv_offset = -2

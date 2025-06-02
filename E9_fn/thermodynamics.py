@@ -69,7 +69,7 @@ def find_E(E_orbs, T, mu, xi, N_BEC: int = 0):
         N_BEC: number of bose-condensed particles, if any (should be 0 for fermions)"""
     return sum(E_orbs * util.part_stat(E_orbs, T, mu, xi, replace_inf = 0)) + N_BEC * E_orbs[0]
 
-
+# TODO: This should be replaced by muVT_from_NVT_solver
 def find_mu(E_orbs, T, Np, xi, max_step: int = 10000, tolerance = 1e-6):
     """Find the chemical potential $\mu$ of a system, and (if any) the number of bose-
     condensed particles.

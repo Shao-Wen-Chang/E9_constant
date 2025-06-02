@@ -11,13 +11,59 @@ from E9_fn import util
 import E9_fn.E9_models as E9M
 # Algorithms for finding equilibrium conditions under different circumstances
 
-def isentropic_fix_filling_solver(S_tar: float,
+#%% One API to rule them all
+# TODO: probably want to rewrite the old solvers
+def get_eqn_of_state_solver(from_vars: str, to_vars: str):
+    """Get a solver function that solves the equation of state."""
+    possible_EoSs = {
+        "NVT":{
+            "muVT": muVT_from_NVT_solver,
+            "muVS": None,
+            "NVS": None,
+        },
+        "NVS":{
+            "muVT": muVT_from_NVS_solver,
+            "muVS": None,
+            "NVT":  NVT_from_NVS_solver,
+        }
+    }
+    
+    solver = possible_EoSs[from_vars][to_vars]
+    if solver is None:
+        raise NotImplementedError(
+            f"Equation of state solver from {from_vars} to {to_vars} is not implemented yet.")
+    return solver
+
+def muVT_from_NVT_solver(N: float,
+                         T: float,
+                         E_orbs: np.ndarray) -> (float, RootResults):
+    """Find chemical potential mu given N and T."""
+    def N_err(mu):
+        N_from_mu = sum(util.fermi_stat(E_orbs, T, mu))
+        return abs(N - N_from_mu)
+    
+    # Get a reasonable guess for mu based on the number of particles and energy levels.
+    mu_helper = np.linspace(E_orbs[0], E_orbs[-1], 1000)
+    N_helper = np.array([sum(util.fermi_stat(E_orbs, T, mu)) for mu in mu_helper])
+    mu_guess = mu_helper[abs(N_helper - N).argmin()]
+    
+    rrst = root_scalar(N_err, x0 = mu_guess, method = "secant")
+    if not rrst.converged:
+        logging.warning("Algorithm failed to converge! Try loosening xtol")
+        rrst = root_scalar(N_err, x0 = mu_guess, method = "secant", xtol = 1e-2)
+        if not rrst.converged:
+            logging.warning("Algorithm still failed to converge at xtol = 1e-2")
+    return rrst.root, rrst
+
+def NVT_from_NVS_solver(S_tar: float,
                       exp0: E9M.NVT_exp,
                       max_step: int = 50,
                       tol: float = 1e-4) -> (float, RootResults):
     """Find thermal equlibrium config, in particular T, given some total entropy
     and target filling in systems.
     
+    TODO: renamed from isentropic_fix_filling_solver 20250531, check if this is actually
+          what it does
     See my personal notes on 2024/01/15 for some physical considerations. This function
     is useful for finding the target particle number and temperature / total entropy.
     Args:
@@ -90,7 +136,7 @@ def isentropic_fix_Ntot_solver(N_tot_tar: dict,
     The algorithm is pretty rough:
         while (N_tot not close to N_target):
             guess a new filling in the system
-            Use isentropic_fix_filling_solver to find Np in reservoirs
+            Use NVT_from_NVS_solver to find Np in reservoirs
             add Np in reservoirs and the sytem to find N_tot
     So it is basically two single-variable solvers stacked together.
     Args:
@@ -107,8 +153,8 @@ def isentropic_fix_Ntot_solver(N_tot_tar: dict,
         rrst.root: a list of [T, Np1_sys, Np2,sys, ...].
         rrst: the RootResults object returned by root_scalar for full information."""
     def update_exp(exp_in):
-        """Use isentropic_fix_filling_solver to find the new experient condition."""
-        T_now, _ = isentropic_fix_filling_solver(S_tar, exp_in, max_step_S, tol_S)
+        """Use NVT_from_NVS_solver to find the new experient condition."""
+        T_now, _ = NVT_from_NVS_solver(S_tar, exp_in, max_step_S, tol_S)
         exp_now = deepcopy(exp_in)
         exp_now.T = T_now
         exp_now.find_outputs()
@@ -135,13 +181,13 @@ def isentropic_fix_Ntot_solver(N_tot_tar: dict,
                 N_sys_init.append(sp["Np"])
     rrst = root(N_err, args = exp0, x0 = N_sys_init) # outputs a root_result object
     if not rrst.success: logging.warning("Algorithm failed to converge!")
-    # Unfortunately for now I have to run isentropic_fix_filling_solver again
+    # Unfortunately for now I have to run NVT_from_NVS_solver again
     # to re-obtain T
     for i, k in enumerate(N_tot_tar.keys()):
         for sp in exp0:
             if sp["name"] == k:
                 sp["Np"] = rrst.x[i]
-    T_now, _ = isentropic_fix_filling_solver(S_tar, exp0, max_step_S, tol_S)
+    T_now, _ = NVT_from_NVS_solver(S_tar, exp0, max_step_S, tol_S)
     return np.hstack(T_now, rrst.x), rrst
 
 def isentropic_canonical_solver(N_tot_tar: dict,
