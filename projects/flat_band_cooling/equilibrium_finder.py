@@ -25,6 +25,9 @@ def get_eqn_of_state_solver(from_vars: str, to_vars: str):
             "muVT": muVT_from_NVS_solver,
             "muVS": None,
             "NVT":  NVT_from_NVS_solver,
+        },
+        "NVE":{
+            "muVT": None,
         }
     }
     
@@ -36,7 +39,7 @@ def get_eqn_of_state_solver(from_vars: str, to_vars: str):
 
 def muVT_from_NVT_solver(N: float,
                          T: float,
-                         E_orbs: np.ndarray) -> (float, RootResults):
+                         E_orbs: np.ndarray) -> tuple[float, RootResults]:
     """Find chemical potential mu given N and T."""
     def N_err(mu):
         N_from_mu = sum(util.fermi_stat(E_orbs, T, mu))
@@ -49,16 +52,66 @@ def muVT_from_NVT_solver(N: float,
     
     rrst = root_scalar(N_err, x0 = mu_guess, method = "secant")
     if not rrst.converged:
-        logging.warning("Algorithm failed to converge! Try loosening xtol")
+        logging.warning("muVT_from_NVT_solver failed to converge! Try loosening xtol")
         rrst = root_scalar(N_err, x0 = mu_guess, method = "secant", xtol = 1e-2)
         if not rrst.converged:
-            logging.warning("Algorithm still failed to converge at xtol = 1e-2")
+            logging.warning("muVT_from_NVT_solver still failed to converge at xtol = 1e-2")
     return rrst.root, rrst
+
+def muVT_from_NVE_solver(N: float,
+                         E: float,
+                         E_orbs: np.ndarray,
+                         T_guess: float = None) -> tuple[float, float, RootResults]:
+    """Find a muVT system that give the right N and E.
+    
+    For each T, this function finds a mu such that the number of particles matches N,
+    and then checks if the energy matches E.
+    
+    If this doesn't work, then try to change T such that mu is increased (decreased)
+    for E too small (large).
+
+    The algorithm makes use of the fact that both the particle number and total energy
+    are monotonically increasing functions of mu at a given T. Assuming that for a fixed
+    N, mu increases with T at large T
+
+    Args:
+        N: total number of particles in the system.
+        E: total energy of the system.
+        E_orbs: energy levels of the system.
+        T_guess: initial guess for T. If None, it will be set to 1 or -1.
+    """
+    E_avg_T_infty = E_orbs.mean()
+    E_avg_input = E / N
+    if E_avg_input > E_orbs[-1] or E_avg_input < E_orbs[0]:
+        logging.warning("Illegal average energy input")
+        return None, None
+    elif E_avg_input > E_avg_T_infty:
+        logging.info("E / N is larger than the average energy at T = inf, try T < 0")
+        T_guess = -abs(T_guess)
+    elif E_avg_input < E_avg_T_infty:
+        logging.debug("E / N is smaller than the average energy at T = inf, try T > 0")
+        T_guess = abs(T_guess)
+    
+    def E_err(T):
+        mu, _ = muVT_from_NVT_solver(N, T_guess, E_orbs)
+        E_from_mu_and_T = sum(E_orbs * util.fermi_stat(E_orbs, T, mu))
+        return abs(E - E_from_mu_and_T)
+    
+    rrst = root_scalar(E_err, x0 = T_guess, method = "secant")
+    if not rrst.converged:
+        logging.warning("muVT_from_NVE_solver failed to converge! Try loosening xtol")
+        rrst = root_scalar(E_err, x0 = T_guess, method = "secant", xtol = 1e-2)
+        if not rrst.converged:
+            logging.warning("muVT_from_NVE_solver still failed to converge at xtol = 1e-2")
+    
+    T_out = rrst.root
+    mu, _ = muVT_from_NVT_solver(N, T_out, E_orbs)
+    return mu, T_out, rrst
 
 def NVT_from_NVS_solver(S_tar: float,
                       exp0: E9M.NVT_exp,
                       max_step: int = 50,
-                      tol: float = 1e-4) -> (float, RootResults):
+                      tol: float = 1e-4) -> tuple[float, RootResults]:
     """Find thermal equlibrium config, in particular T, given some total entropy
     and target filling in systems.
     
@@ -195,7 +248,7 @@ def isentropic_canonical_solver(N_tot_tar: dict,
                       exp0: E9M.NVT_exp,
                       N_tot_fn = None,
                       max_step: int = 100,
-                      tol: float = 1e-3) -> (float, RootResults):
+                      tol: float = 1e-3) -> tuple[float, RootResults]:
     # Doesn't work - input is [T, *N], but output is error of [S, *N]
     """Find thermal equlibrium config, in particular T, given some total entropy
     and total particle number.

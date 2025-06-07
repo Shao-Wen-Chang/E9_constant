@@ -35,6 +35,33 @@ def find_y_by_nearest_x(xarr, yarr, val):
     xnear, idx = find_nearest(xarr, val)
     return (xnear, yarr[idx])
 
+def find_derivative(arr, dx = 1, assume_C3_conti = True):
+    """Find the derivative of an array, assuming uniform spacing dx.
+    
+    Returns an array of the same shape as arr, with the last element set to the same
+    value as the last derivative.
+    """
+    if arr.ndim != 1:
+        raise Exception("find_derivative only works for 1D arrays")
+    
+    if assume_C3_conti:
+        return np.gradient(arr, dx)
+    else:    # If not assuming C3 continuity, use the finite difference method
+        deriv = np.zeros_like(arr)
+        deriv[:-1] = (arr[1:] - arr[:-1]) / dx
+        deriv[-1] = deriv[-2]
+        return deriv
+
+def find_sign_change(arr):
+    """Find the indices where the sign of arr changes.
+    
+    Returns an array of indices where arr[i] * arr[i + 1] < 0.
+    """
+    if arr.ndim != 1:
+        raise Exception("find_sign_change only works for 1D arrays")
+    node_finder = arr[:-1] * arr[1:]
+    return np.where(node_finder < 0)[0]
+
 #%% Linear algebra
 def dagger(mat, axis = None):
     """Return the conjugate transpose of the input matrix.

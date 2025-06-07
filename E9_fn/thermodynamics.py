@@ -1,5 +1,6 @@
 import logging
 import numpy as np
+from scipy.linalg import eigh
 
 from E9_fn import util
 # simplest version (spinless fermions in s-bands of, say, a kagome lattice)
@@ -146,6 +147,15 @@ def find_S(E_orbs, T, Np, xi, mu = None, E_total = None, N_BEC: int = 0):
         return (E_total - mu * Np) / T + xi * np.log(1 + xi * np.exp((mu - E_orbs[1:]) / T)).sum()
     else:
         return (E_total - mu * Np) / T + xi * np.log(1 + xi * np.exp((mu - E_orbs) / T)).sum()
+
+def find_SvN(rho):
+    """Find the von Neumann entropy of a given density matrix."""
+    if not util.IsHermitian(rho):
+        raise(Exception("The input density matrix is not Hermitian!"))
+    if not np.allclose(rho.diagonal().sum(), 1):
+        logging.warning("The trace of the input density matrix is not 1!")
+    eigvals, _ = eigh(rho)
+    return -(eigvals * np.log(eigvals)).sum()
 
 #%% Simulation
 if __name__ == "__main__":
