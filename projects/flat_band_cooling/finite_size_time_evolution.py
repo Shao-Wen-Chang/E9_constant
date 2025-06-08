@@ -16,22 +16,6 @@ import E9_fn.thermodynamics as thmdy
 from E9_fn.tight_binding import E9tb
 import E9_fn.E9_models as E9M
 # (non-interacting / spinless) fermions dynamics in a system + reservoir setup
-'''
---- Initialize the system with some pure state with "temperature T" with no offset
-    between the reservoir and the system, and fill to somewhere in the flat band
-    --- The "temperature" determines the weight of each orbital in the initial state
-        , given by the Fermi-Dirac distribution
---- Find mu S for the initial configuration
-    --- mu is ill-defined in a canonical ensemble, but we just use it to find the filling
-        factor of each orbital
---- Evolve the state in time with a varying offset between the reservoir and the system
-    --- For each step, decompose each eigenstate of the previous Hamiltonian into
-        the superposition of the eigenstates of the new Hamiltonian
-    --- Evolve each state, which simply accrues a phase factor
-        --- This winds up being faster than calculating matrix exponentials, as in the
-            singularity paper
---- Calculate the energy, entropy, and temperature of the system at each time step
-'''
 
 logpath = '' # '' if not logging to a file
 loglevel = logging.INFO
@@ -56,17 +40,12 @@ sys_len = 6
 sys_range = ((lattice_len - sys_len) // 2, (lattice_len + sys_len) // 2)
 
 # Reservoir parameters
-V_rsv_offset_final = -2
-
-# Other inputs
-T_init = 0.2                    # Initial temperature of the system
-nu_tar_system = 5/12            # Target filling factor in the system
-nu_tar_reservoir = 10/12          # Target filling factor in the reservoir
+V_rsv_offset_final = -2.001
 
 # Time evolution parameters in unit of 1/t_nn
-t_ramp = 100                     # Time to ramp up the offset
+t_ramp = 1                     # Time to ramp up the offset
 t_hold = 0                      # Time to hold at the final offset
-t_step = 0.5                   # Time step
+t_step = 0.01                   # Time step
 
 #################################### Time evolution ####################################
 #%% Initialization
@@ -98,6 +77,7 @@ t_axis = np.arange(0, n_t_steps_ramp + n_t_steps_hold + t_step) * t_step
 n_snapshots = n_t_steps + 1
 eigvals_all = np.zeros((n_snapshots, n_orbs))
 eigvecs_all = np.zeros((n_snapshots, n_orbs, n_orbs), dtype = complex)
+W_of_t_all = np.zeros((n_snapshots, n_orbs, n_orbs), dtype = complex) # see eqn(10) for W(t) in my notes
 U_to_init_all = np.zeros((n_snapshots, n_orbs, n_orbs), dtype = complex)
 # Filling factors of each orbital at each time step (to be considered one column vector at a time)
 fill_evolve_orbs_all = np.zeros((n_snapshots, n_orbs, n_orbs))
@@ -111,6 +91,7 @@ eigvals_final, eigvecs_final = eigh(H_bare + H_offset_final)
 eigvecs_prev = eigvecs_init
 eigvals_all[0, :] = eigvals_init
 eigvecs_all[0, :, :] = eigvecs_init
+W_of_t_all[0, :, :] = eigvecs_init
 U_to_init_all[0, :, :] = util.dagger(eigvecs_init) @ eigvecs_prev
 fill_evolve_orbs_all[0, :, :] = np.eye(n_orbs)
 
@@ -139,23 +120,19 @@ for i_t in range(n_t_steps):
     eigvecs_prev = eigvecs_now @ overlap_now
     eigvals_all[i_t + 1, :] = eigvals_now
     eigvecs_all[i_t + 1, :, :] = eigvecs_now
+    W_of_t_all[i_t + 1, :] = eigvecs_prev
     U_to_init_all[i_t + 1, :, :] = util.dagger(eigvecs_init) @ eigvecs_prev
     fill_evolve_orbs_all[i_t + 1, :, :] = fill_evolve_now
 
 #%% Post processing
 overlap_with_init_all = np.abs(U_to_init_all.diagonal(axis1 = 1, axis2 = 2))**2
-lowest_overlap_with_init_all = np.min(overlap_with_init_all, axis = 0)
-_arr = np.arange(n_orbs)
-logging.info(f"States whose overlap with initial state are always above 0.99: {_arr[lowest_overlap_with_init_all > 0.99]}")
-logging.info(f"States whose overlap with initial state are always above 0.95: {_arr[lowest_overlap_with_init_all > 0.95]}")
-logging.info(f"States whose overlap with initial state are always above 0.8: {_arr[lowest_overlap_with_init_all > 0.8]}")
+# lowest_overlap_with_init_all = np.min(overlap_with_init_all, axis = 0)
+# _arr = np.arange(n_orbs)
+# logging.info(f"States whose overlap with initial state are always above 0.99: {_arr[lowest_overlap_with_init_all > 0.99]}")
+# logging.info(f"States whose overlap with initial state are always above 0.95: {_arr[lowest_overlap_with_init_all > 0.95]}")
+# logging.info(f"States whose overlap with initial state are always above 0.8: {_arr[lowest_overlap_with_init_all > 0.8]}")
 
-#%% Plots (single orbitals)
-### Plot some single orbitals if needed
-# fig_lat, ax_lat = util.make_simple_axes(fig_kwarg = {"figsize": (12, 6)})
-# my_tb_model.plot_H(ax = ax_lat, H = H_total)
-# my_tb_model.plot_state(eigvecs_prev[:,62], ax_lat)
-
+#%% overlap with the initial orbitals for matching energy levels
 def get_curve_style(i, total, cmap = plt.cm.viridis, n_highlight = 10,
                     alpha_high = 1.0, alpha_low = 0.5,
                     lw_high = 2.0, lw_low = 0.5):
@@ -179,19 +156,40 @@ def get_curve_style(i, total, cmap = plt.cm.viridis, n_highlight = 10,
     else:
         return {'color': color, 'alpha': alpha_low, 'lw': lw_low}
 
-fig_adia, ax_adia = plt.subplots()
+# fig_overlap_init, ax_overlap_init = plt.subplots()
 
-for i in range(n_orbs):
-    style = get_curve_style(i, n_orbs)
-    ax_adia.plot(t_axis, overlap_with_init_all[:, i], **style)
-ax_adia.set_xlabel("Time (1/t_nn)")
-ax_adia.set_ylabel(r"$|\langle \varphi_i(t = 0)|\varphi_i(t) \rangle|^{2}$")
-ax_adia.set_ylim(-0.05, 1.05)
-ax_adia.set_title("Overlap with initial state for each orbital")
-fig_adia.suptitle(f"V_final = {V_rsv_offset_final:.2f}, {n_orbs} orbitals, "
-                  + f"t = {t_tot:.2f}, dt = {t_step:.3f}")
+# for i in range(n_orbs):
+#     style = get_curve_style(i, n_orbs)
+#     ax_overlap_init.plot(t_axis, overlap_with_init_all[:, i], **style)
+# ax_overlap_init.set_xlabel("Time (1/t_nn)")
+# ax_overlap_init.set_ylabel(r"$|\langle \varphi_i(t = 0)|\varphi_i(t) \rangle|^{2}$")
+# ax_overlap_init.set_ylim(-0.05, 1.05)
+# ax_overlap_init.set_title("Overlap with initial state for each orbital")
+# fig_overlap_init.suptitle(f"V_final = {V_rsv_offset_final:.2f}, {n_orbs} orbitals, "
+#                   + f"t = {t_tot:.2f}, dt = {t_step:.3f}")
+#%% ################################ Quantum random walk #################################
+# QRW_pos_ind = my_tb_model.get_reduced_index(5, 5, 1)
+# QRW_pos_basis_init = np.eye(n_orbs)[QRW_pos_ind]
+# QRW_spec_decom_init = util.dagger(eigvecs_init) @ QRW_pos_basis_init
+# QRW_pos_basis_all = np.einsum("abc,c->ab", W_of_t_all, QRW_spec_decom_init)
+
+# #%% Plots
+# i_t_plot_QRW = np.linspace(0, n_t_steps, 5, dtype = int)
+# N_QRW_plots = len(i_t_plot_QRW)
+
+# fig_QRW = plt.figure(figsize = (N_QRW_plots * 4, 6))
+# for j, i_t in enumerate(i_t_plot_QRW):
+#     ax_QRW_now = fig_QRW.add_subplot(1, N_QRW_plots, j + 1)
+#     my_tb_model.plot_H(ax = ax_QRW_now)
+#     my_tb_model.plot_state(abs(QRW_pos_basis_all[i_t, :])**2, ax = ax_QRW_now)
+#     ax_QRW_now.set_title(f"t = {t_axis[i_t]:.4f}")
 
 ################################## Multiparticle system ##################################
+#%% inputs
+T_init = 0.2                    # Initial temperature of the system
+nu_tar_system = 5/12            # Target filling factor in the system
+nu_tar_reservoir = 10/12          # Target filling factor in the reservoir
+
 #%% Find the initial filling factors
 # Find the total number of particles
 N_init = ((lattice_len**2 - sys_len**2) * nu_tar_reservoir + sys_len**2 * nu_tar_system) * 3
@@ -203,9 +201,9 @@ filling_factors_init = util.fermi_stat(eigvals_init, T_init, mu_init)
 #%% Find the evolution of the filling factors in the system
 # Filling factors of the actual system at each time step
 fill_evolve_sys_all = np.einsum('abc,c->ab', fill_evolve_orbs_all, filling_factors_init)
-N_total_check = np.sum(fill_evolve_sys_all, axis = 1)
 
 # Sanity checks
+N_total_check = np.sum(fill_evolve_sys_all, axis = 1)
 if not np.allclose(N_total_check, N_init):
     logging.warning("Total number of particles does not match the initial number at some time step.")
     fig_N_check, ax_N_check = plt.subplots()
@@ -217,6 +215,7 @@ if np.any(fill_evolve_sys_all < 0) or np.any(fill_evolve_sys_all > 1):
 #%% Post processing
 E_tot_all = np.sum(fill_evolve_sys_all * eigvals_all, axis = 1)
 E_tot_adiabatic_all = eigvals_all @ filling_factors_init
+pop_in_rsv = np.sum(abs(eigvecs_all[:, rsv_ind, :])**2, axis = 1)
 
 #%% Plots (full system)
 # Plot the changes in filling factors after the whole ramp
@@ -255,18 +254,52 @@ alpha_pwr = 1
 for i in range(n_orbs):
     alpha_original = fill_evolve_sys_all[:, i]**alpha_pwr
     alpha_limited = np.clip(alpha_original, 0, 1)
-    pop_in_rsv = np.sum(abs(eigvecs_all[::sampling_rate, rsv_ind, i])**2, axis = 1)
+    # pop_in_rsv = np.sum(abs(eigvecs_all[::sampling_rate, rsv_ind, i])**2, axis = 1)
     ax_fill_by_E.scatter(t_axis[::sampling_rate], eigvals_all[::sampling_rate, i], s = 1,
-                         color = plt.cm.viridis(pop_in_rsv), marker = ".", alpha = alpha_limited)
+                         color = plt.cm.viridis(pop_in_rsv[::sampling_rate, i]), marker = ".", alpha = alpha_limited)
     
     alpha_original_adia = np.ones_like(t_axis[::sampling_rate]) * filling_factors_init[i]**alpha_pwr
     alpha_limited_adia = np.clip(alpha_original_adia, 0, 1)
     ax_fill_by_E_adia.scatter(t_axis[::sampling_rate], eigvals_all[::sampling_rate, i], s = 1,
-                         color = plt.cm.viridis(pop_in_rsv), marker = ".", alpha = alpha_limited_adia)
+                         color = plt.cm.viridis(pop_in_rsv[::sampling_rate, i]), marker = ".", alpha = alpha_limited_adia)
 ax_fill_by_E.set_title((rf"$\alpha = \nu^{{{alpha_pwr:.1f}}}$" "; more yellow = more weight in the reservoir"))
 ax_fill_by_E_adia.set_title("adiabatic case")
 ax_fill_by_E.set_ylabel("E/t_nn")
 
+#%% Tracking single orbitals
+rsv_flat_orbs = np.array([i for i in range(196, 230)])          # "rsv_flat" below - states in the flat band of the reservoir
+orbs_of_interest = rsv_flat_orbs                                # "ooi" below
+fig_ooi = plt.figure(figsize = (6, 11), tight_layout = True)
+ax_ooi_rsv = fig_ooi.add_subplot(3, 1, 1)
+ax_ooi_adia = fig_ooi.add_subplot(3, 1, 2)
+ax_ooi_adia_final = fig_ooi.add_subplot(3, 1, 3)
+
+# fill_ooi traces the filling factor in the time-dependent basis
+# !!! assuming that at t = 0 we have a single particle in an orbital of interest !!!
+# fill_in_rsv_flat sums up the occupation in rsv_flat
+fill_in_rsv_flat_final_ooi = np.zeros(len(orbs_of_interest))
+for j, i_orb in enumerate(orbs_of_interest):
+    color = plt.cm.viridis((i_orb - orbs_of_interest[0]) / (orbs_of_interest[-1] - orbs_of_interest[0]))
+    ax_ooi_rsv.plot(t_axis, pop_in_rsv[:, i_orb], color = color)
+
+    fill_ooi = np.einsum('abc,c->ab', fill_evolve_orbs_all, np.eye(n_orbs)[i_orb,:])
+    fill_in_rsv_flat_ooi = np.sum(fill_ooi[:,rsv_flat_orbs], axis = 1)
+    fill_in_rsv_flat_final_ooi[j] = fill_in_rsv_flat_ooi[-1]
+    ax_ooi_adia.plot(t_axis, fill_in_rsv_flat_ooi, color = color)
+
+ax_ooi_adia_final.plot(rsv_flat_orbs, fill_in_rsv_flat_final_ooi)
+fig_ooi.suptitle("Time evolution for each of the reservoir flat band states")
+ax_ooi_rsv.set_ylabel(r"$\langle \psi_{i}(t) | \hat{\mathrm{P}}_{rsv} |\psi_{i}(t) \rangle$")
+ax_ooi_rsv.set_title("Wavefunction weight in the reservoir")
+
+ax_ooi_adia.set_title("Remaining occupation in the reservoir flat band")
+ax_ooi_adia.set_ylabel(r"$\langle \psi_{i}(t) | \hat{\mathrm{P}}_{rsv flat}(t) |\psi_{i}(t) \rangle$")
+ax_ooi_adia.set_yscale("log")
+ax_ooi_adia.set_ylim((1e-3, 1e0))
+ax_ooi_adia.set_xlabel("time")
+
+ax_ooi_adia_final.set_title("Remaining occupation at the end")
+ax_ooi_adia_final.set_xlabel("state label")
 ############################# Find matching muVT system #############################
 #%% Try to find a muVT system (grand canonical ensemble) that matches the final total energy
 down_sample = 10
@@ -363,4 +396,4 @@ fig_fill_hist.suptitle(f"left: t = 0, right: t = {t_ramp}")
 # rho_sum_final_all = np.einsum("abc,a->bc", rho_pure_final_all, fill_evolve_sys_all[-1,:])
 # N_rsv_final = rho_sum_final_all.diagonal()[rsv_ind].sum()
 # testsysrho = np.pad(rho_sum_final_all[sys_ind][:,sys_ind], (0, 1), constant_values = 0)
-# testsysrho[-1, -1] = N_init - testsysrho.diagonal().sum()
+# testsysrho[-1, -1] = N_init - testsysrho.diagonal().sum() # the last index is for vacuum state

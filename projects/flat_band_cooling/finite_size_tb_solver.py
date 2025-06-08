@@ -23,7 +23,7 @@ file_name = ""  # This will overwrite the default file name
 
 #%% Define the model and solve it
 lattice_str = "kagome"
-lattice_len = 12
+lattice_len = 10
 tnnn = -0.02
 lattice_dim = (lattice_len, lattice_len)
 tb_params = E9tb.get_model_params(lattice_str, tnnn = tnnn)#, overwrite_param = {"lat_bc": (1, 1)})
@@ -31,10 +31,10 @@ my_tb_model= E9tb.tbmodel_2D(lat_dim = lattice_dim, **tb_params)
 H_bare = my_tb_model.H
 
 # Add offset to the bare model
-sys_len = 8
+sys_len = 6
 sys_range = ((lattice_len - sys_len) // 2, (lattice_len + sys_len) // 2)
 n_sys = sys_len**2
-V_rsv_offset = -2
+V_rsv_offset = -2.001
 # Find what unit cells are in the reservoir by excluding the unit cells in the system
 sys_natural_uc_ind = set([(ii, jj) for jj in range(my_tb_model.lat_dim[1]) if sys_range[0] <= jj and jj < sys_range[1]
                                     for ii in range(my_tb_model.lat_dim[0]) if sys_range[0] <= ii and ii < sys_range[1]])
@@ -66,7 +66,7 @@ pass
 
 #%% Plots
 plot_real_space = True
-plot_state_list = []
+plot_state_list = [196, 229]
 
 # fig_H, ax_H = util.make_simple_axes(fignum = 100)
 # ax_H.matshow(H_total)
@@ -81,7 +81,7 @@ ax_E.scatter(np.arange(len(eigvals)), eigvals)
 ax_E.set_title("Energy of all states")
 ax_E.scatter(plot_state_list, eigvals[plot_state_list], color = "red", label = "selected states")
 ax_E.legend()
-E_bins = np.linspace(eigvals[0], eigvals[-1], my_tb_model.n_orbs // 20)
+E_bins = np.linspace(eigvals[0], eigvals[-1], my_tb_model.n_orbs // 10)
 ax_DoS.hist(eigvals, bins = E_bins, orientation = "horizontal")
 ax_DoS.set_title("DoS")
 ax_nu.plot(density_sys)

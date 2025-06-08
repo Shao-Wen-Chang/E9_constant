@@ -60,7 +60,7 @@ class tbmodel_2D:
         self.H, self._as_closed_bc = self.build_H()
     
     def get_reduced_index(self, i, j, k):
-        """Returns the reduced index that represents the k-th orbital in the (i, j)-th unit cell."""
+        """Return the reduced index that represents the k-th orbital in the (i, j)-th unit cell."""
         if k >= self.n_basis or k < 0:
             raise(Exception("index out of range"))
         if (np.any(i >= self.lat_dim[0]) and self.lat_bc[0] == 0) or \
@@ -69,8 +69,13 @@ class tbmodel_2D:
         ii, jj = i % self.lat_dim[0], j % self.lat_dim[1]
         return self.n_basis * (self.lat_dim[0] * jj + ii) + k
     
+    def get_all_reduced_index_for_sublat(self, k):
+        """Return all the reduced index that represents the k-th orbital."""
+        return [self.get_reduced_index(i, j, k) for i in range(self.lat_dim[0])
+                                                for j in range(self.lat_dim[1])]
+
     def get_natural_index(self, indices):
-        """Unpacks the reduced indices as (i, j, k), the k-th orbital in the (i, j)-th unit cell."""
+        """Unpack the reduced indices as (i, j, k), the k-th orbital in the (i, j)-th unit cell."""
         indices = np.array(indices)
         if np.any(indices >= self.n_orbs):
             raise(Exception("index out of range"))
@@ -225,6 +230,7 @@ def get_model_params(model_in,
                      tnn = -1,      # Only use abs(tnn) = 1
                      tnnn = -0.1,
                      tnnnc = 0.1 * np.exp(2j * np.pi * (1/3)),
+                     V_D = 20.,
                      ky = 0.,
                      overwrite_param: dict = {}):
     """Get parameters required by tbmodel_2D.
@@ -283,6 +289,29 @@ def get_model_params(model_in,
                          (tnnn, 1, 2, (0, -1)),
                          (tnnn, 2, 0, (1, 0)),
                          (tnnn, 2, 0, (-1, 1))]
+        },
+
+        "kagome_withD":{    # kagome lattice but with the D site included
+            "lat_vec": [np.array([0, 1]),
+                        np.array([-np.sqrt(3)/2, 1/2])],
+            "basis_vec": [np.array([0, 0]),
+                          np.array([0.5, 0]),
+                          np.array([0, 0.5]),
+                          np.array([0.5, 0.5])],
+            "lat_bc": (0, 0),
+            "sublat_offsets": [0, 0, 0, V_D],
+            "hoppings": [(tnn, 0, 1, (0, 0)),
+                        (tnn, 0, 2, (0, 0)),
+                        (tnn, 1, 2, (0, 0)),
+                        (tnn, 0, 1, (-1, 0)),
+                        (tnn, 0, 2, (0, -1)),
+                        (tnn, 1, 2, (1, -1)),
+                        (tnn, 3, 1, (0, 0)),
+                        (tnn, 3, 2, (0, 0)),
+                        (tnn, 3, 0, (1, 0)),
+                        (tnn, 3, 2, (1, 0)),
+                        (tnn, 3, 0, (0, 1)),
+                        (tnn, 3, 1, (0, 1))]
         },
 
         "kagome_Haldane":{ # a "Haldane-like" model where there are complex hoppings between nnn
