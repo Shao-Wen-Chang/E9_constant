@@ -1,7 +1,5 @@
 # Recommended import call: import E9_fn.E9_constants as E9c
 import numpy as np
-from matplotlib.colors import ListedColormap
-import seaborn as sns
 # All in SI units unless otherwise noted. Also, I try to use FREQUENCIES instead of ANGULAR FREQUENCIES all the time, and if
 # I ever use ANGULAR FREQUENCIES I prefer to include the factor of 2pi explicitly. e.g. (2 * pi) * 20. The units for ANGULAR
 # FREQUENCIES is [rad/s].
@@ -84,6 +82,8 @@ a_bg_K40_Rb87 = -9.9e-9     # -187 * a0, with +/- ~30% uncertainty
 r_eff_K40_Rb87 = 20.2e-9    # effective range, 381.7 * a0; not sure about the sign since the f(k) formula quoted
                             # in the paper is flipped from the usual one
 a_bg_Li6 = -1405 * a0       # not sure
+# interaction strength in GP-eqn
+U_GPE_Rb87 = 4 * np.pi * a_bg_Rb87
 
 # Line constants organized by species
     # Saturation intensities are in [W/m^2]; divide by 10 for [mW/cm^2]. Assuming circularly polarized light
@@ -202,7 +202,7 @@ BZ4_vertices = [pt41, pt42, pt43, pt44, pt45, pt46, pt41]
 # on y axis), kB12 = K2, kB23 = -K1
 kB12 = K3
 kB23 = -K1
-# freq_K = np.linalg.norm(G3)*hbar/np.sqrt(3)/m_unit/A/l_unit**2 # don't remember what's this
+# freq_K = np.linalg.norm(G3) * hbar / np.sqrt(3) / m_unit / A / l_unit**2 # don't remember what's this
 
 # recoil energies
 E_R1064_Rb87 = hbar**2 / 2 / m_Rb87 * (2*np.pi/lambda_lw)**2 # 1064 photon recoil energy
@@ -210,13 +210,41 @@ E_R532_Rb87  = hbar**2 / 2 / m_Rb87 * (2*np.pi/lambda_sw)**2 # 532 photon recoil
 E_R1064_K40  = hbar**2 / 2 / m_K40 * (2*np.pi/lambda_lw)**2 # 1064 photon recoil energy
 E_R532_K40   = hbar**2 / 2 / m_K40 * (2*np.pi/lambda_sw)**2 # 532 photon recoil energy
 
+#%% Natural units for lattice calculations
+# I think I am shifting away from these
+# note that energy defined with the frequency unit I'm using is 2*pi times larger than usual (E/h)
+m_lat_unit_Rb87 = m_Rb87
+l_lat_unit_Rb87 = lambda_sw
+E_lat_unit_Rb87 = (hbar / lambda_sw)**2 / m_lat_unit_Rb87
+f_lat_unit_Rb87 = E_lat_unit_Rb87 / hbar
+t_lat_unit_Rb87 = 1 / f_lat_unit_Rb87
+all_lat_unit_Rb87 = {
+    "m_unit": m_lat_unit_Rb87,
+    "l_unit": l_lat_unit_Rb87,
+    "E_unit": E_lat_unit_Rb87,
+    "f_unit": f_lat_unit_Rb87,
+    "t_unit": t_lat_unit_Rb87
+}
+
+m_lat_unit_K40 = m_K40
+l_lat_unit_K40 = lambda_sw
+E_lat_unit_K40 = (hnobar / lambda_sw)**2 / m_lat_unit_K40
+f_lat_unit_K40 = E_lat_unit_K40 / hbar
+t_lat_unit_K40 = 1 / f_lat_unit_K40
+all_lat_unit_K40 = {
+    "m_unit": m_lat_unit_K40,
+    "l_unit": l_lat_unit_K40,
+    "E_unit": E_lat_unit_K40,
+    "f_unit": f_lat_unit_K40,
+    "t_unit": t_lat_unit_K40
+}
+
 #%% Utility constants (plots etc.)
 # BZ color schemes
 # [qarea, BZ1, BZ2, BZ3, BZ4, ...]
 BZcolor_PRL = ['red', '#B3FFB3', '#B3FFFF', '#FFB3B3', '#B3B3FF']
 BZcolor_white = ['white', 'white', 'white', 'white', 'white']
 BZcolor_trans = ['none', 'none', 'none', 'none', 'none']
-cmp_husl = ListedColormap(sns.color_palette('husl', 256)) # for plotting phase information
 
 #%% Utility functions
 def LinearFn(a, b, x):

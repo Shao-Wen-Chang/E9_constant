@@ -70,8 +70,14 @@ def dagger(mat, axis = None):
     if mat.ndim <= 2:
         return mat.conj().T
     else:
-        # TODO: implement for dim >= 3, where the dimensions to be acted on are specified by axis.
-        raise Exception("Hermitian conjugate for dim >= 3 is not implemented yet")
+        if axis is None:
+            raise(Exception(("The axes to be daggered must be provided for arrays with"
+                             " dimensions larger than 2, e.g. axis = (1, 2).")))
+        elif len(axis) != 2:
+            raise(Exception("axis must be a list with two elements"))
+        ind_order = np.arange(mat.ndim)
+        ind_order[axis] = np.array(axis)[::-1]
+        return np.einsum(mat, ind_order).conj()
 
 def IsHermitian(mat):
     """Determine if input matrix is Hermitian."""
