@@ -22,11 +22,13 @@ save_data = False
 file_name = ""  # This will overwrite the default file name
 
 #%% Define the model and solve it
-lattice_str = "kagome"
+lattice_str = "kagome_withD"
 lattice_len = 10
 tnnn = -0.02
 lattice_dim = (lattice_len, lattice_len)
-tb_params = E9tb.get_model_params(lattice_str, tnnn = tnnn)#, overwrite_param = {"lat_bc": (1, 1)})
+overwrite_param = {"sublat_offsets": [0., 0., 0., 15.]}
+# overwrite_param = {"tnnn": tnnn, "lat_bc": (1, 1)}
+tb_params = E9tb.get_model_params(lattice_str, overwrite_param = overwrite_param)
 my_tb_model= E9tb.tbmodel_2D(lat_dim = lattice_dim, **tb_params)
 H_bare = my_tb_model.H
 
@@ -66,7 +68,7 @@ pass
 
 #%% Plots
 plot_real_space = True
-plot_state_list = [196, 229]
+plot_state_list = [216, 217]
 
 # fig_H, ax_H = util.make_simple_axes(fignum = 100)
 # ax_H.matshow(H_total)

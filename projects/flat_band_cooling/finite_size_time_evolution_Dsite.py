@@ -27,10 +27,10 @@ logging.basicConfig(filename = logpath, level = loglevel)
 #%% Inputs
 ### Lattice geometry and model parameters
 # Lattice parameters
-lattice_str = "kagome"
+lattice_str = "kagome_withD"
 lattice_len = 10
 lattice_dim = (lattice_len, lattice_len)
-overwrite_param = {}
+overwrite_param = {"sublat_offsets": [0., 0., 0., 15.]}
 # overwrite_param = {"lat_bc": (1, 1)}  # Periodic boundary conditions
 tb_params = E9tb.get_model_params(lattice_str, overwrite_param = overwrite_param)
 my_tb_model= E9tb.tbmodel_2D(lat_dim = lattice_dim, **tb_params)
@@ -41,10 +41,11 @@ sys_range = ((lattice_len - sys_len) // 2, (lattice_len + sys_len) // 2)
 
 # Reservoir parameters
 V_rsv_offset_final = -2.001
+D_site_offset_final = 0.
 
 # Time evolution parameters in unit of 1/t_nn
-t_ramp = 50                     # Time to ramp up the offset
-t_hold = 0                      # Time to hold at the final offset
+t_ramp = 1000                     # Time to ramp up the offset
+t_D_site = 0                      # Time to ramp up the D-site offset
 t_step = 0.5                   # Time step
 
 #################################### Time evolution ####################################
@@ -52,6 +53,7 @@ t_step = 0.5                   # Time step
 ### Finding Hamiltonians
 H_bare = my_tb_model.H          # Bare Hamiltonian of the system (i.e. without offset)
 n_orbs = my_tb_model.n_orbs
+
 # Find the offset Hamiltonian
 # Find what unit cells are in the reservoir by excluding the unit cells in the system
 sys_natural_uc_ind = set([(ii, jj) for jj in range(my_tb_model.lat_dim[1]) if sys_range[0] <= jj and jj < sys_range[1]
@@ -68,12 +70,17 @@ sys_ind = np.array([i for i in np.arange(n_orbs) if i not in rsv_ind])
 H_offset_final = np.zeros_like(H_bare)
 H_offset_final[rsv_ind, rsv_ind] = V_rsv_offset_final
 
+# Find the D-site Hamiltonian
+D_site_ind = my_tb_model.get_all_reduced_index_for_sublat(3)
+H_D_site_final = np.zeros_like(H_bare)
+H_D_site_final[D_site_ind, D_site_ind] = D_site_offset_final
+
 # Time evolution parameters
-t_tot = t_ramp + t_hold
+t_tot = t_ramp + t_D_site
 n_t_steps_ramp = int(t_ramp / t_step)
-n_t_steps_hold = int(t_hold / t_step)
-n_t_steps = n_t_steps_ramp + n_t_steps_hold
-t_axis = np.arange(0, n_t_steps_ramp + n_t_steps_hold + t_step) * t_step
+n_t_steps_D_site = int(t_D_site / t_step)
+n_t_steps = n_t_steps_ramp + n_t_steps_D_site
+t_axis = np.arange(0, n_t_steps_ramp + n_t_steps_D_site + t_step) * t_step
 n_snapshots = n_t_steps + 1
 eigvals_all = np.zeros((n_snapshots, n_orbs))
 eigvecs_all = np.zeros((n_snapshots, n_orbs, n_orbs), dtype = complex)
@@ -96,19 +103,20 @@ U_to_init_all[0, :, :] = util.dagger(eigvecs_init) @ eigvecs_prev
 fill_evolve_orbs_all[0, :, :] = np.eye(n_orbs)
 
 #%% Time evolution using trotterized Hamiltonian
-def get_offset_amplitude(i_t):
+def get_offset_amplitude(i_t, i_init, i_final, power = 1.):
     """Returns the offset amplitude at time step i_t."""
-    if i_t < n_t_steps_ramp:
-        return (i_t + 1) / n_t_steps_ramp
+    if i_t < i_final:
+        lin_ramp = (i_t - i_init + 1) / (i_final - i_init)
+        return lin_ramp**power
     else:
         return 1.
 
-# Time evolution
-for i_t in range(n_t_steps):
+# Ramping down reservoir potential
+for i_t in range(n_t_steps_ramp):
     if i_t in log_progress:
         logging.info(f"Time step {i_t}/{n_t_steps} ({i_t / n_t_steps * 100:.2f}%) ...")
     # Find the new Hamiltonian
-    H_offset_now = H_offset_final * get_offset_amplitude(i_t)
+    H_offset_now = H_offset_final * get_offset_amplitude(i_t, 0, n_t_steps_ramp)
     H_total = H_bare + H_offset_now
     eigvals_now, eigvecs_now = eigh(H_total)
 
@@ -123,6 +131,26 @@ for i_t in range(n_t_steps):
     W_of_t_all[i_t + 1, :] = eigvecs_prev
     U_to_init_all[i_t + 1, :, :] = util.dagger(eigvecs_init) @ eigvecs_prev
     fill_evolve_orbs_all[i_t + 1, :, :] = fill_evolve_now
+
+# Ramping up D site offset
+for i_t in range(n_t_steps_ramp, n_t_steps):
+    if i_t in log_progress:
+        logging.info(f"Time step {i_t}/{n_t_steps} ({i_t / n_t_steps * 100:.2f}%) ...")
+    # Find the new Hamiltonian
+    H_D_site_now = H_D_site_final * get_offset_amplitude(i_t, n_t_steps_ramp, n_t_steps, 2)
+    H_total = H_bare + H_offset_final + H_D_site_now
+    eigvals_now, eigvecs_now = eigh(H_total)
+
+    U_to_now = util.dagger(eigvecs_now) @ eigvecs_prev
+    overlap_now = np.diag(np.exp(-1j * eigvals_now * t_step)) @ U_to_now
+    fill_evolve_now = overlap_now * overlap_now.conj()
+    eigvecs_prev = eigvecs_now @ overlap_now
+    eigvals_all[i_t + 1, :] = eigvals_now
+    eigvecs_all[i_t + 1, :, :] = eigvecs_now
+    W_of_t_all[i_t + 1, :] = eigvecs_prev
+    U_to_init_all[i_t + 1, :, :] = util.dagger(eigvecs_init) @ eigvecs_prev
+    fill_evolve_orbs_all[i_t + 1, :, :] = fill_evolve_now
+
 
 #%% Post processing
 overlap_with_init_all = np.abs(U_to_init_all.diagonal(axis1 = 1, axis2 = 2))**2
@@ -167,8 +195,8 @@ def get_curve_style(i, total, cmap = plt.cm.viridis, n_highlight = 10,
 # ax_overlap_init.set_title("Overlap with initial state for each orbital")
 # fig_overlap_init.suptitle(f"V_final = {V_rsv_offset_final:.2f}, {n_orbs} orbitals, "
 #                   + f"t = {t_tot:.2f}, dt = {t_step:.3f}")
-#%% ################################ Quantum random walk #################################
-# QRW_pos_ind = my_tb_model.get_reduced_index(5, 5, 1)
+# #%% ################################ Quantum random walk #################################
+# QRW_pos_ind = my_tb_model.get_reduced_index(5, 5, 3)
 # QRW_pos_basis_init = np.eye(n_orbs)[QRW_pos_ind]
 # QRW_spec_decom_init = util.dagger(eigvecs_init) @ QRW_pos_basis_init
 # QRW_pos_basis_all = np.einsum("abc,c->ab", W_of_t_all, QRW_spec_decom_init)
@@ -186,7 +214,7 @@ def get_curve_style(i, total, cmap = plt.cm.viridis, n_highlight = 10,
 
 ################################## Multiparticle system ##################################
 #%% inputs
-T_init = 0.2                    # Initial temperature of the system
+T_init = 0.05                    # Initial temperature of the system
 nu_tar_system = 5/12            # Target filling factor in the system
 nu_tar_reservoir = 10/12          # Target filling factor in the reservoir
 
@@ -216,7 +244,6 @@ if np.any(fill_evolve_sys_all < 0) or np.any(fill_evolve_sys_all > 1):
 E_tot_all = np.sum(fill_evolve_sys_all * eigvals_all, axis = 1)
 E_tot_adiabatic_all = eigvals_all @ filling_factors_init
 pop_in_rsv = np.sum(abs(eigvecs_all[:, rsv_ind, :])**2, axis = 1)
-pop_in_sys = 1 - pop_in_rsv
 
 #%% Plots (full system)
 # Plot the changes in filling factors after the whole ramp
@@ -250,7 +277,7 @@ ax_E_tot.set_ylim(bottom = 0)
 ax_E_tot.legend()
 
 # Plot the filling factors of each orbital as a function of energy
-sampling_rate = 5
+sampling_rate = 1
 alpha_pwr = 1
 for i in range(n_orbs):
     alpha_original = fill_evolve_sys_all[:, i]**alpha_pwr
@@ -269,33 +296,32 @@ ax_fill_by_E.set_ylabel("E/t_nn")
 
 #%% Tracking single orbitals
 rsv_flat_orbs = np.array([i for i in range(196, 230)])          # "rsv_flat" below - states in the flat band of the reservoir
-sys_flat_orbs = np.array([i for i in range(264, 300)])
-orbs_of_interest = sys_flat_orbs                                # "ooi" below
+orbs_of_interest = rsv_flat_orbs                                # "ooi" below
 fig_ooi = plt.figure(figsize = (6, 11), tight_layout = True)
-ax_ooi_sys = fig_ooi.add_subplot(3, 1, 1)
+ax_ooi_rsv = fig_ooi.add_subplot(3, 1, 1)
 ax_ooi_adia = fig_ooi.add_subplot(3, 1, 2)
 ax_ooi_adia_final = fig_ooi.add_subplot(3, 1, 3)
 
 # fill_ooi traces the filling factor in the time-dependent basis
 # !!! assuming that at t = 0 we have a single particle in an orbital of interest !!!
-# fill_in_sys_flat sums up the occupation in sys_flat
-fill_in_sys_flat_final_ooi = np.zeros(len(orbs_of_interest))
+# fill_in_rsv_flat sums up the occupation in rsv_flat
+fill_in_rsv_flat_final_ooi = np.zeros(len(orbs_of_interest))
 for j, i_orb in enumerate(orbs_of_interest):
     color = plt.cm.viridis((i_orb - orbs_of_interest[0]) / (orbs_of_interest[-1] - orbs_of_interest[0]))
-    ax_ooi_sys.plot(t_axis, pop_in_sys[:, i_orb], color = color)
+    ax_ooi_rsv.plot(t_axis, pop_in_rsv[:, i_orb], color = color)
 
     fill_ooi = np.einsum('abc,c->ab', fill_evolve_orbs_all, np.eye(n_orbs)[i_orb,:])
-    fill_in_sys_flat_ooi = np.sum(fill_ooi[:,sys_flat_orbs], axis = 1)
-    fill_in_sys_flat_final_ooi[j] = fill_in_sys_flat_ooi[-1]
-    ax_ooi_adia.plot(t_axis, fill_in_sys_flat_ooi, color = color)
+    fill_in_rsv_flat_ooi = np.sum(fill_ooi[:,rsv_flat_orbs], axis = 1)
+    fill_in_rsv_flat_final_ooi[j] = fill_in_rsv_flat_ooi[-1]
+    ax_ooi_adia.plot(t_axis, fill_in_rsv_flat_ooi, color = color)
 
-ax_ooi_adia_final.plot(sys_flat_orbs, fill_in_sys_flat_final_ooi)
-fig_ooi.suptitle("Time evolution for each of the system flat band states")
-ax_ooi_sys.set_ylabel(r"$\langle \psi_{i}(t) | \hat{\mathrm{P}}_{sys} |\psi_{i}(t) \rangle$")
-ax_ooi_sys.set_title("Wavefunction weight in the system")
+ax_ooi_adia_final.plot(rsv_flat_orbs, fill_in_rsv_flat_final_ooi)
+fig_ooi.suptitle("Time evolution for each of the reservoir flat band states")
+ax_ooi_rsv.set_ylabel(r"$\langle \psi_{i}(t) | \hat{\mathrm{P}}_{rsv} |\psi_{i}(t) \rangle$")
+ax_ooi_rsv.set_title("Wavefunction weight in the reservoir")
 
-ax_ooi_adia.set_title("Remaining occupation in the system flat band")
-ax_ooi_adia.set_ylabel(r"$\langle \psi_{i}(t) | \hat{\mathrm{P}}_{sys flat}(t) |\psi_{i}(t) \rangle$")
+ax_ooi_adia.set_title("Remaining occupation in the reservoir flat band")
+ax_ooi_adia.set_ylabel(r"$\langle \psi_{i}(t) | \hat{\mathrm{P}}_{rsv flat}(t) |\psi_{i}(t) \rangle$")
 ax_ooi_adia.set_yscale("log")
 ax_ooi_adia.set_ylim((1e-3, 1e0))
 ax_ooi_adia.set_xlabel("time")
@@ -304,7 +330,7 @@ ax_ooi_adia_final.set_title("Remaining occupation at the end")
 ax_ooi_adia_final.set_xlabel("state label")
 ############################# Find matching muVT system #############################
 #%% Try to find a muVT system (grand canonical ensemble) that matches the final total energy
-down_sample = 10
+down_sample = 20
 t_axis_down_sample = t_axis[::down_sample]
 n_samples = n_snapshots // down_sample + 1
 mu_all = np.zeros(n_samples)
@@ -333,10 +359,15 @@ print(f"Final muVT: mu = {mu_all[-1]:.6f}, T = {T_all[-1]:.6f}")
 
 #%% Plots
 # Time evolution of matching GCE thermodynamical parameters
-fig_muVT = plt.figure(figsize = (6, 10), tight_layout = True)
-ax_mu_evolve = fig_muVT.add_subplot(3, 1, 1)
-ax_T_evolve = fig_muVT.add_subplot(3, 1, 2)
-ax_S_evolve = fig_muVT.add_subplot(3, 1, 3)
+fig_muVT = plt.figure(figsize = (5, 10), tight_layout = True)
+ax_E_evolve = fig_muVT.add_subplot(4, 1, 1)
+ax_mu_evolve = fig_muVT.add_subplot(4, 1, 2)
+ax_T_evolve = fig_muVT.add_subplot(4, 1, 3)
+ax_S_evolve = fig_muVT.add_subplot(4, 1, 4)
+
+ax_E_evolve.plot(t_axis[1:], (E_tot_all - E_tot_adiabatic_all)[1:], label = r"$E$")
+ax_E_evolve.set_ylabel(r"$E/t_{nn}$")
+ax_E_evolve.set_title("Total energy increase of the system from non-adiabatic evolution")
 
 ax_mu_evolve.plot(t_axis_down_sample, mu_all, label = r"$\mu^*$")
 ax_mu_evolve.plot(t_axis_down_sample, mu_adia_all, label = r"$\mu_{adia}$")
