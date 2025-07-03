@@ -730,8 +730,29 @@ def FindH(q, num, Exp_lib, center = (0, 0)):
         else:
             return 0
     
+    def get_rel_V(j, l):
+        """Returns the relative potential depth for the given j and l (i.e. given beam pair)."""
+        # 1064 lattice
+        if abs(j) == 1 and abs(l) == 1:
+            return B1_rel_E_1064
+        elif abs(j) == 1 and abs(l) == 0:
+            return B3_rel_E_1064
+        elif abs(j) == 0 and abs(l) == 1:
+            return B1_rel_E_1064 * B3_rel_E_1064
+        # 532 lattice
+        elif abs(j) == 2 and abs(l) == 2:
+            return B1_rel_E_532
+        elif abs(j) == 2 and abs(l) == 0:
+            return B3_rel_E_532
+        elif abs(j) == 0 and abs(l) == 2:
+            return B1_rel_E_532 * B3_rel_E_532
+        else:
+            return 0
+    
     l_unit = Exp_lib["units_dict"]["l_unit"]
     V532, V1064 = Exp_lib['V532'], Exp_lib['V1064']
+    B1_rel_E_532, B3_rel_E_532 = np.sqrt(Exp_lib['B1_rel_int_532']), np.sqrt(Exp_lib['B3_rel_int_532'])
+    B1_rel_E_1064, B3_rel_E_1064 = np.sqrt(Exp_lib['B1_rel_int_1064']), np.sqrt(Exp_lib['B3_rel_int_1064'])
     phi12, phi23 = Exp_lib['phi12'], Exp_lib['phi23']
     ABoffset1064 = Exp_lib.get('ABoffset1064', False) # ABoffset will be evaluated only if it gives a non-zero value
     size = 2 * num + 1
@@ -744,23 +765,118 @@ def FindH(q, num, Exp_lib, center = (0, 0)):
         for n in range(-num + dg2, num + dg2 + 1):
             for mm in range(-num + dg1, num + dg1 + 1):
                 for nn in range(-num + dg2, num + dg2 + 1):
-                    H[m * size + n, mm * size + nn] += (K**2 / 2. * np.linalg.norm(m * E9c.g1g + n * E9c.g2g + q)**2) * int((m == mm) and (n == nn))
+                    ind0, ind1 = m * size + n, mm * size + nn
+                    is_0th_order = int((m == mm) and (n == nn))
+                    phi = GetPhi(mm - m, nn - n)
+                    rV = get_rel_V(mm - m, nn - n)
+
+                    H[ind0, ind1] += (K**2 / 2. * np.linalg.norm(m * E9c.g1g + n * E9c.g2g + q)**2) * is_0th_order
                     if V1064:
-                        # This part has to be rewritten with a bunch of if statements to include phi's. They are handled
-                        # in GetPhi to improve readability.
-                        # H[m * size + n, mm * size + nn] += (-V1064 * (2/3.) * int((m == mm) and (n == nn)) - (-V1064 / 9.) * InJ((mm - m, nn - n), Jset1064))
-                        H[m * size + n, mm * size + nn] += (-V1064 * (2/3.) * int((m == mm) and (n == nn)) - (-V1064 / 9.) * np.exp(1j * GetPhi(mm - m, nn - n)) * InJ((mm - m, nn - n), E9c.Jset1064))
+                        # This part were rewritten with a bunch of if statements to include phi's
+                        H[ind0, ind1] += rV * (-V1064 * (2/3.) * is_0th_order - (-V1064 / 9.) * np.exp(1j * phi) * InJ((mm - m, nn - n), E9c.Jset1064))
                     if V532:
-                        H[m * size + n, mm * size + nn] += (V532 * (2/3.) * int((m == mm) and (n == nn)) - (V532 / 9.) * InJ((mm - m, nn - n), E9c.Jset532))
+                        H[ind0, ind1] += rV * (V532 * (2/3.) * is_0th_order - (V532 / 9.) * InJ((mm - m, nn - n), E9c.Jset532))
                     if ABoffset1064:
-                        H[m * size + n, mm * size + nn] += (ABoffset1064 * 1j * np.exp(1j * GetPhi(mm - m, nn - n)) * InJ((mm - m, nn - n), E9c.J1set1064))
-                        H[m * size + n, mm * size + nn] += (ABoffset1064 * (-1j) * np.exp(1j * GetPhi(mm - m, nn - n)) * InJ((mm - m, nn - n), E9c.J2set1064))
+                        H[ind0, ind1] += rV * (ABoffset1064 * 1j * np.exp(1j * phi) * InJ((mm - m, nn - n), E9c.J1set1064))
+                        H[ind0, ind1] += rV * (ABoffset1064 * (-1j) * np.exp(1j * phi) * InJ((mm - m, nn - n), E9c.J2set1064))
     return H
+
+def find_H(q, Exp_lib, Hq_mmat, Hq_nmat, H_lat):
+    l_unit = Exp_lib["units_dict"]["l_unit"]
+    K = E9c.k_lw * l_unit
+    # Tq = K**2 / 2. * np.linalg.norm(np.einsum("i,jk->ijk", E9c.g1g, Hq_mmat)
+    #                                 + np.einsum("i,jk->ijk", E9c.g2g, Hq_nmat)
+    #                                 + q[:, np.newaxis, np.newaxis], axis = 0)**2
+    Tq = K**2 / 2. * np.linalg.norm(np.outer(E9c.g1g, Hq_mmat.diagonal()) + np.outer(E9c.g2g, Hq_nmat.diagonal()) + q[:, np.newaxis], axis = 0)**2
+    return np.diag(Tq) + H_lat
+
+def find_H_components(num, Exp_lib, center = (0, 0)):
+    """Generates 'components' that make up non-interacting Hamiltonian.
+    
+    This is based on the observation that the Hamiltonian can be written as a sum of components
+    H = T(q) * Hq + H_lat, where
+        Hq      is the kinetic energy term, and the only term with a coefficient that depends on q,
+        H_lat   is the lattice potential term, and is constant for a given lattice.
+    H_lat can be written as a sum of terms
+    H_lat = V1064 * (H1064 + ABoffset1064 * H1064AB) + V532 * H532
+        Hxxx    is the term from the xxx nm lattice,
+        H1064AB is the term that contains the AB offset
+    These matrices are generated using for loops and is therefore very costly.
+    """
+    def GetPhi(j, l):
+        """Handles 1064 superlattice phases that controls relative displacement."""
+        if j == 0 and l == 1:
+            return -phi12 + phi23
+        elif j == 0 and l == -1:
+            return phi12 - phi23
+        elif j == 1 and l == 0:
+            return -phi23
+        elif j == -1 and l == 0:
+            return phi23
+        elif j == 1 and l == 1:
+            return phi12
+        elif j == -1 and l == -1:
+            return -phi12
+        else:
+            return 0
+    
+    def get_rel_V(j, l):
+        """Returns the relative potential depth for the given j and l (i.e. given beam pair)."""
+        # 1064 lattice
+        if abs(j) == 1 and abs(l) == 1:
+            return B1_rel_E_1064
+        elif abs(j) == 1 and abs(l) == 0:
+            return B3_rel_E_1064
+        elif abs(j) == 0 and abs(l) == 1:
+            return B1_rel_E_1064 * B3_rel_E_1064
+        # 532 lattice
+        elif abs(j) == 2 and abs(l) == 2:
+            return B1_rel_E_532
+        elif abs(j) == 2 and abs(l) == 0:
+            return B3_rel_E_532
+        elif abs(j) == 0 and abs(l) == 2:
+            return B1_rel_E_532 * B3_rel_E_532
+        else:
+            return 0
+    
+    V532, V1064 = Exp_lib['V532'], Exp_lib['V1064']
+    B1_rel_E_532, B3_rel_E_532 = np.sqrt(Exp_lib['B1_rel_int_532']), np.sqrt(Exp_lib['B3_rel_int_532'])
+    B1_rel_E_1064, B3_rel_E_1064 = np.sqrt(Exp_lib['B1_rel_int_1064']), np.sqrt(Exp_lib['B3_rel_int_1064'])
+    phi12, phi23 = Exp_lib['phi12'], Exp_lib['phi23']
+    ABoffset1064 = Exp_lib.get('ABoffset1064', False) # ABoffset will be evaluated only if it gives a non-zero value
+    size = 2 * num + 1
+    Hq_mmat = np.zeros((size**2, size**2))
+    Hq_nmat = np.zeros((size**2, size**2))
+    H_lat   = np.zeros((size**2, size**2), dtype = np.cdouble)
+    dg1 = center[0]
+    dg2 = center[1]
+    
+    for m in range(-num + dg1, num + dg1 + 1):
+        for n in range(-num + dg2, num + dg2 + 1):
+            for mm in range(-num + dg1, num + dg1 + 1):
+                for nn in range(-num + dg2, num + dg2 + 1):
+                    ind0, ind1 = m * size + n, mm * size + nn
+                    is_0th_order = int((m == mm) and (n == nn))
+                    phi = GetPhi(mm - m, nn - n)
+                    rV = get_rel_V(mm - m, nn - n)
+
+                    Hq_mmat[ind0, ind1] = m * is_0th_order
+                    Hq_nmat[ind0, ind1] = n * is_0th_order
+                    
+                    if V1064:
+                        H_lat[ind0, ind1] += rV * (-V1064 * (2/3.) * is_0th_order - (-V1064 / 9.) * np.exp(1j * phi) * InJ((mm - m, nn - n), E9c.Jset1064))
+                        if ABoffset1064:
+                            H_lat[ind0, ind1] += rV * (ABoffset1064 * 1j * np.exp(1j * phi) * InJ((mm - m, nn - n), E9c.J1set1064))
+                            H_lat[ind0, ind1] += rV * (ABoffset1064 * (-1j) * np.exp(1j * phi) * InJ((mm - m, nn - n), E9c.J2set1064))
+                    if V532:
+                        H_lat[ind0, ind1] += rV * (V532 * (2/3.) * is_0th_order - (V532 / 9.) * InJ((mm - m, nn - n), E9c.Jset532))
+    return Hq_mmat, Hq_nmat, H_lat
 
 def FindInteractionIndices(num, center = (0, 0)):
     """Find (m, n) indices involved in nonlinear eigenstate calculation.
     
-    These also gives the indices used in rho terms in Bogoliubov calculation."""
+    These also gives the indices used in rho terms in Bogoliubov calculation.
+    """
     index_list = []
     dg1 = center[0]
     dg2 = center[1]

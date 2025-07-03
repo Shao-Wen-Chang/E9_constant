@@ -185,10 +185,10 @@ Mp, Mp2, Mp3, Mp4, Mp5, Mp6 = G2 / 2, -G1 / 2, G3 / 2, -G2 / 2, G1 / 2, -G3 / 2
 mp, mp2, mp3, mp4, mp5, mp6 = g2 / 2, -g1 / 2, g3 / 2, -g2 / 2, g1 / 2, -g3 / 2
 kp, kp2, kp3, kp4, kp5, kp6 = -k1, k3, -k2, k1, -k3, k2
     # "Jsets" in Claire's thesis
-Jset1064 = {(1, 0), (-1, 0), (0, 1), (0, -1), (-1, -1), (1, 1)}
-J1set1064 = {(1, 0), (0, 1), (-1, -1)} # J1set and J2set are defined for including A-B offset in calculation
-J2set1064 = {(-1, 0), (0, -1), (1, 1)}
-Jset532 = {(2, 0), (-2, 0), (0, 2), (0, -2), (-2, -2), (2, 2)}
+Jset1064 = [(1, 0), (-1, 0), (0, 1), (0, -1), (-1, -1), (1, 1)]
+J1set1064 = [(1, 0), (0, 1), (-1, -1)] # J1set and J2set are defined for including A-B offset in calculation
+J2set1064 = [(-1, 0), (0, -1), (1, 1)]
+Jset532 = [(2, 0), (-2, 0), (0, 2), (0, -2), (-2, -2), (2, 2)]
 Jsets = [None, Jset532, Jset1064]
     # for plot: points that define BZ boundaries, normalized by k_lw
 pt11, pt12, pt13, pt14, pt15, pt16 = K2 / k_lw, -K3 / k_lw, K1 / k_lw, -K2 / k_lw, K3 / k_lw, -K1 / k_lw

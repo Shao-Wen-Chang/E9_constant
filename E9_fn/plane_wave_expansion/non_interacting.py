@@ -27,19 +27,24 @@ t_unit = all_units_dict["t_unit"]
 #%% Experiment parameters
 V532nom = 25 # in kHz (i.e. V_SI / hbar / 1e3 / 2pi)
 V1064nom = 15
-n0nom = 0                    # peak density
-phi12, phi23 = 0., 0. # The superlattice phase that determines the relative position between 1064 and 532 lattice
+n0nom = 0               # peak density
+phi12, phi23 = 0., 0.   # The superlattice phase that determines the relative position between 1064 and 532 lattice
 ABoffset1064nom = 0
+B1_rel_int_1064 = 1     # relative intensity (field is sqrt of that) of 1064 B1
+B1_rel_int_532  = 0.64     # relative intensity (field is sqrt of that) of 532 B1
+B3_rel_int_1064 = 1     # relative intensity (field is sqrt of that) of 1064 B3
+B3_rel_int_532  = 1     # relative intensity (field is sqrt of that) of 532 B3
 # ABoffset1064nom = 0.011585 * V1064nom / 9 / np.sqrt(3)
 # Simulation related constants (e.g. # of points used in calculation) are scattered around
 
-#%% Initialization (UNITS TO BE CORRECTED)
-V532 = 2 * np.pi * V532nom * 1e3 / f_unit
+#%% Initialization
+V532 = 2 * np.pi * V532nom * 1e3 / f_unit   # 2 * np.pi because I have f = E/hbar instead of E/h as normally defined
 V1064 = 2 * np.pi * V1064nom * 1e3 / f_unit
 ABoffset1064 = 2 * np.pi * ABoffset1064nom * 1e3 / f_unit
 n0 = n0nom * l_unit**3
 Exp_lib = {"species": species, "units_dict": all_units_dict
         , 'V532nom': V532nom, 'V1064nom': V1064nom, 'V532': V532, 'V1064': V1064
+        , 'B1_rel_int_532': B1_rel_int_532, 'B1_rel_int_1064': B1_rel_int_1064 , 'B3_rel_int_532': B3_rel_int_532, 'B3_rel_int_1064': B3_rel_int_1064
         , 'n0nom': n0nom, 'n0': n0
         , 'ABoffset1064nom': ABoffset1064nom, 'ABoffset1064': ABoffset1064
         , 'phi12': phi12, 'phi23': phi23}
@@ -67,15 +72,15 @@ bandstart = 0 # starting from 0, inclusive
 bandend = 2 # inclusive
 bandnum = bandend - bandstart + 1 # number of bands interested in
 Qp_str = '(Kp/K + 0.4 * np.array([np.cos(pi/3), np.sin(pi/3)]))'
-qverts_str = 'E9c.Gp/E9c.k_lw, E9c.Kp/E9c.k_lw, E9c.Mp/E9c.k_lw, E9c.Gp/E9c.k_lw' #'(Kp/K + 0.477 * np.array([np.cos(pi/3), np.sin(pi/3)])), (Kp/K + 0.677 * np.array([np.cos(pi/3), np.sin(pi/3)]))' #1.5*Kp/K  #
-x_ticklist = ['$\Gamma$', 'K', 'M', '$\Gamma$']
+qverts_str = 'E9c.Kp4/E9c.k_lw, E9c.Gp/E9c.k_lw, E9c.Kp/E9c.k_lw, E9c.Mp/E9c.k_lw, E9c.Gp/E9c.k_lw' #'(Kp/K + 0.477 * np.array([np.cos(pi/3), np.sin(pi/3)])), (Kp/K + 0.677 * np.array([np.cos(pi/3), np.sin(pi/3)]))' #1.5*Kp/K  #
+x_ticklist = ["K'", '$\Gamma$', 'K', 'M', '$\Gamma$']
 qverts_arr = eval(qverts_str)
 qverts_type = 1 # "What qset defines": 1 - line; 2 - area (see PlotBZSubplot)
 save_results = False
 
 # Generate qset
 if qverts_type == 1:
-    num_points = np.array([50, 30, 20]) # number of points sampled between two points (can be an array specifying each path, or just one number for all)
+    num_points = np.array([100, 100, 60, 40]) # number of points sampled between two points (can be an array specifying each path, or just one number for all)
     index_points = np.hstack((np.array([0]), np.cumsum(num_points))) - np.arange(len(num_points) + 1)
     qsets = bsc.FindqSets(num_points, qverts_arr)#bsc.FindqSets(points, Gammap/k, kp/k, mp/k, Gammap/k)
     PlotBZinput = qverts_str
@@ -93,8 +98,12 @@ e_states_ni = [[] for _ in range(bandnum)]
 print("Total number of points = {0}".format(len(qsets)))
 ax_BZ = bsc.PlotBZ(qset = PlotBZinput)
 xrun = np.arange(len(qsets))
+Hq_mmat, Hq_nmat, H_lat = bsc.find_H_components(num, Exp_lib, center = k_center)
 for i in range(len(qsets)):
-    H = bsc.FindH(qsets[i], num, Exp_lib, center = k_center)
+    # H = bsc.FindH(qsets[i], num, Exp_lib, center = k_center)
+    # H_old = bsc.FindH(qsets[i], num, Exp_lib, center = k_center)
+    H = bsc.find_H(qsets[i], Exp_lib, Hq_mmat, Hq_nmat, H_lat)
+    # print(i, np.allclose(H, H_old))
     e_values[i,:], e_states[i,:,:] = bsc.FindEigenStuff(H, (bandstart, bandend), num = num)
     for j, bandN in enumerate(range(bandstart, bandend + 1)):
         e_states_ni[j].append(bsc.blochstate(e_states[i,:,j], q = qsets[i], center = k_center, N = bandN, E = e_values[i,j], param = Exp_lib))
