@@ -3,12 +3,20 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 import time
 import sys
+import logging
 
 sys.path.insert(1,
     "C:\\Users\\ken92\\Documents\\Studies\\E5\\simulation\\E9_simulations")
 from E9_fn.plane_wave_expansion import blochstate_class as bsc
 import E9_fn.E9_constants as E9c
 from E9_fn import util
+
+logpath = '' # '' if not logging to a file
+loglevel = logging.INFO
+logroot = logging.getLogger()
+list(map(logroot.removeHandler, logroot.handlers))
+list(map(logroot.removeFilter, logroot.filters))
+logging.basicConfig(filename = logpath, level = loglevel)
 
 species = "Rb87" # "Rb87", "K40"
 #%% Unit
@@ -31,11 +39,24 @@ n0nom = 0               # peak density
 phi12, phi23 = 0., 0.   # The superlattice phase that determines the relative position between 1064 and 532 lattice
 ABoffset1064nom = 0
 B1_rel_int_1064 = 1     # relative intensity (field is sqrt of that) of 1064 B1
-B1_rel_int_532  = 0.64     # relative intensity (field is sqrt of that) of 532 B1
+B1_rel_int_532  = 0.36     # relative intensity (field is sqrt of that) of 532 B1
 B3_rel_int_1064 = 1     # relative intensity (field is sqrt of that) of 1064 B3
 B3_rel_int_532  = 1     # relative intensity (field is sqrt of that) of 532 B3
 # ABoffset1064nom = 0.011585 * V1064nom / 9 / np.sqrt(3)
-# Simulation related constants (e.g. # of points used in calculation) are scattered around
+
+# Basic simulation parameters
+num = 5 # size of q-momentum space we consider: (-num, num) (usually 5)
+k_center = (0, 0)
+bandstart = 0 # starting from 0, inclusive
+bandend = 2 # inclusive
+Qp_str = '(Kp/K + 0.4 * np.array([np.cos(pi/3), np.sin(pi/3)]))'
+qverts_str = 'E9c.Kp4/E9c.k_lw, E9c.Gp/E9c.k_lw, E9c.Kp/E9c.k_lw, E9c.Mp/E9c.k_lw, E9c.Gp/E9c.k_lw'
+# qverts_str = '0.3*E9c.Kp4/E9c.k_lw, 0.3*E9c.Kp/E9c.k_lw'
+# qverts_str = 'E9c.Kp/E9c.k_lw, E9c.Kp2/E9c.k_lw, E9c.Kp3/E9c.k_lw, E9c.Kp4/E9c.k_lw, E9c.Kp5/E9c.k_lw, E9c.Kp6/E9c.k_lw, E9c.Kp/E9c.k_lw'
+x_ticklist = ["K'", '$\Gamma$', 'K', 'M', '$\Gamma$']
+# x_ticklist = ["0.3 K'", '0.3 K',]
+qverts_type = 1 # "What qset defines": 1 - line; 2 - area (see PlotBZSubplot)
+save_results = False
 
 #%% Initialization
 V532 = 2 * np.pi * V532nom * 1e3 / f_unit   # 2 * np.pi because I have f = E/hbar instead of E/h as normally defined
@@ -49,6 +70,10 @@ Exp_lib = {"species": species, "units_dict": all_units_dict
         , 'ABoffset1064nom': ABoffset1064nom, 'ABoffset1064': ABoffset1064
         , 'phi12': phi12, 'phi23': phi23}
 
+size = 2 * num + 1
+bandnum = bandend - bandstart + 1 # number of bands interested in
+qverts_arr = eval(qverts_str)
+
 #%% Functions
 def MinimumGap(e_values, band1, band2):
     """Prints the position and energy of the minimum gap.
@@ -59,24 +84,29 @@ def MinimumGap(e_values, band1, band2):
     gaps = e_values[:, band2] - e_values[:, band1]
     print('The minimum band gap between band{} and band{} is {} kHz, happening at the {} (python index) q evaluated' \
           .format(band1, band2, gaps.min() * f_unit / 1e3 / (2 * np.pi), gaps.argmin()))
+
+def find_q_geo_tensor(n_q, n_band, Exp_lib, q_list, E_list, psi_list, Hq_mmat, Hq_nmat, component = 'xx'):
+    """Find the quantum geometric tensor for a given Bloch state psi."""
+    q = q_list[n_q]
+    psin = psi_list[n_q, :, n_band]
+    En = E_list[n_q, n_band]
+    dH1 = bsc.find_del_H(q, Exp_lib, Hq_mmat, Hq_nmat, direction = component[0])
+    dH2 = bsc.find_del_H(q, Exp_lib, Hq_mmat, Hq_nmat, direction = component[1])
+    qgt = 0j
+    for m_band in range(E_list.shape[1]):
+        if m_band == n_band:
+            continue
+        psim = psi_list[n_q, :, m_band]
+        Em = E_list[n_q, m_band]
+        qgt += psim.conj() @ dH1 @ psin * psin.conj() @ dH2 @ psim / (Em - En)**2
+    if not util.IsHermitian(qgt):
+        logging.warning(f"Quantum geometric tensor for n_band {n_band}, n_q {n_q} is not Hermitian")
+    return qgt
+
 # deleted a bunch of things from the original code
 
 #%% Finding Bloch states and band energies
 start_time = time.time()
-
-# Basic simulation parameters
-num = 5 # size of q-momentum space we consider: (-num, num) (usually 5)
-size = 2 * num + 1
-k_center = (0, 0)
-bandstart = 0 # starting from 0, inclusive
-bandend = 2 # inclusive
-bandnum = bandend - bandstart + 1 # number of bands interested in
-Qp_str = '(Kp/K + 0.4 * np.array([np.cos(pi/3), np.sin(pi/3)]))'
-qverts_str = 'E9c.Kp4/E9c.k_lw, E9c.Gp/E9c.k_lw, E9c.Kp/E9c.k_lw, E9c.Mp/E9c.k_lw, E9c.Gp/E9c.k_lw' #'(Kp/K + 0.477 * np.array([np.cos(pi/3), np.sin(pi/3)])), (Kp/K + 0.677 * np.array([np.cos(pi/3), np.sin(pi/3)]))' #1.5*Kp/K  #
-x_ticklist = ["K'", '$\Gamma$', 'K', 'M', '$\Gamma$']
-qverts_arr = eval(qverts_str)
-qverts_type = 1 # "What qset defines": 1 - line; 2 - area (see PlotBZSubplot)
-save_results = False
 
 # Generate qset
 if qverts_type == 1:
@@ -85,7 +115,7 @@ if qverts_type == 1:
     qsets = bsc.FindqSets(num_points, qverts_arr)#bsc.FindqSets(points, Gammap/k, kp/k, mp/k, Gammap/k)
     PlotBZinput = qverts_str
 elif qverts_type == 2:
-    dq = 0.01
+    dq = 0.02
     dq2BZfrac = dq**2 * (2/(bandend + 1)) / (np.sqrt(3)/8) # (ONLY CORRECT FOR Kp > Gp > Mp > Kp) how much of a BZ does a point roughly correspond to
     qsets = bsc.FindqArea(qverts_arr, dqx = dq, dqy = dq)
     PlotBZinput = (qverts_str, qsets)
@@ -100,10 +130,7 @@ ax_BZ = bsc.PlotBZ(qset = PlotBZinput)
 xrun = np.arange(len(qsets))
 Hq_mmat, Hq_nmat, H_lat = bsc.find_H_components(num, Exp_lib, center = k_center)
 for i in range(len(qsets)):
-    # H = bsc.FindH(qsets[i], num, Exp_lib, center = k_center)
-    # H_old = bsc.FindH(qsets[i], num, Exp_lib, center = k_center)
     H = bsc.find_H(qsets[i], Exp_lib, Hq_mmat, Hq_nmat, H_lat)
-    # print(i, np.allclose(H, H_old))
     e_values[i,:], e_states[i,:,:] = bsc.FindEigenStuff(H, (bandstart, bandend), num = num)
     for j, bandN in enumerate(range(bandstart, bandend + 1)):
         e_states_ni[j].append(bsc.blochstate(e_states[i,:,j], q = qsets[i], center = k_center, N = bandN, E = e_values[i,j], param = Exp_lib))
@@ -138,9 +165,6 @@ if qverts_type == 1:
     for i in range(bandnum):
         ax_E.plot(xq, (e_values.transpose()[i] - E_lowest) * f2kHz, '-', label = 'Non-interacting' + str(i + bandstart))
     plt.xticks(xq[index_points], x_ticklist, fontsize = 14) # why does ax.set_xticks not work?
-    # plt.yticks([0, 10, 20, 30], ['0', '10', '20', '30'], fontsize = 14)
-    # ax_E.set_ylim([0, 6])
-    # ax_E.legend()
 elif qverts_type == 2:
     ax_E = fig_E.add_subplot(111, projection = '3d')
     # Add BZ boundary
@@ -148,27 +172,40 @@ elif qverts_type == 2:
     for i in range(3):
         ax_E.plot(bz1qx, bz1qy, np.ones_like(bz1qx) * E_kHz_highest * i / 2, '-k', alpha = 0.5)
     for i in range(bandnum):
-        ax_E.plot_trisurf(qsets[:, 0], qsets[:, 1], E_kHz_offset[:, i])
+        ax_E.plot_trisurf(qsets[:, 0], qsets[:, 1], E_kHz_offset[:, i]) # TODO: try plotly
     ax_E.set_xlabel('q_x', fontsize = 15)
     ax_E.set_ylabel('q_y', fontsize = 15)
     ax_E.set_zlabel('E/h (kHz)', fontsize = 15)
 
-# ax_E.set_title('V532 = {} kHz, V1064 = {} kHz; AB offset = {:.4} kHz\nn0 = {}; (-{},{})_{}; phi = ({:.4},{:.4})'.format(V532nom, V1064nom, float(ABoffset1064nom), n0nom, num, num, k_center, phi12, phi23))
+ax_E.set_title('V532 = {} kHz, V1064 = {} kHz; AB offset = {:.4} kHz\nn0 = {}; (-{},{})_{}; phi = ({:.4},{:.4})'.format(V532nom, V1064nom, float(ABoffset1064nom), n0nom, num, num, k_center, phi12, phi23))
+
+#%% Plot quantum geometric tensor related stuff
+qgts_xx = np.zeros((len(qsets), bandnum), dtype = np.cdouble)
+for i in range(len(qsets)):
+    for j in range(bandnum):
+        qgts_xx[i, j] = find_q_geo_tensor(i, j, Exp_lib, qsets, e_values, e_states, Hq_mmat, Hq_nmat)
+qmts_xx = np.real(qgts_xx)                # quantum metric tensor
+berry_curvs_xx = - 2 * np.imag(qgts_xx)   # Berry curvature
+
+fig_qgt = plt.figure(2, figsize=(10,7))
+fig_qgt.clf()
+ax_qgt = fig_qgt.add_subplot(111)
+ax_qgt.set_title('Quantum geometric tensor')
+ax_qgt.plot(xq, qmts_xx[:, 2], label = 'qmts_00')
 
 #%% Plot DoS
-
-if qverts_type == 2:
-    E_DoS, DoS, DoS_int = bsc.FindDoS(e_values, cellsize = dq2BZfrac)
-    fig_DoS = plt.figure(6, figsize=(11,4))
-    fig_DoS.clf()
-    ax_DoS = fig_DoS.add_subplot(121)
-    ax_DoS.plot((E_DoS - E_lowest) * f2kHz, DoS)
-    ax_DoS.set_xlabel('E/h (kHz)', fontsize = 15)
-    ax_DoS.set_ylabel('DoS', fontsize = 15)
-    ax_DoS_int = fig_DoS.add_subplot(122)
-    ax_DoS_int.plot((E_DoS - E_lowest) * f2kHz, DoS_int)
-    ax_DoS_int.set_xlabel('E/h (kHz)', fontsize = 15)
-    ax_DoS_int.set_ylabel('DoS_int', fontsize = 15)
+# if qverts_type == 2:
+#     E_DoS, DoS, DoS_int = bsc.FindDoS(e_values, cellsize = dq2BZfrac)
+#     fig_DoS = plt.figure(6, figsize=(11,4))
+#     fig_DoS.clf()
+#     ax_DoS = fig_DoS.add_subplot(121)
+#     ax_DoS.plot((E_DoS - E_lowest) * f2kHz, DoS)
+#     ax_DoS.set_xlabel('E/h (kHz)', fontsize = 15)
+#     ax_DoS.set_ylabel('DoS', fontsize = 15)
+#     ax_DoS_int = fig_DoS.add_subplot(122)
+#     ax_DoS_int.plot((E_DoS - E_lowest) * f2kHz, DoS_int)
+#     ax_DoS_int.set_xlabel('E/h (kHz)', fontsize = 15)
+#     ax_DoS_int.set_ylabel('DoS_int', fontsize = 15)
 
 #%% Plot group velocity & other stuff
 # fig_gv = plt.figure(1, figsize=(10,7))

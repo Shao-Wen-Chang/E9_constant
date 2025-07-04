@@ -14,6 +14,8 @@ sys.path.insert(1,
 import E9_fn.E9_constants as E9c
 from E9_fn import util
 
+# TODO: I want to replace blochstate with a class that describes the experiment instead
+
 #%% blochstate (the class)
 class blochstate(np.ndarray):
     """A numpy array-like object that stores information about the bloch state.
@@ -696,16 +698,43 @@ def FindLatticeAcc(q, inFreq = False):
     e12, e23 = E9c.kB12 / np.linalg.norm(E9c.kB12), E9c.kB23 / np.linalg.norm(E9c.kB23)
     return C * np.linalg.inv(np.transpose([e12, e23])) @ q
 
-# Get rid of this
-def InJ(point, J = E9c.Jset1064):
-    """Returns 1 if point is in J, 0 if not.
-    
-    point is a 2-element sequence (usually array); return Boolean as 0 or 1"""
-    return int(tuple(point) in J)
+def find_H(q, Exp_lib, Hq_mmat, Hq_nmat, H_lat):
+    """Find the Hamiltonian for a given q."""
+    l_unit = Exp_lib["units_dict"]["l_unit"]
+    K = E9c.k_lw * l_unit
+    Tq = K**2 / 2. * np.linalg.norm(np.outer(E9c.g1g, Hq_mmat.diagonal()) + np.outer(E9c.g2g, Hq_nmat.diagonal()) + q[:, np.newaxis], axis = 0)**2
+    return np.diag(Tq) + H_lat
 
-def FindH(q, num, Exp_lib, center = (0, 0)):
-    """Generates non-interacting Hamiltonian for the specified experiment parameters.
+def find_del_H(q, Exp_lib, Hq_mmat, Hq_nmat, direction = 'x'):
+    """Find the change in Hamiltonian in some direction for a given q."""
+    l_unit = Exp_lib["units_dict"]["l_unit"]
+    K = E9c.k_lw * l_unit
+    if direction == 'x':
+        dq = np.array([1e-3, 0])
+    elif direction == 'y':
+        dq = np.array([0, 1e-3])
+    else:
+        raise ValueError("Direction should be 'x' or 'y'.")
+    Tq = K**2 / 2. * (
+        2 * np.linalg.norm(np.outer(E9c.g1g, Hq_mmat.diagonal()) + np.outer(E9c.g2g, Hq_nmat.diagonal()) + q[:, np.newaxis], axis = 0)**2
+        - np.linalg.norm(np.outer(E9c.g1g, Hq_mmat.diagonal()) + np.outer(E9c.g2g, Hq_nmat.diagonal()) + (q + dq)[:, np.newaxis], axis = 0)**2
+        - np.linalg.norm(np.outer(E9c.g1g, Hq_mmat.diagonal()) + np.outer(E9c.g2g, Hq_nmat.diagonal()) + (q - dq)[:, np.newaxis], axis = 0)**2
+        ) / (np.linalg.norm(dq) * l_unit)
+    return np.diag(Tq)
+
+def find_H_components(num, Exp_lib, center = (0, 0)):
+    """Generates 'components' that make up non-interacting Hamiltonian.
     
+    This is based on the observation that the Hamiltonian can be written as a sum of components
+    H = T(q) * Hq + H_lat, where
+        Hq      is the kinetic energy term, and the only term with a coefficient that depends on q,
+        H_lat   is the lattice potential term, and is constant for a given lattice.
+    H_lat can be written as a sum of terms
+    H_lat = V1064 * (H1064 + ABoffset1064 * H1064AB) + V532 * H532
+        Hxxx    is the term from the xxx nm lattice,
+        H1064AB is the term that contains the AB offset
+    These matrices are generated using for loops and is therefore very costly.
+
     index convention: for m * size + n > 0, m * size + n = index; for <0, size**2 + m * size + n = index
     mm and nn are m' and n' in thesis; q is q_tilde := q/k
     If there is a key in Exp_lib called 'ABoffset' that gives the offset between A and B sites, then that will also
@@ -731,7 +760,10 @@ def FindH(q, num, Exp_lib, center = (0, 0)):
             return 0
     
     def get_rel_V(j, l):
-        """Returns the relative potential depth for the given j and l (i.e. given beam pair)."""
+        """Returns the relative potential depth for the given j and l (i.e. given beam pair).
+        
+        This also replaces the InJ function.
+        """
         # 1064 lattice
         if abs(j) == 1 and abs(l) == 1:
             return B1_rel_E_1064
@@ -749,95 +781,11 @@ def FindH(q, num, Exp_lib, center = (0, 0)):
         else:
             return 0
     
-    l_unit = Exp_lib["units_dict"]["l_unit"]
-    V532, V1064 = Exp_lib['V532'], Exp_lib['V1064']
-    B1_rel_E_532, B3_rel_E_532 = np.sqrt(Exp_lib['B1_rel_int_532']), np.sqrt(Exp_lib['B3_rel_int_532'])
-    B1_rel_E_1064, B3_rel_E_1064 = np.sqrt(Exp_lib['B1_rel_int_1064']), np.sqrt(Exp_lib['B3_rel_int_1064'])
-    phi12, phi23 = Exp_lib['phi12'], Exp_lib['phi23']
-    ABoffset1064 = Exp_lib.get('ABoffset1064', False) # ABoffset will be evaluated only if it gives a non-zero value
-    size = 2 * num + 1
-    H = np.zeros((size**2, size**2), dtype = np.cdouble)
-    dg1 = center[0]
-    dg2 = center[1]
-    
-    K = E9c.k_lw * l_unit
-    for m in range(-num + dg1, num + dg1 + 1):
-        for n in range(-num + dg2, num + dg2 + 1):
-            for mm in range(-num + dg1, num + dg1 + 1):
-                for nn in range(-num + dg2, num + dg2 + 1):
-                    ind0, ind1 = m * size + n, mm * size + nn
-                    is_0th_order = int((m == mm) and (n == nn))
-                    phi = GetPhi(mm - m, nn - n)
-                    rV = get_rel_V(mm - m, nn - n)
-
-                    H[ind0, ind1] += (K**2 / 2. * np.linalg.norm(m * E9c.g1g + n * E9c.g2g + q)**2) * is_0th_order
-                    if V1064:
-                        # This part were rewritten with a bunch of if statements to include phi's
-                        H[ind0, ind1] += rV * (-V1064 * (2/3.) * is_0th_order - (-V1064 / 9.) * np.exp(1j * phi) * InJ((mm - m, nn - n), E9c.Jset1064))
-                    if V532:
-                        H[ind0, ind1] += rV * (V532 * (2/3.) * is_0th_order - (V532 / 9.) * InJ((mm - m, nn - n), E9c.Jset532))
-                    if ABoffset1064:
-                        H[ind0, ind1] += rV * (ABoffset1064 * 1j * np.exp(1j * phi) * InJ((mm - m, nn - n), E9c.J1set1064))
-                        H[ind0, ind1] += rV * (ABoffset1064 * (-1j) * np.exp(1j * phi) * InJ((mm - m, nn - n), E9c.J2set1064))
-    return H
-
-def find_H(q, Exp_lib, Hq_mmat, Hq_nmat, H_lat):
-    l_unit = Exp_lib["units_dict"]["l_unit"]
-    K = E9c.k_lw * l_unit
-    # Tq = K**2 / 2. * np.linalg.norm(np.einsum("i,jk->ijk", E9c.g1g, Hq_mmat)
-    #                                 + np.einsum("i,jk->ijk", E9c.g2g, Hq_nmat)
-    #                                 + q[:, np.newaxis, np.newaxis], axis = 0)**2
-    Tq = K**2 / 2. * np.linalg.norm(np.outer(E9c.g1g, Hq_mmat.diagonal()) + np.outer(E9c.g2g, Hq_nmat.diagonal()) + q[:, np.newaxis], axis = 0)**2
-    return np.diag(Tq) + H_lat
-
-def find_H_components(num, Exp_lib, center = (0, 0)):
-    """Generates 'components' that make up non-interacting Hamiltonian.
-    
-    This is based on the observation that the Hamiltonian can be written as a sum of components
-    H = T(q) * Hq + H_lat, where
-        Hq      is the kinetic energy term, and the only term with a coefficient that depends on q,
-        H_lat   is the lattice potential term, and is constant for a given lattice.
-    H_lat can be written as a sum of terms
-    H_lat = V1064 * (H1064 + ABoffset1064 * H1064AB) + V532 * H532
-        Hxxx    is the term from the xxx nm lattice,
-        H1064AB is the term that contains the AB offset
-    These matrices are generated using for loops and is therefore very costly.
-    """
-    def GetPhi(j, l):
-        """Handles 1064 superlattice phases that controls relative displacement."""
-        if j == 0 and l == 1:
-            return -phi12 + phi23
-        elif j == 0 and l == -1:
-            return phi12 - phi23
-        elif j == 1 and l == 0:
-            return -phi23
-        elif j == -1 and l == 0:
-            return phi23
-        elif j == 1 and l == 1:
-            return phi12
-        elif j == -1 and l == -1:
-            return -phi12
-        else:
-            return 0
-    
-    def get_rel_V(j, l):
-        """Returns the relative potential depth for the given j and l (i.e. given beam pair)."""
-        # 1064 lattice
-        if abs(j) == 1 and abs(l) == 1:
-            return B1_rel_E_1064
-        elif abs(j) == 1 and abs(l) == 0:
-            return B3_rel_E_1064
-        elif abs(j) == 0 and abs(l) == 1:
-            return B1_rel_E_1064 * B3_rel_E_1064
-        # 532 lattice
-        elif abs(j) == 2 and abs(l) == 2:
-            return B1_rel_E_532
-        elif abs(j) == 2 and abs(l) == 0:
-            return B3_rel_E_532
-        elif abs(j) == 0 and abs(l) == 2:
-            return B1_rel_E_532 * B3_rel_E_532
-        else:
-            return 0
+    def InJ(point, J = E9c.Jset1064):
+        """Returns 1 if point is in J, 0 if not.
+        
+        point is a 2-element sequence (usually array); return Boolean as 0 or 1"""
+        return int(tuple(point) in J)
     
     V532, V1064 = Exp_lib['V532'], Exp_lib['V1064']
     B1_rel_E_532, B3_rel_E_532 = np.sqrt(Exp_lib['B1_rel_int_532']), np.sqrt(Exp_lib['B3_rel_int_532'])
@@ -1010,19 +958,19 @@ def GPEResidual(psi_and_mu, H_bare, indices, Exp_lib, g = E9c.U_GPE_Rb87):
     normalization = np.linalg.norm(abs(psi)) - 1
     return np.concatenate((H @ psi - mu * psi, np.array([normalization])))
 
-def GPEResidual2(psi_and_k, mu, indices, Exp_lib, center = (0, 0), g = E9c.U_GPE_Rb87):
-    """Calculate the "residual" of GPE, namely, (lhs) - (rhs) of GPE, and return as an array.
+# def GPEResidual2(psi_and_k, mu, indices, Exp_lib, center = (0, 0), g = E9c.U_GPE_Rb87):
+#     """Calculate the "residual" of GPE, namely, (lhs) - (rhs) of GPE, and return as an array.
     
-    Here the last index of psi_and_k is the quasimomentum of the interested state, assumed to be sitting along Kp - Gp.
-    This should be changed. This is the correct residual function to use when walking along E instead of k axis."""
-    V532, V1064 = Exp_lib['V532'], Exp_lib['V1064']
-    psi = psi_and_k[:-1]
-    k_in = psi_and_k[-1]
-    num = int((int(np.sqrt(len(psi))) - 1) / 2)
-    H_bare = FindH(k_in * E9c.kp/E9c.k_sw, num, center, V532, V1064)
-    H = AddInteraction(H_bare, psi, indices, Exp_lib)
-    normalization = np.linalg.norm(abs(psi)) - 1
-    return np.concatenate((H @ psi - mu * psi, np.array([normalization])))
+#     Here the last index of psi_and_k is the quasimomentum of the interested state, assumed to be sitting along Kp - Gp.
+#     This should be changed. This is the correct residual function to use when walking along E instead of k axis."""
+#     V532, V1064 = Exp_lib['V532'], Exp_lib['V1064']
+#     psi = psi_and_k[:-1]
+#     k_in = psi_and_k[-1]
+#     num = int((int(np.sqrt(len(psi))) - 1) / 2)
+#     H_bare = FindH(k_in * E9c.kp/E9c.k_sw, num, center, V532, V1064)
+#     H = AddInteraction(H_bare, psi, indices, Exp_lib)
+#     normalization = np.linalg.norm(abs(psi)) - 1
+#     return np.concatenate((H @ psi - mu * psi, np.array([normalization])))
 
 def CheckError(v1, v2, tolerance = 2.5e-4, fail = 1):
     """Check if two unit vectors v1 and v2 are the same within some tolerance."""

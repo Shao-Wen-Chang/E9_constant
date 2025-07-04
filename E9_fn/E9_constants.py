@@ -228,7 +228,7 @@ all_lat_unit_Rb87 = {
 
 m_lat_unit_K40 = m_K40
 l_lat_unit_K40 = lambda_sw
-E_lat_unit_K40 = (hnobar / lambda_sw)**2 / m_lat_unit_K40
+E_lat_unit_K40 = (hbar / lambda_sw)**2 / m_lat_unit_K40
 f_lat_unit_K40 = E_lat_unit_K40 / hbar
 t_lat_unit_K40 = 1 / f_lat_unit_K40
 all_lat_unit_K40 = {
