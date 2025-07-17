@@ -114,26 +114,33 @@ def lambda_de_broglie(m, T):
     return E9c.hnobar / np.sqrt(2 * np.pi * m * E9c.k_B * T)
 
 # Gaussian beam related
-def I_from_power(P0, w0):
+def I_from_power(P0, w0x, w0y = None):
     """[W/m^2] Return peak intensity of a gaussian beam with power P and beam waist w0.
     
     Also, I = (c_light * n * epsilon_0 / 2) * |E|**2 .
 
     Args:
-        P0: [W] Power
-        w0: [m] beam WAIST (the RADIUS of the beam at 1/e^2 INTENSITY)"""
-    return 2 * P0 / np.pi / w0**2
+        P0:  [W] Power
+        w0x: [m] beam WAIST (the RADIUS of the beam at 1/e^2 INTENSITY)
+        w0y: [m] beam WAIST in the y direction (if not given, use w0x).
+    """
+    if w0y is None: w0y = w0x
+    return 2 * P0 / np.pi / (w0x * w0y)
 
-def rayleigh_range(w0, lamb_in):
-    """Returns the Rayleigh range of a Gaussian beam."""
+def rayleigh_range(lamb_in, w0):
+    """Returns the Rayleigh range of a Gaussian beam.
+    
+    This (and functions with only w0 input below) is only considering one direction.
+    An elliptical beam has different Rayleigh ranges in the x and y directions.
+    """
     return np.pi * w0**2 / lamb_in
 
-def w_gaussian_beam(z, w0, lamb_in):
+def w_gaussian_beam(z, lamb_in, w0):
     """Returns the beam waist at z of a Gaussian beam."""
-    return w0 * np.sqrt(1 + (z / rayleigh_range(w0, lamb_in))**2)
+    return w0 * np.sqrt(1 + (z / rayleigh_range(lamb_in, w0))**2)
 
-def I_gaussian_beam_3D(r, z, w0, lamb_in):
-    """Returns the intensity of a Gaussian beam at (r, z).
+def I_gaussian_beam_3D(r, z, lamb_in, w0x, w0y = None, theta = 0):
+    """Returns the intensity of a Gaussian beam at (r, z, theta).
     
     z-axis is taken to be the axis of beam propagation. Note that this experssion
         i)   is for intensity, not electric field.
@@ -141,10 +148,13 @@ def I_gaussian_beam_3D(r, z, w0, lamb_in):
         iii) is different from the normal distribution (no 1/2 in the exponent).
     Beam intensity is normalized to be 1 at the maximum.
     """
-    wz = w_gaussian_beam(z, w0, lamb_in)
-    return ((w0 / wz) * np.exp(-(r / wz)**2))**2
+    if w0y is None: w0y = w0x
+    wzx = w_gaussian_beam(z, lamb_in, w0x)
+    wzy = w_gaussian_beam(z, lamb_in, w0y)
+    x, y = r * np.cos(theta), r * np.sin(theta)
+    return (w0x / wzx) * np.exp(-(x / wzx)**2 / 2) * (w0y / wzy) * np.exp(-(y / wzy)**2 / 2)
 
-def x2approx_gaussian_beam_3D(w0, lamb_in, theta = 0):
+def x2approx_gaussian_beam_3D(lamb_in, w0, theta = 0):
     """Returns the harmonic oscillator approximation (i.e. taylor expansion up to x^2) of a gaussian beam.
     
     For a gaussian beam given by I(r, z) = I_max * I_gaussian(r = l * cos(theta), z = l * sin(theta), ...)
@@ -160,7 +170,7 @@ def x2approx_gaussian_beam_3D(w0, lamb_in, theta = 0):
 
     Args:
         theta:  angle with respect to the z (optical) axis."""
-    z_part = 1 / rayleigh_range(w0, lamb_in)**2
+    z_part = 1 / rayleigh_range(lamb_in, w0)**2
     r_part = 2 / w0**2
     return np.cos(theta)**2 * z_part + np.sin(theta)**2 * r_part
 

@@ -32,8 +32,7 @@ import numpy as np
 #         2000: scattering length vs B field
 
 #%% natural constants
-# all values are in SI unit, and (perhaps in the future) adjusted to different
-# units based on some conversion factor
+# all values are in SI unit
 c_light = 299792458             # speed of light
 hbar = 1.054571817e-34          # reduced Planck constant
 hnobar = hbar * 2 * np.pi       # Planck constant
@@ -126,10 +125,17 @@ m_Li6 = 9.9883414e-27
 #%% lab constants
 # B field related
 FBcoil_coeff = 1.64 * 1e-4 * 1e2 # [Claire] in T/m/Ampere; determines B field near FB coil center when running a quadrupole field
-# beam waists, taken from [Claire] and [TBarter] (I believe those "w"'s are actually diameters, i.e. w0*2; usually beam waist is called w0)
-w0_sw = 40e-6
-w0_lw = 50e-6
-w0_ODT = 50e-6
+
+# beam waists
+# For lattice beams copropagating with ODTs, the waists are measured at the ODT focus position.
+w0_sw = 78e-6           # 20250505, 532 (B3) lattice beam waist
+w0_lw = 77e-6           # 20250505, 1064 (B3) lattice beam waist
+w0_ODTa_hori = 105e-6   # 20250504, ODTa horizontal beam waist
+w0_ODTa_vert = 26.3e-6  # 20250504, ODTa vertical beam waist
+w0_ODTb_hori = 51e-6    # 20250505, ODTb horizontal beam waist
+w0_ODTb_vert = 71e-6    # 20250505, ODTb vertical beam waist
+w0_plug = 36e-6         # 20250505, plug beam waist (measured at plug focus position)
+
 # optical lattice related
 lambda_sw = 532e-9
 lambda_lw = 1064e-9
@@ -211,8 +217,9 @@ E_R1064_K40  = hbar**2 / 2 / m_K40 * (2*np.pi/lambda_lw)**2 # 1064 photon recoil
 E_R532_K40   = hbar**2 / 2 / m_K40 * (2*np.pi/lambda_sw)**2 # 532 photon recoil energy
 
 #%% Natural units for lattice calculations
-# I think I am shifting away from these
-# note that energy defined with the frequency unit I'm using is 2*pi times larger than usual (E/h)
+# m_atom = hbar = l_sw = 1
+# note that energy defined with the frequency unit I'm using is 2*pi times larger than usual
+# (E/hbar instead of E/h)
 m_lat_unit_Rb87 = m_Rb87
 l_lat_unit_Rb87 = lambda_sw
 E_lat_unit_Rb87 = (hbar / lambda_sw)**2 / m_lat_unit_Rb87

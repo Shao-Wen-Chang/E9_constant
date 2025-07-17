@@ -146,7 +146,9 @@ else:
 if save_results:
     path_str = "simulation_results\\" #IF NOT WORKING: CHANGE TO FULL PATH NAME // TRY ADDING FULL PATH TO "PYTHONPATH manager"
     suffix_str = "_honeycomb_NearG_20210826"
-    bsc.SaveStateList(path_str + "e_states_ni_{0}_{1}_{2}_k{3}{3}_{4}{5}".format(V532nom, V1064nom, n0nom, num, k_center[0], k_center[1]) + suffix_str, e_states_ni)
+    sim_str = "e_values_ni_{0}_{1}_{2}_k{3}{3}_{4}{5}".format(
+                V532nom, V1064nom, n0nom, num, k_center[0], k_center[1])
+    bsc.SaveStateList(path_str + sim_str + suffix_str, e_states_ni)
 
 #%% Plot band structure
 f2kHz = f_unit / 1e3 / (2 * np.pi) # conversion factor from natural units to kHz

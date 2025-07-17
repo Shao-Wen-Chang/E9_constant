@@ -1,3 +1,4 @@
+# recommended import call: import E9_fn.plane_wave_expansion.blochstate_class as E9pw
 import numpy as np
 from scipy.linalg import eigh, expm
 import copy
@@ -698,12 +699,13 @@ def FindLatticeAcc(q, inFreq = False):
     e12, e23 = E9c.kB12 / np.linalg.norm(E9c.kB12), E9c.kB23 / np.linalg.norm(E9c.kB23)
     return C * np.linalg.inv(np.transpose([e12, e23])) @ q
 
-def find_H(q, Exp_lib, Hq_mmat, Hq_nmat, H_lat):
+def find_H(q, Exp_lib, Hq_mmat, Hq_nmat, H_532, H_1064):
     """Find the Hamiltonian for a given q."""
     l_unit = Exp_lib["units_dict"]["l_unit"]
+    V532, V1064 = Exp_lib['V532'], Exp_lib['V1064']
     K = E9c.k_lw * l_unit
     Tq = K**2 / 2. * np.linalg.norm(np.outer(E9c.g1g, Hq_mmat.diagonal()) + np.outer(E9c.g2g, Hq_nmat.diagonal()) + q[:, np.newaxis], axis = 0)**2
-    return np.diag(Tq) + H_lat
+    return np.diag(Tq) + V1064 * H_1064 + V532 * H_532
 
 def find_del_H(q, Exp_lib, Hq_mmat, Hq_nmat, direction = 'x'):
     """Find the change in Hamiltonian in some direction for a given q."""
@@ -787,7 +789,6 @@ def find_H_components(num, Exp_lib, center = (0, 0)):
         point is a 2-element sequence (usually array); return Boolean as 0 or 1"""
         return int(tuple(point) in J)
     
-    V532, V1064 = Exp_lib['V532'], Exp_lib['V1064']
     B1_rel_E_532, B3_rel_E_532 = np.sqrt(Exp_lib['B1_rel_int_532']), np.sqrt(Exp_lib['B3_rel_int_532'])
     B1_rel_E_1064, B3_rel_E_1064 = np.sqrt(Exp_lib['B1_rel_int_1064']), np.sqrt(Exp_lib['B3_rel_int_1064'])
     phi12, phi23 = Exp_lib['phi12'], Exp_lib['phi23']
@@ -795,7 +796,8 @@ def find_H_components(num, Exp_lib, center = (0, 0)):
     size = 2 * num + 1
     Hq_mmat = np.zeros((size**2, size**2))
     Hq_nmat = np.zeros((size**2, size**2))
-    H_lat   = np.zeros((size**2, size**2), dtype = np.cdouble)
+    H_1064  = np.zeros((size**2, size**2), dtype = np.cdouble)
+    H_532   = np.zeros((size**2, size**2), dtype = np.cdouble)
     dg1 = center[0]
     dg2 = center[1]
     
@@ -811,14 +813,12 @@ def find_H_components(num, Exp_lib, center = (0, 0)):
                     Hq_mmat[ind0, ind1] = m * is_0th_order
                     Hq_nmat[ind0, ind1] = n * is_0th_order
                     
-                    if V1064:
-                        H_lat[ind0, ind1] += rV * (-V1064 * (2/3.) * is_0th_order - (-V1064 / 9.) * np.exp(1j * phi) * InJ((mm - m, nn - n), E9c.Jset1064))
-                        if ABoffset1064:
-                            H_lat[ind0, ind1] += rV * (ABoffset1064 * 1j * np.exp(1j * phi) * InJ((mm - m, nn - n), E9c.J1set1064))
-                            H_lat[ind0, ind1] += rV * (ABoffset1064 * (-1j) * np.exp(1j * phi) * InJ((mm - m, nn - n), E9c.J2set1064))
-                    if V532:
-                        H_lat[ind0, ind1] += rV * (V532 * (2/3.) * is_0th_order - (V532 / 9.) * InJ((mm - m, nn - n), E9c.Jset532))
-    return Hq_mmat, Hq_nmat, H_lat
+                    H_1064[ind0, ind1] += rV * (-(2/3.) * is_0th_order - (-1 / 9.) * np.exp(1j * phi) * InJ((mm - m, nn - n), E9c.Jset1064))
+                    if ABoffset1064:
+                        H_1064[ind0, ind1] += rV * (ABoffset1064 * 1j * np.exp(1j * phi) * InJ((mm - m, nn - n), E9c.J1set1064))
+                        H_1064[ind0, ind1] += rV * (ABoffset1064 * (-1j) * np.exp(1j * phi) * InJ((mm - m, nn - n), E9c.J2set1064))
+                    H_532[ind0, ind1] += rV * ((2/3.) * is_0th_order - (1 / 9.) * InJ((mm - m, nn - n), E9c.Jset532))
+    return Hq_mmat, Hq_nmat, H_532, H_1064
 
 def FindInteractionIndices(num, center = (0, 0)):
     """Find (m, n) indices involved in nonlinear eigenstate calculation.
