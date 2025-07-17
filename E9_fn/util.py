@@ -2,11 +2,85 @@ import E9_fn.E9_constants as E9c
 import logging
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.path import Path
+from matplotlib.path import Path as plt_Path
+from pathlib import Path as fPath
 import gftool as gt
 from typing import Iterable
 from sympy.physics.wigner import wigner_6j
 from sympy.core.numbers import Rational
+import pickle
+import json
+
+#%% File manipulations
+def save_dict(save_path: fPath, dict_in: dict, use_pickle: bool = True, use_json: bool = True):
+    """Save dict_in in both pickle and JSON format.
+
+    Loading pickle: e.g.
+    with open("data/kagome_model.pkl", "rb") as f:
+        model_dict = pickle.load(f)
+
+    Loading JSON: e.g.
+    with open("data/kagome_model.json", "r") as f:
+        model_dict = json.load(f)
+    
+    Parameters:
+        dict_in:    dictionary to be saved.
+        save_path:  pathlib.Path object (no extension), e.g. Path("data/kagome_model")
+        use_pickle: if True, save as a pickle file.
+        use_json:   if True, save as a JSON file.
+    """
+    save_path.parent.mkdir(parents = True, exist_ok = True)
+
+    if use_pickle:
+        with open(save_path.with_suffix(".pkl"), "wb") as f:
+            pickle.dump(dict_in, f)
+
+    if use_json:
+        def make_json_safe(obj):
+            if isinstance(obj, np.ndarray):
+                if np.iscomplexobj(obj):
+                    return {
+                        "__complex_array__": True,
+                        "real": make_json_safe(obj.real),
+                        "imag": make_json_safe(obj.imag)
+                    }
+                else:
+                    return obj.tolist()
+            elif isinstance(obj, complex):
+                return {
+                    "__complex__": True,
+                    "real": obj.real,
+                    "imag": obj.imag
+                }
+            elif isinstance(obj, (np.complexfloating,)):
+                return {
+                    "__complex__": True,
+                    "real": obj.real.item(),
+                    "imag": obj.imag.item()
+                }
+            elif isinstance(obj, (np.integer, np.floating)):
+                return obj.item()
+            elif isinstance(obj, (tuple, set)):
+                return [make_json_safe(x) for x in obj]
+            elif isinstance(obj, list):
+                return [make_json_safe(x) for x in obj]
+            elif isinstance(obj, dict):
+                return {str(k): make_json_safe(v) for k, v in obj.items()}
+            else:
+                return obj
+        safe_dict = make_json_safe(dict_in)
+
+        with open(save_path.with_suffix(".json"), "w") as f:
+            json.dump(safe_dict, f, indent = 4)
+
+def save_arr_data(file_path, arr_str_list, arr_list):
+    """Save specified arrays using np.savez."""
+    if len(arr_list) != len(arr_str_list):
+        raise("Length of arr_str_list and arr_list doesn't match!")
+    
+    file_path.parent.mkdir(parents = True, exist_ok = True)
+    arr_dict = {arr_str: arr for arr_str, arr in zip(arr_str_list, arr_list)}
+    np.savez(file_path, **arr_dict)
 
 #%% dictionary manipulation
 def all_values_from_key(dict_iter: Iterable[dict], key, default = 'raise_error'):
@@ -188,6 +262,7 @@ def quadrupole_Bfield_vec(pos, Bz_grad):
     M = np.diag([0.5, 0.5, -1])
     B = M @ (Bz_grad * pos)
     return B
+
 #%% Special functions not defined in scipy
 def wigner_6j_safe(j1, j2, j3, j4, j5, j6):
     """Pitfall-free version of Wigner 6j symbol."""
@@ -249,7 +324,8 @@ def kagome_DoS(E, hbw: float = 1., fhbw: float = 0.):
                 (if zero, the flat band is omitted, and the function only integrates to 2/3.)
     See gftool.lattice.kagome.dos for more detail. Some notes of the original dos:
         - This function integrates to 2/3 since the flat band is not included.
-        - It returns 0 at the VHS of the second band."""
+        - It returns 0 at the VHS of the second band.
+    """
     return gt.lattice.kagome.dos(E - hbw * (2 / 3), half_bandwidth = hbw) + (1/3) * dirac_delta(E, x0 = 2 * hbw, hw = fhbw)
 
 # General stuff
@@ -262,7 +338,8 @@ def dirac_delta(x, x0 = 0, hw = 1e-6):
     
     I am just using a narrow rectangle with width 2 * hw for now.
         x0: position of the delta function.
-        hw: halfwidth of the rectangle."""
+        hw: halfwidth of the rectangle.
+    """
     if hw == 0:
         return 0
     else:
@@ -283,7 +360,8 @@ def two_gaussian_1D_max_product(s1, s2, mu):
 
     Args:
         s1, s2: The standard deviations of the two Gaussians.
-        mu:     The difference in the center of the two Gaussians."""
+        mu:     The difference in the center of the two Gaussians.
+    """
     return np.exp(-(1/2) * mu**2 / (s1**2 + s2**2)) / (s1 * s2 * 2 * np.pi)
 
 def two_gaussian_1D_max_product_pos(s1, s2, mu):
@@ -297,7 +375,8 @@ def two_gaussian_1D_integral(s1, s2, mu):
 def two_gaussian_1D_power_integral(s1, s2, mu, p1, p2):
     """The integral of two normal gaussian distributions raised to some power and then multiplied together.
     
-    See my notes on Gaussian integrals."""
+    See my notes on Gaussian integrals.
+    """
     s1p, s2p = s1 / np.sqrt(p1), s2 / np.sqrt(p2)
     S = 1 / np.sqrt(1 / s1p**2 + 1 / s2p**2)
     c1, c2, cS = gaussian_1D_integral(s1), gaussian_1D_integral(s2), gaussian_1D_integral(S)
@@ -314,7 +393,8 @@ def rect_fn(x, x0: float = 0, x1: float = 1.):
 def step_fn(x, x0: float = 0):
     """Returns the step function, f = 1 for x >= x0, f = 0 otherwise.
     
-    Can easily extend to different behaviors at x0 if needed."""
+    Can easily extend to different behaviors at x0 if needed.
+    """
     return np.array(x >= x0).astype(float)
 
 #%% Helper plotting functions
@@ -339,6 +419,37 @@ def set_custom_plot_style(activate: bool = True, overwrite: dict = {}):
             plt.rcParams[key] = value
     else:
         plt.rcdefaults()
+
+def get_color(var, var_list:np.ndarray, cmap, assignment = "index"):
+    """Get a color from a list of colors based on the variable's index or value.
+
+    Args:
+        var: 
+            The variable whose color is to be determined. Can be a value from var_list.
+        var_list: 
+            A NumPy array of reference values. Determines how colors are mapped.
+        cmap: 
+            A Matplotlib colormap object (e.g., plt.cm.viridis).
+        assignment: 
+            Specifies how to map the variable to a color:
+            - "index": Color is chosen based on the index of var in var_list.
+            - "value": Color is chosen based on var's relative numeric value in var_list.
+
+    Returns:
+        A color from the given colormap, represented as an RGB or RGBA tuple.
+    """
+    if assignment == "index":
+        try:
+            arg = np.where(var_list == var)[0][0]
+        except ValueError:
+            logging.error(f"Variable {var} not found in the list.")
+            raise
+        return cmap(arg / (len(var_list) - 1))
+    elif assignment == "value":
+        span = max(var_list) - min(var_list)
+        return cmap((var - min(var_list)) / span) if span != 0 else cmap(0.5)
+    else:
+        raise ValueError("Invalid assignment type. Use 'index' or 'value'.")
 
 def make_simple_axes(ax = None, fignum = None, fig_kwarg = {}):
     """Make a figure with one single Axes if ax is None, and return (figure, axes).
@@ -387,6 +498,6 @@ def plot_delta_fn(ax,
     return arr
 
 def GetClosedPolygon(vert):
-    '''Generate the Path defined by a set of vertices that define a closed polygon.'''
-    path_code = [Path.MOVETO] + [Path.LINETO for _ in vert[:-2]] + [Path.CLOSEPOLY]
-    return Path(vert, path_code)
+    '''Generate the plt_Path defined by a set of vertices that define a closed polygon.'''
+    path_code = [plt_Path.MOVETO] + [plt_Path.LINETO for _ in vert[:-2]] + [plt_Path.CLOSEPOLY]
+    return plt_Path(vert, path_code)

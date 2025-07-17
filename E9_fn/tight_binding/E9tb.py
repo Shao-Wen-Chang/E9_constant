@@ -13,13 +13,16 @@ class tbmodel_2D:
     """(Finite, 2D) tight binding model.
     
     Once the 2D version works it shouldn't be too hard to generalize to other dimensions."""
+    _exclude_from_to_dict = {"n_cells", "n_orbs", "H"}
+
     def __init__(self,
                  lat_vec: list[np.ndarray],
                  basis_vec: list[np.ndarray],
                  lat_dim: list[int],
                  lat_bc: list[{0, 1}],
                  sublat_offsets: list[complex],
-                 hoppings: list[complex],):
+                 hoppings: list[tuple],
+                 lat_name: str = "no_name"):
         """
         Args:
             lat_vec:        list of lattice vectors
@@ -28,7 +31,9 @@ class tbmodel_2D:
             lat_bc:         tuple of 0 or 1, where 0 means open boundary condition, and 1 means closed bc.
             sublat_offsets: list of offsets on each sublattice
             hoppings:       (t, i, j, R). This establishes a hopping t between the i-th orbit in some unit cell
-                (x, y), and the j-th orbit in unit cell (x + R[0], y + R[1])."""
+                (x, y), and the j-th orbit in unit cell (x + R[0], y + R[1]).
+            lat_name:       optional name of the lattice (e.g., "kagome")
+        """
         # Consistency checks
         self.dim = len(lat_vec)
         self.n_basis = len(basis_vec)
@@ -46,7 +51,8 @@ class tbmodel_2D:
         if len(sublat_offsets) != self.n_basis:
             raise(Exception("Number of sublattices in sublat_offsets doesn't match that of basis_vec"))
         
-        # Copies of inputs
+        # Store inputs
+        self.lat_name = lat_name
         self.lat_vec = lat_vec
         self.basis_vec = basis_vec
         self.lat_dim = lat_dim
@@ -54,7 +60,7 @@ class tbmodel_2D:
         self.sublat_offsets = sublat_offsets
         self.hoppings = hoppings
 
-        # Attributes derived from inputs
+        # Derived attributes
         self.n_cells = lat_dim[0] * lat_dim[1]
         self.n_orbs = self.n_cells * self.n_basis
         self.H, self._as_closed_bc = self.build_H()
@@ -87,7 +93,7 @@ class tbmodel_2D:
     def build_H(self):
         """Construct the Hamiltonian of the given tight binding model."""
         H = np.zeros((self.n_orbs, self.n_orbs), dtype = complex)
-        _as_closed_bc = set()
+        _as_closed_bc = set()   # What's this?
         # Put offsets on each sites (they lie on diagonals)
         for i, offset in enumerate(self.sublat_offsets):
             diag_ind = np.arange(i, self.n_orbs, self.n_basis)
@@ -224,6 +230,10 @@ class tbmodel_2D:
             arrow_marker._transform = arrow_marker.get_transform().scale(0.8, 1.2).rotate(np.angle(state[ri]))
             plt.scatter(pos[0], pos[1], s = abs(state[ri]) * 100, marker = arrow_marker, color = "cyan", zorder = 100)
         return ax
+    
+    def to_dict(self) -> dict:
+        """Return a dictionary of public instance attributes (excluding the ones in self._exclude_from_to_dict)."""
+        return {k: v for k, v in vars(self).items() if not (k.startswith("_") or k in self._exclude_from_to_dict)}
 
 #%% Model library and related definitions
 def get_model_params(model_in,

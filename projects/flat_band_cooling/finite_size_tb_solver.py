@@ -1,4 +1,5 @@
 import logging
+import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.linalg import eigh
@@ -18,7 +19,7 @@ list(map(logroot.removeFilter, logroot.filters))
 logging.basicConfig(filename = logpath, level = loglevel)
 
 save_folder = Path(E9path, "projects", "flat_band_cooling", "eigvals_library")
-save_data = False
+bool_save_results = False
 file_name = ""  # This will overwrite the default file name
 
 #%% Define the model and solve it
@@ -100,24 +101,26 @@ if plot_real_space:
         fig_lat, ax_lat = util.make_simple_axes(fig_kwarg = {"figsize": (12, 6)})
         my_tb_model.plot_H(ax = ax_lat, H = H_total)
 
-#%% Save eigenvalues
-if save_data:
-    if V_rsv_offset == 0:
-        str_offset_config = "no_offset"
+#%% Save results
+def get_model_str():
+    """Return a string that describes the model."""
+    other_params_str = ""
+    if lattice_str == "kagome_withD":
+        other_params_str += f"_tnnn{tnnn:.4f}"
+    return (f"{lattice_str}_lat{lattice_dim[0]}x{lattice_dim[1]}"
+            f"_sys{sys_len}x{sys_len}_Vrsv{V_rsv_offset}{other_params_str}").replace(".", "p")
+
+def save_arr_data(file_path, arr_str_list):
+    """Save specified arrays using np.savez."""
+    arr_dict = {arr_str: eval(arr_str) for arr_str in arr_str_list}
+    np.savez(file_path, **arr_dict)
+
+if bool_save_results:
+    folder_name = get_model_str()
+    save_folder_path = Path(save_folder, folder_name)
+    if save_folder_path.exists():
+        logging.info(f"Folder {folder_name} already exists; overwriting")
     else:
-        str_offset_config = "sys{}x{}_Vrsv{}".format(sys_len, sys_len, V_rsv_offset)
-    if not file_name:
-        if lattice_str == "kagome_nnn":
-            lattice_str = lattice_str + str(tnnn)
-        file_name = "{}_lat{}x{}_{}".format(lattice_str, lattice_dim[0], lattice_dim[1], str_offset_config).replace(".", "p") + ".npz"
-    
-    full_path = Path(save_folder, file_name)
-    if full_path.exists():
-        logging.info("File {} already exists; not doing anything for now".format(file_name))
-    else:
-        np.savez(full_path,
-                 eigvals = eigvals,
-                 eigvecs = eigvecs,
-                 n_sys = n_sys,
-                 density_sys = density_sys,)
-        logging.info("File {} saved".format(file_name))
+        save_arr_data(save_folder_path, ["eigvals", "eigvecs", "n_sys", "density_sys"])
+        
+        logging.info(f"Files saved to {folder_name}")
