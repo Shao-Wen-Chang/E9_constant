@@ -6,7 +6,6 @@ from pathlib import Path
 
 # User defined modules
 E9path = Path("C:/", "Users", "ken92", "Documents", "Studies", "E5", "simulation", "E9_simulations")
-import equilibrium_finder as eqfind # For some reason removing this line gives an error (ModuleNotFoundError: No module named 'E9_fn')
 sys.path.insert(1, E9path)
 from E9_fn import util
 import E9_fn.E9_models as E9M
@@ -16,7 +15,7 @@ import E9_fn.E9_models as E9M
 
 #%% Experiment initialization
 # Load the pre-calculated orbital energies, and get some basic values from it
-file_name = "kagome_nnn-0p1_lat10x10_sys6x6_Vrsv-2.npz"
+file_name = "kagome_lat10x10_sys6x6_Vrsv-2.npz"
 file_path = Path(E9path, "projects", "flat_band_cooling", "eigvals_library", file_name)
 loaded_file = np.load(file_path)
 E_orbs_exp = loaded_file["eigvals"]
@@ -24,7 +23,7 @@ d_sys_exp = loaded_file["density_sys"]
 n_orbs = len(E_orbs_exp)
 n_sys = loaded_file["n_sys"]
 n_rsv = n_orbs - n_sys
-E_range = (E_orbs_exp[0], E_orbs_exp[1])
+E_range = (E_orbs_exp[0], E_orbs_exp[-1])
 
 sp_name = "fermi1"
 name_sr1 = sp_name

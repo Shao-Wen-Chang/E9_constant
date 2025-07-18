@@ -40,7 +40,7 @@ H_bare = my_tb_model.H
 sys_len = 12
 sys_range = ((lattice_len - sys_len) // 2, (lattice_len + sys_len) // 2)
 n_sys = sys_len**2
-V_rsv_offsets = np.linspace(-2., 2., 11)
+V_rsv_offsets = np.linspace(-0.5, 0, 26)
 
 # Find what unit cells are in the reservoir by excluding the unit cells in the system
 sys_natural_uc_ind = set([(ii, jj) for jj in range(my_tb_model.lat_dim[1]) if sys_range[0] <= jj and jj < sys_range[1]
