@@ -143,7 +143,8 @@ class tbmodel_2D:
     def get_lat_pos(self, ind):
         """Return the position of the lattice site specified by ind.
         
-        ind can either be a reduced index or a (tuple = (i, j, k) of) natural index."""
+        ind can either be a reduced index or a (tuple = (i, j, k) of) natural index.
+        """
         if type(ind) in {int, np.int64}:
             i, j, k = self.get_natural_index(ind)
         else:
@@ -162,7 +163,8 @@ class tbmodel_2D:
         Lattice site offsets should be real, otherwise we are working with a non-Hermitian system.
         Args:
             H: Hamiltonian to be plotted.
-            t_farthest: the longest hopping distance without closed boundary condition."""
+            t_farthest: the longest hopping distance without closed boundary condition.
+        """
         if ax is None: _fig, ax = util.make_simple_axes()
         if H is None: H = self.H
         sublat_colors = ["#1f77b4", "#7fbf7f", "#ff5b2b", "#ffcc3f", "#b97c5a", "#b75bd4"]
@@ -251,7 +253,8 @@ def get_model_params(model_in,
         ky: quasimomentum in y direction. Only used in the semi-infinite direction. 1st BZ = [-pi, pi).
             See specific models for how it is used.
         overwrite_param:        Directly overwrite some of the tbmodel_2D parameters defined
-            in the model_dirctionary."""
+            in the model_dirctionary.
+    """
     
     model_dictionary = {    # This defines everything except for the lattice dimensions
         "square":{
@@ -277,6 +280,22 @@ def get_model_params(model_in,
                         (tnn, 0, 1, (-1, 0)),
                         (tnn, 0, 2, (0, -1)),
                         (tnn, 1, 2, (1, -1))]
+        },
+
+        "kagome_inv":{  # kagome lattice with inverted hopping strength for convenience
+            "lat_vec": [np.array([0, 1]),
+                        np.array([-np.sqrt(3)/2, 1/2])],
+            "basis_vec": [np.array([0, 0]),
+                          np.array([0.5, 0]),
+                          np.array([0, 0.5])],
+            "lat_bc": (0, 0),
+            "sublat_offsets": [0, 0, 0],
+            "hoppings": [(-tnn, 0, 1, (0, 0)),
+                        (-tnn, 0, 2, (0, 0)),
+                        (-tnn, 1, 2, (0, 0)),
+                        (-tnn, 0, 1, (-1, 0)),
+                        (-tnn, 0, 2, (0, -1)),
+                        (-tnn, 1, 2, (1, -1))]
         },
 
         "kagome_nnn":{ # a model where nnn hopping is included to mimic actual dispersion
@@ -385,6 +404,59 @@ def get_model_params(model_in,
                          (tnn * np.exp(-1j * ky), 1, 2, (0, 1)),
                          (tnn * np.exp(-1j * ky), 4, 3, (0, 1)),
                          (tnn * np.exp(-1j * ky), 4, 2, (0, 1)),]
+        },
+
+        "bilayer_kagome": {
+            "lat_vec": [np.array([0, 1]),
+                        np.array([-np.sqrt(3)/2, 1/2])],
+            "basis_vec": [
+                np.array([0, 0]),           # 1st layer, site 1
+                np.array([0.5, 0]),         # 1st layer, site 2
+                np.array([0, 0.5]),         # 1st layer, site 3
+                np.array([0.2, 0.2]),       # 2nd layer, site 4
+                np.array([0.7, 0.2]),       # 2nd layer, site 5
+                np.array([0.2, 0.7])        # 2nd layer, site 6
+            ],
+            "lat_bc": (0, 0),
+            "sublat_offsets": [0, 0, 0, 0, 0, 0],
+            "hoppings": [
+                # Intralayer hoppings (layer 1)
+                (tnn, 0, 1, (0, 0)),
+                (tnn, 0, 2, (0, 0)),
+                (tnn, 1, 2, (0, 0)),
+                (tnn, 0, 1, (-1, 0)),
+                (tnn, 0, 2, (0, -1)),
+                (tnn, 1, 2, (1, -1)),
+                # Intralayer hoppings (layer 2)
+                (tnn, 3, 4, (0, 0)),
+                (tnn, 3, 5, (0, 0)),
+                (tnn, 4, 5, (0, 0)),
+                (tnn, 3, 4, (-1, 0)),
+                (tnn, 3, 5, (0, -1)),
+                (tnn, 4, 5, (1, -1)),
+                # Interlayer hoppings
+                (tnnn, 0, 3, (0, 0)), # site 1 <-> site 4
+                (tnnn, 1, 4, (0, 0)), # site 2 <-> site 5
+                (tnnn, 2, 5, (0, 0)), # site 3 <-> site 6
+            ]
+        },
+
+        "lieb": {
+            "lat_vec": [np.array([1, 0]),
+                        np.array([0, 1])],
+            "basis_vec": [np.array([0, 0]),
+                          np.array([0.5, 0]),
+                          np.array([0, 0.5])],
+            "lat_bc": (0, 0),
+            "sublat_offsets": [0, 0, 0],
+            "hoppings": [
+                (tnn, 0, 1, (0, 0)),   # center to right
+                (tnn, 0, 2, (0, 0)),   # center to up
+                (tnn, 1, 0, (0, 0)),   # right to center
+                (tnn, 2, 0, (0, 0)),   # up to center
+                (tnn, 1, 0, (1, 0)),   # right to center in next cell
+                (tnn, 2, 0, (0, 1)),   # up to center in next cell
+            ]
         },
 
         "sawtooth":{            # sawtooth lattice - 2nd dimension is supposed to be 1

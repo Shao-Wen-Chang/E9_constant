@@ -23,23 +23,29 @@ bool_save_results = False
 file_name = ""  # This will overwrite the default file name
 
 #%% Define the model and solve it
-lattice_str = "kagome_withD"
-lattice_len = 10
+lattice_str = "sawtooth"
+lattice_len = 20
 tnnn = -0.02
-lattice_dim = (lattice_len, lattice_len)
-overwrite_param = {"sublat_offsets": [0., 0., 0., 15.]}
+# lattice_dim = (lattice_len, lattice_len)    # 2D lattices
+lattice_dim = (lattice_len, 1)              # 1D lattices
+overwrite_param = {}
+# overwrite_param = {"sublat_offsets": [0., 0., 0., 15.]}
 # overwrite_param = {"tnnn": tnnn, "lat_bc": (1, 1)}
 tb_params = E9tb.get_model_params(lattice_str, overwrite_param = overwrite_param)
 my_tb_model= E9tb.tbmodel_2D(lat_dim = lattice_dim, **tb_params)
 H_bare = my_tb_model.H
 
 # Add offset to the bare model
-sys_len = 6
+sys_len = 8
 sys_range = ((lattice_len - sys_len) // 2, (lattice_len + sys_len) // 2)
 n_sys = sys_len**2
-V_rsv_offset = -2.001
+V_rsv_offset = -2
 # Find what unit cells are in the reservoir by excluding the unit cells in the system
-sys_natural_uc_ind = set([(ii, jj) for jj in range(my_tb_model.lat_dim[1]) if sys_range[0] <= jj and jj < sys_range[1]
+# 2D lattices:
+# sys_natural_uc_ind = set([(ii, jj) for jj in range(my_tb_model.lat_dim[1]) if sys_range[0] <= jj and jj < sys_range[1]
+#                                     for ii in range(my_tb_model.lat_dim[0]) if sys_range[0] <= ii and ii < sys_range[1]])
+# 1D lattices:
+sys_natural_uc_ind = set([(ii, jj) for jj in range(my_tb_model.lat_dim[1])
                                     for ii in range(my_tb_model.lat_dim[0]) if sys_range[0] <= ii and ii < sys_range[1]])
 rsv_natural_uc_ind = set([(ii, jj) for jj in range(my_tb_model.lat_dim[1])
                                     for ii in range(my_tb_model.lat_dim[0])])
@@ -69,7 +75,7 @@ pass
 
 #%% Plots
 plot_real_space = True
-plot_state_list = [216, 217]
+plot_state_list = [22, 33]
 
 # fig_H, ax_H = util.make_simple_axes(fignum = 100)
 # ax_H.matshow(H_total)

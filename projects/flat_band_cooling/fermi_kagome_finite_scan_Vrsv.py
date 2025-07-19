@@ -26,14 +26,14 @@ logging.basicConfig(filename = logpath, level = loglevel)
 # the tight binding calculation
 
 #%% Experiment initialization
-lattice_str = "kagome"
+lattice_str = "kagome_inv"
 lattice_len = 20
 sys_len = 12
-S_total = np.linspace(400., 100, 31)    # Working from high to low entropy is easier
+# S_total = np.linspace(400., 100, 31)    # Working from high to low entropy is easier
 S_total = np.hstack((np.linspace(400., 220, 10), np.linspace(200, 100, 21)))    # Working from high to low entropy is easier
-V_rsv_offsets = np.linspace(-3.5, -0.02, 88)#np.linspace(-2.5, -1.5, 51)#np.linspace(-2., 2., 11)
-nu_sys = 5/12
-nu_rsv = 5/6
+V_rsv_offsets = np.linspace(-0.1, 3.5, 73)#np.linspace(-2., 2., 11)
+nu_sys = 7/12
+nu_rsv = 1.2/6
 
 # initial guesses at the first value of total entropy for each offset
 T_guesses = np.array([0.3 for _ in V_rsv_offsets])
@@ -42,7 +42,8 @@ N_tol = 1e-3            # Tolerable error in resultant N
 S_tol = 1e-1            # Tolerable error in resultant S
 
 #%% Load the pre-calculated orbital energies and find the mu and T for all entropies
-data_folder = Path(E9path, "projects", "flat_band_cooling", "eigvals_library")
+parent_folder_name = lattice_str
+data_folder = Path(E9path, "projects", "flat_band_cooling", "eigvals_library", parent_folder_name)
 lattice_dim = (lattice_len, lattice_len)
 
 n_orbs_tot = lattice_len**2 * 3
@@ -52,6 +53,7 @@ N_tot = int(nu_sys * n_orbs_sys + nu_rsv * n_orbs_rsv)
 N_offsets = len(V_rsv_offsets)
 N_S = len(S_total)
 
+all_T_F = np.zeros(N_offsets)                   # Fermi temperature
 all_T = np.full((N_offsets, N_S), np.nan)
 all_mu = np.full((N_offsets, N_S), np.nan)
 all_E = np.full((N_offsets, N_S), np.nan)
@@ -68,11 +70,14 @@ for i_rsv, V_rsv in enumerate(V_rsv_offsets):
         eigvals = loaded_arrs_dict["eigvals"]
         density_sys = loaded_arrs_dict["density_sys"]
     E_range = (eigvals[0], eigvals[-1])
+    all_T_F[i_rsv] = eigvals[N_tot - 1] - eigvals[0]
 
     sp_name = "fermi1"
     name_sr1 = sp_name
     sr_list = [E9M.muVT_subregion(name_sr1, sp_name, n_orbs_tot, +1, None, E_range, [], eigvals)]
 
+    bool_first_bad_S = True
+    bad_S_log_fn = logging.warning  # All S smaller than the one that fails will also fail, so surpress the logging level
     for i_S, S_now in enumerate(S_total):
         # Update guess values, and find the new equilibrium states
         if i_S == 0:
@@ -102,48 +107,69 @@ for i_rsv, V_rsv in enumerate(V_rsv_offsets):
             if abs(N_err) < N_tol and abs(S_err) < S_tol:
                 pass
             else:
-                logging.warning(f"The solution of V_rsv = {V_rsv:.4f} and S = {S_now:.4f} doesn't satisfy the specified tolerance!")
-                logging.warning(f"(N_err = {N_err:.4f}, S_err = {S_err:.4f})")
+                bad_S_log_fn(f"The solution of V_rsv = {V_rsv:.4f} and S = {S_now:.4f} doesn't satisfy the specified tolerance!")
+                bad_S_log_fn(f"(N_err = {N_err:.4f}, S_err = {S_err:.4f})")
+                bad_S_log_fn = logging.debug
+                bool_first_bad_S = False
                 all_fails[i_rsv, i_S] = 1.
         else:
-            logging.warning(f"The solver failed to converge for V_rsv = {V_rsv:.4f} and S = {S_now:.4f}!")
+            bad_S_log_fn(f"The solver failed to converge for V_rsv = {V_rsv:.4f} and S = {S_now:.4f}!")
+            bad_S_log_fn = logging.debug
+            bool_first_bad_S = False
             all_fails[i_rsv, i_S] = 1.
+all_TTF = all_T / all_T_F[:, np.newaxis]
 
-#%% plot
-ind_Sselect = np.array([i for i in range(0, N_S, 4)])
+#%% Vrsv-S plots
+util.set_custom_plot_style(overwrite = {"font.size": 10})
 
-fig = plt.figure(figsize = (10, 8))
-ax_T = fig.add_subplot(221)
-ax_nu = fig.add_subplot(222)
-ax_T_Sselect = fig.add_subplot(223)
-cmap = plt.get_cmap('coolwarm')
+fig_VS = plt.figure(figsize = (10, 8))
+ax_T = fig_VS.add_subplot(221)
+ax_nu = fig_VS.add_subplot(222)
+ax_TTF = fig_VS.add_subplot(223)
+ax_mu = fig_VS.add_subplot(224)
 
-for ttl, data, ax in zip(["T/J", r"$\nu_{S}$"],
-                         [all_T, all_nu_sys],
-                         [ax_T, ax_nu]):
+for ttl, data, ax in zip([r"$T/J$", r"$\nu_{S}$",   r"$T/T_F$", r"$\mu/J$"],
+                         [all_T,    all_nu_sys,     all_TTF,    all_mu],
+                         [ax_T,     ax_nu,          ax_TTF,     ax_mu]):
     mesh_T = ax.pcolormesh(V_rsv_offsets, S_total, data.T, shading = 'auto', cmap = 'viridis')
     ax.pcolormesh(V_rsv_offsets, S_total, np.ones_like(all_fails.T), shading = 'auto'
                   , color = "red", alpha = all_fails.T * 0.5, edgecolors = 'none')
 
     # Add colorbar, labels
-    fig.colorbar(mesh_T, ax = ax, label = f'{ttl} value')
+    fig_VS.colorbar(mesh_T, ax = ax, label = f'{ttl} value')
     ax.set_xlabel('V_rsv_offsets')
     ax.set_ylabel('S_total')
-    ax.set_title('T')
     ax.set_title(ttl)
-    
-    cntr = ax.contour(V_rsv_offsets, S_total, data.T, colors = "white", levels = 10)
+    cntr = ax.contour(V_rsv_offsets, S_total, data.T, colors = "white", linestyles = "solid", levels = 10)
     ax.clabel(cntr, inline = True)
+
+    # right y-axis
+    ryax = ax.secondary_yaxis('right', functions = (lambda x: x / N_tot, lambda x: x * N_tot))
+    ryax.set_ylabel(r"$s$")
+fig_VS.suptitle(f"{lattice_str}, lattice size {lattice_dim}, system size {sys_len}x{sys_len}; N_atoms = {N_tot}")
+
+#%% Other plots
+ind_Sselect = np.array([i for i in range(0, N_S, 4)])
+ind_ref = np.where(np.round(V_rsv_offsets, 4) == 0.)[0]
+
+fig_S = plt.figure(figsize = (15, 5))
+ax_T_Sselect = fig_S.add_subplot(131)
+ax_TTF_Sselect = fig_S.add_subplot(132)
+ax_cool_Sselect = fig_S.add_subplot(133)
+cmap = plt.get_cmap('coolwarm')
 
 for i in ind_Sselect:
     S = S_total[i]
     color = util.get_color(S, S_total, cmap, assignment = "value")
     # failed_this_S = all_fails[:, i].astype(bool)
     ax_T_Sselect.plot(V_rsv_offsets, all_T[:, i], color = color, label = f"S = {S}")
+    ax_TTF_Sselect.plot(V_rsv_offsets, all_TTF[:, i], color = color)
+    ax_cool_Sselect.plot(V_rsv_offsets, all_TTF[:, i] / all_TTF[ind_ref, i], color = color)
     # ax_T_Sselect.scatter(V_rsv_offsets[failed_this_S], np.nan_to_num(all_T)[failed_this_S, i], color = color, marker = ".")
 ax_T_Sselect.legend()
-
-fig.suptitle(f"{lattice_str}, lattice size {lattice_dim}, system size {sys_len}x{sys_len}; N_atoms = {N_tot}")
-fig.tight_layout()
+ax_T_Sselect.set_title((r"$T$" " for selected " r"$S$"))
+ax_TTF_Sselect.set_title((r"$T/T_F$" " for selected " r"$S$"))
+ax_cool_Sselect.hlines(1., V_rsv_offsets[0], V_rsv_offsets[-1], colors = "k", linestyles = "--")
+ax_cool_Sselect.set_title(("Change in " r"$T/T_F$" " for selected " r"$S$"))
 
 # %%
