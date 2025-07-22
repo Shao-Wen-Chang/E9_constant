@@ -136,7 +136,8 @@ def find_S(E_orbs, T, Np, xi, mu = None, E_total = None, N_BEC: int = 0):
     """Find the fundamental entropy \sigma = S/k_B of a fermionic system.
     
     Although we use grand canonical ensemble for the analytical expression, we actually
-    back out \mu from Np. If \mu is not given, then find_mu will be used to find \mu"""
+    back out \mu from Np. If \mu is not given, then find_mu will be used to find \mu
+    """
     if mu is None: mu = find_mu(E_orbs, T, Np, xi, N_BEC)
     if E_total is None: E_total = find_E(E_orbs, T, mu, xi, N_BEC)
 
@@ -148,14 +149,24 @@ def find_S(E_orbs, T, Np, xi, mu = None, E_total = None, N_BEC: int = 0):
     else:
         return (E_total - mu * Np) / T + xi * np.log(1 + xi * np.exp((mu - E_orbs) / T)).sum()
 
-def find_SvN(rho):
-    """Find the von Neumann entropy of a given density matrix."""
-    if not util.IsHermitian(rho):
-        raise(Exception("The input density matrix is not Hermitian!"))
-    if not np.allclose(rho.diagonal().sum(), 1):
+def find_SvN(rho: np.ndarray):
+    """Find the von Neumann entropy of a given density matrix (or the eigenvalues of it).
+    
+    If rho is 1-dimensional, it is assumed to be the eigenvalues of some density matrix.
+    """
+    rho_diag = rho
+    if rho.ndim > 2:
+        raise(Exception("The dimension of input ndarray must be 1 or 2"))
+    elif rho.ndim == 2:
+        if not util.IsHermitian(rho):
+            raise(Exception("The input density matrix is not Hermitian!"))
+        else:
+            eigvals, _ = eigh(rho)
+            rho_diag = eigvals.diagonal()
+    if not np.allclose(rho_diag.sum(), 1):
         logging.warning("The trace of the input density matrix is not 1!")
-    eigvals, _ = eigh(rho)
-    return -(eigvals * np.log(eigvals)).sum()
+    
+    return -(rho_diag * np.log(rho_diag)).sum()
 
 #%% Simulation
 if __name__ == "__main__":

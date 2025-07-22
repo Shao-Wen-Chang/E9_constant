@@ -26,17 +26,20 @@ logging.basicConfig(filename = logpath, level = loglevel)
 # the tight binding calculation
 
 #%% Experiment initialization
-lattice_str = "kagome_inv"
+lattice_str = "kagome_nnn"
 lattice_len = 20
 sys_len = 12
-# S_total = np.linspace(400., 100, 31)    # Working from high to low entropy is easier
 S_total = np.hstack((np.linspace(400., 220, 10), np.linspace(200, 100, 21)))    # Working from high to low entropy is easier
-V_rsv_offsets = np.linspace(-0.1, 3.5, 73)#np.linspace(-2., 2., 11)
-nu_sys = 7/12
-nu_rsv = 1.2/6
+# S_total = np.linspace(40, 10, 16)    # Working from high to low entropy is easier
+V_rsv_offsets = np.linspace(-3.5, 2, 56)#np.linspace(-2., 2., 11)
+V_std_random = 0.
+tnnn = -0.01
+nu_sys = 5/12
+nu_rsv = 5/6
+runnum_to_load = 1
 
 # initial guesses at the first value of total entropy for each offset
-T_guesses = np.array([0.3 for _ in V_rsv_offsets])
+T_guesses = np.array([0.6 for _ in V_rsv_offsets])
 mu_guesses = np.array([2. + V for V in V_rsv_offsets])
 N_tol = 1e-3            # Tolerable error in resultant N
 S_tol = 1e-1            # Tolerable error in resultant S
@@ -44,10 +47,18 @@ S_tol = 1e-1            # Tolerable error in resultant S
 #%% Load the pre-calculated orbital energies and find the mu and T for all entropies
 parent_folder_name = lattice_str
 data_folder = Path(E9path, "projects", "flat_band_cooling", "eigvals_library", parent_folder_name)
-lattice_dim = (lattice_len, lattice_len)
+param_dict = dict()
+if V_std_random != 0:
+    param_dict["Vran"] = V_std_random
+if tnnn != 0:
+    param_dict["tnnn"] = tnnn
 
+lattice_dim = (lattice_len, lattice_len)
+# lattice_dim = (lattice_len, 1)
 n_orbs_tot = lattice_len**2 * 3
 n_orbs_sys = sys_len**2 * 3
+# n_orbs_tot = lattice_len * 2
+# n_orbs_sys = sys_len * 2
 n_orbs_rsv = n_orbs_tot - n_orbs_sys
 N_tot = int(nu_sys * n_orbs_sys + nu_rsv * n_orbs_rsv)
 N_offsets = len(V_rsv_offsets)
@@ -64,7 +75,7 @@ all_fails = np.zeros((N_offsets, N_S))
 
 for i_rsv, V_rsv in enumerate(V_rsv_offsets):
     logging.debug(f"working on offset = {V_rsv:.4f}...")
-    folder_name = hpfn.get_model_str(lattice_str, lattice_dim, sys_len, V_rsv)
+    folder_name = hpfn.get_model_str(lattice_str, lattice_dim, sys_len, V_rsv, runnum = runnum_to_load, param_dict = param_dict)
     with open(Path(data_folder, folder_name, "np_arrays.npz"), 'rb') as f:
         loaded_arrs_dict = np.load(f)
         eigvals = loaded_arrs_dict["eigvals"]
@@ -78,14 +89,14 @@ for i_rsv, V_rsv in enumerate(V_rsv_offsets):
 
     bool_first_bad_S = True
     bad_S_log_fn = logging.warning  # All S smaller than the one that fails will also fail, so surpress the logging level
-    for i_S, S_now in enumerate(S_total):
+    for i_S, S_tar in enumerate(S_total):
         # Update guess values, and find the new equilibrium states
         if i_S == 0:
             T_guess_now = T_guesses[i_rsv]
             mu_guess_now = mu_guesses[i_rsv]
         else:
             T_guess_now, mu_guess_now = all_T[i_rsv, i_S - 1], all_mu[i_rsv, i_S - 1]
-        Tmu_out, orst = eqfind.muVT_from_NVS_solver(S_now,
+        Tmu_out, orst = eqfind.muVT_from_NVS_solver(S_tar,
                                                     N_tot,
                                                     sr_list,
                                                     T_guess_now,
@@ -93,27 +104,27 @@ for i_rsv, V_rsv in enumerate(V_rsv_offsets):
                                                     Tbounds = (0, 2),
                                                     mubounds = (-3, 6),
                                                     options_dict = {"fatol": 1e-8, "xatol": 1e-8})
+        T_now, mu_now = Tmu_out[0], Tmu_out[1]
+        E_now = thmdy.find_E(eigvals, T_now, mu_now, +1)
+        N_now = thmdy.find_Np(eigvals, T_now, mu_now, +1)
+        S_now = thmdy.find_S(eigvals, T_now, N_now, +1, mu_now, E_now)
+        N_err, S_err = N_now - N_tot, S_now - S_tar
         if orst.success:
-            T_now, mu_now = Tmu_out[0], Tmu_out[1]
-            E_now = thmdy.find_E(eigvals, T_now, mu_now, +1)
-            N_now = thmdy.find_Np(eigvals, T_now, mu_now, +1)
-            all_T[i_rsv, i_S] = T_now
-            all_mu[i_rsv, i_S] = mu_now
-            all_E[i_rsv, i_S] = E_now
-            all_N[i_rsv, i_S] = N_now
-            all_S[i_rsv, i_S] = thmdy.find_S(eigvals, T_now, N_now, +1, mu_now, E_now)
-            all_nu_sys[i_rsv, i_S] = np.sum(util.fermi_stat(eigvals, T_now, mu_now) * density_sys) / n_orbs_sys
-            N_err, S_err = all_N[i_rsv, i_S] - N_tot, all_S[i_rsv, i_S] - S_now
             if abs(N_err) < N_tol and abs(S_err) < S_tol:
-                pass
+                all_T[i_rsv, i_S] = T_now
+                all_mu[i_rsv, i_S] = mu_now
+                all_E[i_rsv, i_S] = E_now
+                all_N[i_rsv, i_S] = N_now
+                all_S[i_rsv, i_S] = S_now
+                all_nu_sys[i_rsv, i_S] = np.sum(util.fermi_stat(eigvals, T_now, mu_now) * density_sys) / n_orbs_sys
             else:
-                bad_S_log_fn(f"The solution of V_rsv = {V_rsv:.4f} and S = {S_now:.4f} doesn't satisfy the specified tolerance!")
+                bad_S_log_fn(f"The solution of V_rsv = {V_rsv:.4f} and S = {S_tar:.4f} doesn't satisfy the specified tolerance!")
                 bad_S_log_fn(f"(N_err = {N_err:.4f}, S_err = {S_err:.4f})")
                 bad_S_log_fn = logging.debug
                 bool_first_bad_S = False
                 all_fails[i_rsv, i_S] = 1.
         else:
-            bad_S_log_fn(f"The solver failed to converge for V_rsv = {V_rsv:.4f} and S = {S_now:.4f}!")
+            bad_S_log_fn(f"The solver failed to converge for V_rsv = {V_rsv:.4f} and S = {S_tar:.4f}!")
             bad_S_log_fn = logging.debug
             bool_first_bad_S = False
             all_fails[i_rsv, i_S] = 1.
@@ -122,7 +133,7 @@ all_TTF = all_T / all_T_F[:, np.newaxis]
 #%% Vrsv-S plots
 util.set_custom_plot_style(overwrite = {"font.size": 10})
 
-fig_VS = plt.figure(figsize = (10, 8))
+fig_VS = plt.figure(figsize = (9, 8))
 ax_T = fig_VS.add_subplot(221)
 ax_nu = fig_VS.add_subplot(222)
 ax_TTF = fig_VS.add_subplot(223)
@@ -136,7 +147,7 @@ for ttl, data, ax in zip([r"$T/J$", r"$\nu_{S}$",   r"$T/T_F$", r"$\mu/J$"],
                   , color = "red", alpha = all_fails.T * 0.5, edgecolors = 'none')
 
     # Add colorbar, labels
-    fig_VS.colorbar(mesh_T, ax = ax, label = f'{ttl} value')
+    # fig_VS.colorbar(mesh_T, ax = ax, label = f'{ttl} value')
     ax.set_xlabel('V_rsv_offsets')
     ax.set_ylabel('S_total')
     ax.set_title(ttl)
@@ -146,7 +157,8 @@ for ttl, data, ax in zip([r"$T/J$", r"$\nu_{S}$",   r"$T/T_F$", r"$\mu/J$"],
     # right y-axis
     ryax = ax.secondary_yaxis('right', functions = (lambda x: x / N_tot, lambda x: x * N_tot))
     ryax.set_ylabel(r"$s$")
-fig_VS.suptitle(f"{lattice_str}, lattice size {lattice_dim}, system size {sys_len}x{sys_len}; N_atoms = {N_tot}")
+fig_VS.suptitle((f"{lattice_str}, lattice size {lattice_dim}, system size {sys_len}x{sys_len}; N_atoms = {N_tot}\n"
+                 f"V_std_random = {V_std_random:.3f}"))
 
 #%% Other plots
 ind_Sselect = np.array([i for i in range(0, N_S, 4)])
@@ -170,6 +182,8 @@ ax_T_Sselect.legend()
 ax_T_Sselect.set_title((r"$T$" " for selected " r"$S$"))
 ax_TTF_Sselect.set_title((r"$T/T_F$" " for selected " r"$S$"))
 ax_cool_Sselect.hlines(1., V_rsv_offsets[0], V_rsv_offsets[-1], colors = "k", linestyles = "--")
+ax_cool_Sselect.scatter(V_rsv_offsets[ind_ref], 1., s = 100, color = "k", label = "reference")
 ax_cool_Sselect.set_title(("Change in " r"$T/T_F$" " for selected " r"$S$"))
+ax_cool_Sselect.legend()
 
 # %%

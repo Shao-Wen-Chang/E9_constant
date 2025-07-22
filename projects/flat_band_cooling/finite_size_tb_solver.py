@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.linalg import eigh
 from pathlib import Path
+from secrets import randbits
 
 import sys
 E9path = Path("C:/", "Users", "ken92", "Documents", "Studies", "E5", "simulation", "E9_simulations")
@@ -20,14 +21,16 @@ logging.basicConfig(filename = logpath, level = loglevel)
 
 save_folder = Path(E9path, "projects", "flat_band_cooling", "eigvals_library")
 bool_save_results = False
-file_name = ""  # This will overwrite the default file name
+
+rng_seed = randbits(128)
+rng1 = np.random.default_rng(rng_seed)
 
 #%% Define the model and solve it
-lattice_str = "sawtooth"
-lattice_len = 20
+lattice_str = "kagome"
+lattice_len = 10
 tnnn = -0.02
-# lattice_dim = (lattice_len, lattice_len)    # 2D lattices
-lattice_dim = (lattice_len, 1)              # 1D lattices
+lattice_dim = (lattice_len, lattice_len)    # 2D lattices
+# lattice_dim = (lattice_len, 1)              # 1D lattices
 overwrite_param = {}
 # overwrite_param = {"sublat_offsets": [0., 0., 0., 15.]}
 # overwrite_param = {"tnnn": tnnn, "lat_bc": (1, 1)}
@@ -36,17 +39,18 @@ my_tb_model= E9tb.tbmodel_2D(lat_dim = lattice_dim, **tb_params)
 H_bare = my_tb_model.H
 
 # Add offset to the bare model
-sys_len = 8
+sys_len = 6
 sys_range = ((lattice_len - sys_len) // 2, (lattice_len + sys_len) // 2)
 n_sys = sys_len**2
 V_rsv_offset = -2
+V_std_random = 0.2
 # Find what unit cells are in the reservoir by excluding the unit cells in the system
 # 2D lattices:
-# sys_natural_uc_ind = set([(ii, jj) for jj in range(my_tb_model.lat_dim[1]) if sys_range[0] <= jj and jj < sys_range[1]
-#                                     for ii in range(my_tb_model.lat_dim[0]) if sys_range[0] <= ii and ii < sys_range[1]])
-# 1D lattices:
-sys_natural_uc_ind = set([(ii, jj) for jj in range(my_tb_model.lat_dim[1])
+sys_natural_uc_ind = set([(ii, jj) for jj in range(my_tb_model.lat_dim[1]) if sys_range[0] <= jj and jj < sys_range[1]
                                     for ii in range(my_tb_model.lat_dim[0]) if sys_range[0] <= ii and ii < sys_range[1]])
+# 1D lattices:
+# sys_natural_uc_ind = set([(ii, jj) for jj in range(my_tb_model.lat_dim[1])
+#                                     for ii in range(my_tb_model.lat_dim[0]) if sys_range[0] <= ii and ii < sys_range[1]])
 rsv_natural_uc_ind = set([(ii, jj) for jj in range(my_tb_model.lat_dim[1])
                                     for ii in range(my_tb_model.lat_dim[0])])
 rsv_natural_uc_ind -= sys_natural_uc_ind
@@ -55,8 +59,10 @@ logging.debug(rsv_natural_uc_ind)
 rsv_ind = np.hstack(
     [my_tb_model.get_reduced_index(rsv_natural_uc_ind[:,0], rsv_natural_uc_ind[:,1], k)
         for k in range(my_tb_model.n_basis)])
+
 H_offset = np.zeros_like(H_bare)
 H_offset[rsv_ind, rsv_ind] = V_rsv_offset
+H_offset += V_std_random * np.diag(rng1.standard_normal(my_tb_model.n_orbs))
 
 H_total = H_bare + H_offset
 eigvals, eigvecs = eigh(H_total)
@@ -81,8 +87,8 @@ plot_state_list = [22, 33]
 # ax_H.matshow(H_total)
 
 fig_E = plt.figure(figsize = (8, 8))
-fig_E.suptitle("{} (total {}, system {}, reservoir offset = {})".format(
-                lattice_str, lattice_dim, (sys_len, sys_len), V_rsv_offset))
+fig_E.suptitle("{} (total {}, system {}, reservoir offset = {}, V_std_random = {})".format(
+                lattice_str, lattice_dim, (sys_len, sys_len), V_rsv_offset, V_std_random))
 ax_E = fig_E.add_subplot(221)
 ax_DoS = fig_E.add_subplot(222)
 ax_nu = fig_E.add_subplot(223)

@@ -150,7 +150,7 @@ class tbmodel_2D:
         else:
             i, j, k = ind
         b0, b1 = self.basis_vec[k]
-        logging.debug("ind = {}: i = {}, j = {}, k = {}".format(ind, i, j, k))
+        # logging.debug("ind = {}: i = {}, j = {}, k = {}".format(ind, i, j, k))
         return (i + b0) * self.lat_vec[0] + (j + b1) * self.lat_vec[1]
     
     def plot_H(self, ax = None, H = None, t_farthest = 1):

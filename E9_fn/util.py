@@ -153,16 +153,24 @@ def dagger(mat, axis = None):
         ind_order[axis] = np.array(axis)[::-1]
         return np.einsum(mat, ind_order).conj()
 
+def is_density_matrix(mat):
+    """Determine if the input matrix is a valid density matrix."""
+    if not IsHermitian(mat):
+        return False
+    elif not np.allclose(mat.diagonal().sum(), 1):
+        return False
+    return True
+
 def IsHermitian(mat):
-    """Determine if input matrix is Hermitian."""
+    """Determine if the input matrix is Hermitian."""
     return np.allclose(mat, np.asmatrix(mat).H)
 
 def is_unitary(mat):
-    """Determine if input matrix is unitary."""
+    """Determine if the input matrix is unitary."""
     return np.allclose(np.eye(mat.shape[0]), np.asmatrix(mat).H * mat)
 
 def IsReal(mat):
-    """Determine if input matrix is purely real."""
+    """Determine if the input matrix is purely real."""
     return np.allclose(mat, np.conj(mat))
 
 def Normalize(vec, norm = 1):
@@ -181,6 +189,36 @@ def VecNormal(a, b):
 def VecTheta(theta):
     """Return the unit vector with polar angle theta."""
     return np.array([np.cos(theta), np.sin(theta)])
+
+def get_red_den_mat(rho, ind_sub):
+    """Get the reduced density matrix of some subspace of the full Hilbert space.
+    
+    This is not a partial trace, since the subspace does not necessarily partition the original Hilbert
+    space into cosets. One considers instead writing HS_tot = HS_sub (tensorsum) HS_else, and "trace" out
+    HS_else by assigning the vacuum state to them. It seems a bit arbitrary.
+
+    In the current implementation, HS_tot is assumed to be a single particle Fock space, and HS_sub is
+    the single & vacuum particle Fock space of the subsystem.
+
+    Args:
+        rho:        The input density matrix of dimension (n, n).
+        ind_sub:    A (m < n)-dimensional 1D array that specifies the indices belonging to the subspace.
+    
+    return:
+        A (m + 1, m + 1)-dimensional density matrix. The first m indicies are entries in ind_sub, in that
+        order, and the last index is the vacuum space of the subsystem.
+    """
+    if not is_density_matrix(rho):
+        raise(Exception("The input density matrix is not valid!"))
+    
+    dim_rho = rho.shape[0]
+    mask = np.full_like(ind_sub, True)
+    mask[ind_sub] = False
+    ind_vac = np.arange(dim_rho)[mask]
+    rho_sub = rho[:,ind_sub][ind_sub,:]
+    np.pad(rho_sub, ((0, 1), (0, 1)), "constant", constant_values = 0.)
+    rho_sub[-1, -1] = rho[ind_vac, ind_vac].sum()
+    return rho_sub
 
 #%% Simple physics stuff
 # Basic thermodynamical stuff
@@ -264,6 +302,37 @@ def quadrupole_Bfield_vec(pos, Bz_grad):
     return B
 
 #%% Special functions not defined in scipy
+def gaussian_2D(xy,
+                x0: float,
+                y0: float, 
+                sx: float, 
+                sy: float,
+                amp: float,
+                angle: float,
+                ):
+    """2D Gaussian curve.
+
+    Args:
+        xy:             xy-data. The x-data is xy[0] and the y data is xy[1].
+        x0:             The 2D Gaussian center location in x.
+        y0:             The 2D Gaussian center location in y.
+        sx:             The 2D Gaussian standard deviation in x (68% within +-1 sigma).
+                        If an angle is provided, this is the standard deviation in the polar direction of angle.
+        sy:             The 2D Gaussian standard deviation in y (68% within +-1 sigma).
+        amp:            The amplitude such that the Gaussian integrates to a (when offset is 0).
+        angle:          [DEGREES] The angle of rotation of the Gaussian.
+    
+    Returns:
+        A 2D array.
+    """
+    x, y = xy[0], xy[1]
+    angle_rad = np.radians(angle)
+    rx = np.cos(angle_rad) * (x - x0) + np.sin(angle_rad) * (y - y0)
+    ry = - np.sin(angle_rad) * (x - x0) + np.cos(angle_rad) * (y - y0)
+    
+    return amp * np.exp(-(1 / 2) * ((rx / sx)**2 + (ry / sy)**2))
+
+
 def wigner_6j_safe(j1, j2, j3, j4, j5, j6):
     """Pitfall-free version of Wigner 6j symbol."""
     # Check that the inputs are half-integers - note that inputs such as 9/2 or 4.5 are not necessarily converted
@@ -497,7 +566,7 @@ def plot_delta_fn(ax,
     ax.text(tx, ty, text)
     return arr
 
-def GetClosedPolygon(vert):
+def get_closed_polygon(vert):
     '''Generate the plt_Path defined by a set of vertices that define a closed polygon.'''
     path_code = [plt_Path.MOVETO] + [plt_Path.LINETO for _ in vert[:-2]] + [plt_Path.CLOSEPOLY]
     return plt_Path(vert, path_code)

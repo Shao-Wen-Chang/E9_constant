@@ -579,10 +579,10 @@ def PlotBZSubplot(ax_BZ, qset = '', BZcolor = E9c.BZcolor_PRL):
     # Define Path objects for BZ
     arrow_color = '#FF5500'#'#FAB16C'
     xx, yy = np.meshgrid(np.arange(-4, 4), np.arange(-4, 4))
-    path1 = util.GetClosedPolygon(E9c.BZ1_vertices)
-    path2 = util.GetClosedPolygon(E9c.BZ2_vertices)
-    path3 = util.GetClosedPolygon(E9c.BZ3_vertices)
-    path4 = util.GetClosedPolygon(E9c.BZ4_vertices)
+    path1 = util.get_closed_polygon(E9c.BZ1_vertices)
+    path2 = util.get_closed_polygon(E9c.BZ2_vertices)
+    path3 = util.get_closed_polygon(E9c.BZ3_vertices)
+    path4 = util.get_closed_polygon(E9c.BZ4_vertices)
     patch1 = patches.PathPatch(path1, facecolor = BZcolor[1], lw=2, alpha = 1)
     patch2 = patches.PathPatch(path2, facecolor = BZcolor[2], lw=2, alpha = 1)
     patch3 = patches.PathPatch(path3, facecolor = BZcolor[3], lw=2, alpha = 1)
@@ -611,7 +611,7 @@ def PlotBZSubplot(ax_BZ, qset = '', BZcolor = E9c.BZcolor_PRL):
             ax_BZ.arrow(x, y, dx, dy, edgecolor = arrow_color, facecolor = arrow_color, width = 0.02
                         , head_width = 0.15 , head_length = 0.25, overhang = 0.5, length_includes_head = True)
     elif qset_type == 2:
-        polypath = util.GetClosedPolygon(q_verts)
+        polypath = util.get_closed_polygon(q_verts)
         patchq = patches.PathPatch(polypath, facecolor = BZcolor[0], lw = 1, alpha = 0.4)
         ax_BZ.add_patch(patchq)
         for pt in q_pts:
@@ -677,7 +677,7 @@ def FindqArea(qvert, dqx = 0.015, dqy = 0.015):
                lines are preferred.
         dqx, dqy: the distance between neighboring points.'''
     # Define the polygon and find the smallest covering rectangle
-    polypath = util.GetClosedPolygon(qvert)
+    polypath = util.get_closed_polygon(qvert)
     vxs, vys = [pt[0] for pt in qvert], [pt[1] for pt in qvert]
     xmin, xmax, ymin, ymax = min(vxs), max(vxs), min(vys), max(vys)
     x, y = np.arange(xmin, xmax, dqx), np.arange(ymin, ymax, dqy)
