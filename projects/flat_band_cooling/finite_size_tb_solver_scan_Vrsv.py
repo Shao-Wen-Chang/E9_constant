@@ -22,7 +22,7 @@ list(map(logroot.removeFilter, logroot.filters))
 logging.basicConfig(filename = logpath, level = loglevel)
 
 #%% Define the model and solve it
-lattice_str = "kagome_nnn"
+lattice_str = "kagome"
 parent_folder_name = lattice_str
 lattice_len = 20
 tnnn = -0.01
@@ -36,11 +36,12 @@ my_tb_model= E9tb.tbmodel_2D(lat_dim = lattice_dim, **tb_params)
 H_bare = my_tb_model.H
 
 # Add (fixed) offset to the bare model
-sys_len = 12
+sys_len = 8
 sys_range = ((lattice_len - sys_len) // 2, (lattice_len + sys_len) // 2)
 n_sys = sys_len**2
 V_rsv_offsets = np.linspace(-3.5, 2, 56)
-V_std_random = 0
+l_res = 0.5   # Resolution of the box potential (in units of lattice cell size)
+V_std_random = 0.
 
 # Find what unit cells are in the reservoir by excluding the unit cells in the system
 # 2D lattices:
@@ -59,7 +60,10 @@ rsv_ind = np.hstack(
         for k in range(my_tb_model.n_basis)])
 
 H_offset_ones = np.zeros_like(H_bare)
-H_offset_ones[rsv_ind, rsv_ind] = 1.
+if l_res == 0:
+    H_offset_ones[rsv_ind, rsv_ind] = 1
+else:
+    H_offset_ones = hpfn.get_finite_res_box(lattice_dim, sys_range, my_tb_model, l_res)
 
 #%% save related configs
 data_folder = Path(E9path, "projects", "flat_band_cooling", "eigvals_library")
@@ -71,8 +75,10 @@ arr_str_list_to_save = ["eigvals", "density_sys"]
 param_dict = dict()
 if V_std_random != 0:
     param_dict["Vran"] = V_std_random
-if tnnn != 0:
+if tnnn != 0 and lattice_str in {"kagome_nnn", "bilayer_kagome"}:
     param_dict["tnnn"] = tnnn
+if l_res != 0:
+    param_dict["lres"] = l_res
 
 #%% Solve for each reservoir offset
 if not bool_save_results: logging.info("Results are not saved")

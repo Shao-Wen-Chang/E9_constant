@@ -11,6 +11,7 @@ E9path = Path("C:/", "Users", "ken92", "Documents", "Studies", "E5", "simulation
 sys.path.insert(1, str(E9path))
 from E9_fn import util
 from E9_fn.tight_binding import E9tb
+from projects.flat_band_cooling import helper_fns as hpfn
 
 logpath = '' # '' if not logging to a file
 loglevel = logging.INFO
@@ -27,7 +28,7 @@ rng1 = np.random.default_rng(rng_seed)
 
 #%% Define the model and solve it
 lattice_str = "kagome"
-lattice_len = 10
+lattice_len = 20
 tnnn = -0.02
 lattice_dim = (lattice_len, lattice_len)    # 2D lattices
 # lattice_dim = (lattice_len, 1)              # 1D lattices
@@ -39,11 +40,12 @@ my_tb_model= E9tb.tbmodel_2D(lat_dim = lattice_dim, **tb_params)
 H_bare = my_tb_model.H
 
 # Add offset to the bare model
-sys_len = 6
+sys_len = 8
 sys_range = ((lattice_len - sys_len) // 2, (lattice_len + sys_len) // 2)
 n_sys = sys_len**2
 V_rsv_offset = -2
-V_std_random = 0.2
+l_res = 0.   # Resolution of the box potential (in units of lattice cell size)
+V_std_random = 0.
 # Find what unit cells are in the reservoir by excluding the unit cells in the system
 # 2D lattices:
 sys_natural_uc_ind = set([(ii, jj) for jj in range(my_tb_model.lat_dim[1]) if sys_range[0] <= jj and jj < sys_range[1]
@@ -61,7 +63,10 @@ rsv_ind = np.hstack(
         for k in range(my_tb_model.n_basis)])
 
 H_offset = np.zeros_like(H_bare)
-H_offset[rsv_ind, rsv_ind] = V_rsv_offset
+if l_res == 0:
+    H_offset[rsv_ind, rsv_ind] = V_rsv_offset
+else:
+    H_offset = V_rsv_offset * hpfn.get_finite_res_box(lattice_dim, sys_range, my_tb_model, l_res)
 H_offset += V_std_random * np.diag(rng1.standard_normal(my_tb_model.n_orbs))
 
 H_total = H_bare + H_offset
@@ -80,7 +85,7 @@ for i in range(len(density_sys)):
 pass
 
 #%% Plots
-plot_real_space = True
+plot_real_space = False
 plot_state_list = [22, 33]
 
 # fig_H, ax_H = util.make_simple_axes(fignum = 100)

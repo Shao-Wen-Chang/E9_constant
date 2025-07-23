@@ -176,7 +176,7 @@ class tbmodel_2D:
         if V_offset_range == 0:
             get_offset_alpha = lambda x: 1
         else:
-            get_offset_alpha = lambda x: 0.8 * (x.real - V_offset_min) / V_offset_range + 0.2
+            get_offset_alpha = lambda x: min(0.8 * (x.real - V_offset_min) / V_offset_range + 0.2, 1) # min needed for floating point error
         
         H_offdiag_abs = abs(H - np.diag(Hd)).flatten()
         t_max, t_min = max(H_offdiag_abs), min(H_offdiag_abs)

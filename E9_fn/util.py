@@ -307,8 +307,8 @@ def gaussian_2D(xy,
                 y0: float, 
                 sx: float, 
                 sy: float,
-                amp: float,
-                angle: float,
+                amp: float = 1.,
+                angle: float = 0.,
                 ):
     """2D Gaussian curve.
 
@@ -319,7 +319,7 @@ def gaussian_2D(xy,
         sx:             The 2D Gaussian standard deviation in x (68% within +-1 sigma).
                         If an angle is provided, this is the standard deviation in the polar direction of angle.
         sy:             The 2D Gaussian standard deviation in y (68% within +-1 sigma).
-        amp:            The amplitude such that the Gaussian integrates to a (when offset is 0).
+        amp:            The amplitude of the Gaussian such that it integrates to amp (when offset is 0).
         angle:          [DEGREES] The angle of rotation of the Gaussian.
     
     Returns:
@@ -330,7 +330,7 @@ def gaussian_2D(xy,
     rx = np.cos(angle_rad) * (x - x0) + np.sin(angle_rad) * (y - y0)
     ry = - np.sin(angle_rad) * (x - x0) + np.cos(angle_rad) * (y - y0)
     
-    return amp * np.exp(-(1 / 2) * ((rx / sx)**2 + (ry / sy)**2))
+    return amp / 2 / np.pi / sx / sy * np.exp(-(1 / 2) * ((rx / sx)**2 + (ry / sy)**2))
 
 
 def wigner_6j_safe(j1, j2, j3, j4, j5, j6):

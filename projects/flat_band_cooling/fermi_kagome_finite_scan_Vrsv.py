@@ -26,20 +26,21 @@ logging.basicConfig(filename = logpath, level = loglevel)
 # the tight binding calculation
 
 #%% Experiment initialization
-lattice_str = "kagome_nnn"
+lattice_str = "kagome"
 lattice_len = 20
 sys_len = 12
-S_total = np.hstack((np.linspace(400., 220, 10), np.linspace(200, 100, 21)))    # Working from high to low entropy is easier
+s_avg = np.hstack((np.linspace(0.51, 0.24, 10), np.linspace(0.22, 0.12, 21)))
 # S_total = np.linspace(40, 10, 16)    # Working from high to low entropy is easier
 V_rsv_offsets = np.linspace(-3.5, 2, 56)#np.linspace(-2., 2., 11)
+l_res = 0
 V_std_random = 0.
 tnnn = -0.01
-nu_sys = 5/12
+nu_sys = 4/12
 nu_rsv = 5/6
 runnum_to_load = 1
 
 # initial guesses at the first value of total entropy for each offset
-T_guesses = np.array([0.6 for _ in V_rsv_offsets])
+T_guesses = np.array([1. for _ in V_rsv_offsets])
 mu_guesses = np.array([2. + V for V in V_rsv_offsets])
 N_tol = 1e-3            # Tolerable error in resultant N
 S_tol = 1e-1            # Tolerable error in resultant S
@@ -50,8 +51,10 @@ data_folder = Path(E9path, "projects", "flat_band_cooling", "eigvals_library", p
 param_dict = dict()
 if V_std_random != 0:
     param_dict["Vran"] = V_std_random
-if tnnn != 0:
+if tnnn != 0 and lattice_str in {"kagome_nnn", "bilayer_kagome"}:
     param_dict["tnnn"] = tnnn
+if l_res != 0:
+    param_dict["lres"] = l_res
 
 lattice_dim = (lattice_len, lattice_len)
 # lattice_dim = (lattice_len, 1)
@@ -62,6 +65,7 @@ n_orbs_sys = sys_len**2 * 3
 n_orbs_rsv = n_orbs_tot - n_orbs_sys
 N_tot = int(nu_sys * n_orbs_sys + nu_rsv * n_orbs_rsv)
 N_offsets = len(V_rsv_offsets)
+S_total = s_avg * N_tot    # Working from high to low entropy is easier
 N_S = len(S_total)
 
 all_T_F = np.zeros(N_offsets)                   # Fermi temperature
@@ -157,8 +161,9 @@ for ttl, data, ax in zip([r"$T/J$", r"$\nu_{S}$",   r"$T/T_F$", r"$\mu/J$"],
     # right y-axis
     ryax = ax.secondary_yaxis('right', functions = (lambda x: x / N_tot, lambda x: x * N_tot))
     ryax.set_ylabel(r"$s$")
-fig_VS.suptitle((f"{lattice_str}, lattice size {lattice_dim}, system size {sys_len}x{sys_len}; N_atoms = {N_tot}\n"
-                 f"V_std_random = {V_std_random:.3f}"))
+fig_VS.suptitle((f"{lattice_str}, lattice size {lattice_dim}, system size {sys_len}x{sys_len}"
+                 " (" r"$\nu_{sys} =$" f"{nu_sys:.3f}, "r"$\nu_{rsv} =$" f"{nu_rsv:.3f}), \n"
+                 f"; N_atoms = {N_tot}, V_std_random = {V_std_random:.3f}"))
 
 #%% Other plots
 ind_Sselect = np.array([i for i in range(0, N_S, 4)])
@@ -171,10 +176,10 @@ ax_cool_Sselect = fig_S.add_subplot(133)
 cmap = plt.get_cmap('coolwarm')
 
 for i in ind_Sselect:
-    S = S_total[i]
-    color = util.get_color(S, S_total, cmap, assignment = "value")
+    s_plt = s_avg[i]
+    color = util.get_color(s_plt, s_avg, cmap, assignment = "value")
     # failed_this_S = all_fails[:, i].astype(bool)
-    ax_T_Sselect.plot(V_rsv_offsets, all_T[:, i], color = color, label = f"S = {S}")
+    ax_T_Sselect.plot(V_rsv_offsets, all_T[:, i], color = color, label = f"s = {s_plt:.3f}")
     ax_TTF_Sselect.plot(V_rsv_offsets, all_TTF[:, i], color = color)
     ax_cool_Sselect.plot(V_rsv_offsets, all_TTF[:, i] / all_TTF[ind_ref, i], color = color)
     # ax_T_Sselect.scatter(V_rsv_offsets[failed_this_S], np.nan_to_num(all_T)[failed_this_S, i], color = color, marker = ".")
