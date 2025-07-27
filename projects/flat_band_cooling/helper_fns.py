@@ -4,6 +4,7 @@ E9path = fPath("C:/", "Users", "ken92", "Documents", "Studies", "E5", "simulatio
 if str(E9path) not in sys.path:
     sys.path.insert(1, str(E9path))
 from E9_fn import util
+
 import numpy as np
 from matplotlib.path import Path as plt_Path
 from scipy.signal import convolve
@@ -88,3 +89,22 @@ def get_finite_res_box(lattice_dim, sys_range, tbmodel, l_res):
         y_ind = util.find_nearest(y, pos[1])[1] #int(np.round(pos[1] / lat_size[1] * (grain_num - 1)))
         H_box[i] = V_box[y_ind, x_ind]
     return np.diag(H_box)
+
+def check_npz_contents(save_folder_path, arr_str_list, npz_name = "np_arrays.npz"):
+    """Check if the npz file at save_folder_path has all arrays in arr_str_list_to_save.
+    
+    return:
+        bool_all_in_npz:    True if all arrays are present, False otherwise
+        flag_str:           The first array that is not found, or "" if
+                                bool_all_in_npz is True: all arrays are found
+                                bool_all_in_npz is False: save_folder_path does not exist
+    """
+    if not save_folder_path.exists():
+        return False, ""
+    else:
+        with open(fPath(save_folder_path, npz_name), 'rb') as f:
+            loaded_arrs_dict = np.load(f)
+            for arr_str in arr_str_list:
+                if arr_str not in loaded_arrs_dict:
+                    return False, arr_str
+        return True, ""

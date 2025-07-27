@@ -1,6 +1,7 @@
 import E9_fn.E9_constants as E9c
 import logging
 import numpy as np
+from scipy.linalg import eigh
 import matplotlib.pyplot as plt
 from matplotlib.path import Path as plt_Path
 from pathlib import Path as fPath
@@ -159,11 +160,20 @@ def is_density_matrix(mat):
         return False
     elif not np.allclose(mat.diagonal().sum(), 1):
         return False
+    elif not is_p_semidef(mat):
+        return False
     return True
 
 def IsHermitian(mat):
     """Determine if the input matrix is Hermitian."""
     return np.allclose(mat, np.asmatrix(mat).H)
+
+def is_p_semidef(mat, tol = 1e-8):
+    """Determine if the input matrix is positive semidefinite, tolerating for rounding error."""
+    if not IsHermitian(mat):
+        raise(Exception("not accepting non-Hermitian matrices for now!"))
+    e_vals = eigh(mat, eigvals_only = True)
+    return np.all(e_vals > -tol)
 
 def is_unitary(mat):
     """Determine if the input matrix is unitary."""
@@ -212,11 +222,11 @@ def get_red_den_mat(rho, ind_sub):
         raise(Exception("The input density matrix is not valid!"))
     
     dim_rho = rho.shape[0]
-    mask = np.full_like(ind_sub, True)
+    mask = np.full(dim_rho, True)
     mask[ind_sub] = False
-    ind_vac = np.arange(dim_rho)[mask]
+    ind_vac = np.arange(dim_rho)[mask]  # indices that don't count towards the system (, to be summed to vacuum state)
     rho_sub = rho[:,ind_sub][ind_sub,:]
-    np.pad(rho_sub, ((0, 1), (0, 1)), "constant", constant_values = 0.)
+    rho_sub = np.pad(rho_sub, ((0, 1), (0, 1)), "constant", constant_values = 0.)
     rho_sub[-1, -1] = rho[ind_vac, ind_vac].sum()
     return rho_sub
 

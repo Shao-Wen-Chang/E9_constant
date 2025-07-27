@@ -36,11 +36,11 @@ my_tb_model= E9tb.tbmodel_2D(lat_dim = lattice_dim, **tb_params)
 H_bare = my_tb_model.H
 
 # Add (fixed) offset to the bare model
-sys_len = 8
+sys_len = 12
 sys_range = ((lattice_len - sys_len) // 2, (lattice_len + sys_len) // 2)
 n_sys = sys_len**2
-V_rsv_offsets = np.linspace(-3.5, 2, 56)
-l_res = 0.5   # Resolution of the box potential (in units of lattice cell size)
+V_rsv_offsets = [0.]#np.linspace(-3.5, 2, 56)
+l_res = 0.   # Resolution of the box potential (in units of lattice cell size)
 V_std_random = 0.
 
 # Find what unit cells are in the reservoir by excluding the unit cells in the system
@@ -68,8 +68,9 @@ else:
 #%% save related configs
 data_folder = Path(E9path, "projects", "flat_band_cooling", "eigvals_library")
 bool_save_results = True
-bool_overwrite = False          # overwrite existing results if True, skip if False
+bool_overwrite = False      # always overwrite existing results if True, check existing results if False
 save_new_upto = 1           # if overwrite = False and there is a existing folder, save another result up to the n-th folder
+# arr_str_list_to_save = ["eigvals", "eigvecs", "density_sys"]
 arr_str_list_to_save = ["eigvals", "density_sys"]
 
 param_dict = dict()
@@ -86,36 +87,59 @@ for V_rsv_offset in V_rsv_offsets:
     rng_seed = randbits(128)                # Use a different seed for each offset
     rng1 = np.random.default_rng(rng_seed)
     
+    # Check if this offset has been calculated before, and if so, skip it
     if bool_save_results:
-        folder_name = hpfn.get_model_str(lattice_str, lattice_dim, sys_len, V_rsv_offset, param_dict = param_dict)
-        save_folder_path = Path(data_folder, parent_folder_name, folder_name)
-        if save_folder_path.exists():
-            if bool_overwrite:
-                logging.info(f"Folder {folder_name} already exists; overwriting")
-            else:
-                if save_new_upto > 1:
-                    cnt = 2
-                    # new_folder_name = f"{folder_name}_{cnt:03d}"
-                    new_folder_name = hpfn.get_model_str(lattice_str, lattice_dim, sys_len, V_rsv_offset
-                                                         , runnum = cnt, param_dict = param_dict)
-                    new_save_folder_path = Path(data_folder, parent_folder_name, new_folder_name)
-                    while new_save_folder_path.exists() and cnt < save_new_upto:
-                        cnt += 1
-                        # new_folder_name = f"{folder_name}_{cnt:03d}"
-                        new_folder_name = hpfn.get_model_str(lattice_str, lattice_dim, sys_len, V_rsv_offset
-                                                             , runnum = cnt, param_dict = param_dict)
-                        new_save_folder_path = Path(data_folder, parent_folder_name, new_folder_name)
-                    if new_save_folder_path.exists():
-                        logging.info(f"Folder {folder_name} already exists up to {cnt} copies; skip this one")
-                        continue
-                    else:
-                        logging.info(f"Folder {folder_name} already exists; append _{cnt:03d}")
-                        save_folder_path = new_save_folder_path
-                else:
-                    logging.info(f"Folder {folder_name} already exists; skip this one")
-                    continue
-        else:
-            logging.info(f"working on V = {V_rsv_offset:.4f} ...")
+        if bool_overwrite:
+            raise(Exception("I haven't coded this yet")) # account for run number
+        bool_all_in_npz = True
+        for cnt in range(1, save_new_upto + 1):
+            folder_name = hpfn.get_model_str(lattice_str, lattice_dim, sys_len, V_rsv_offset
+                                                 , runnum = cnt, param_dict = param_dict)
+            save_folder_path = Path(data_folder, parent_folder_name, folder_name)
+            bool_all_in_npz, flag_str = hpfn.check_npz_contents(save_folder_path, arr_str_list_to_save)
+            if bool_all_in_npz:     # Folder exists and has all arrays, check the next cnt
+                continue
+            elif flag_str == "":    # Folder does not exist for cnt
+                logging.info(f"Saving to {folder_name}")
+                break
+            else:                   # Folder exist for cnt, but does not have all arrays
+                logging.info(f"Array {flag_str} not found in {folder_name}; will overwrite")
+                break
+        if bool_all_in_npz:         # Folders for all cnt exist and have all arrays, skip this offset
+            logging.info(f"Folder {folder_name} already exists up to {cnt} copies; skip this one")
+            continue
+        
+        # if save_folder_path.exists():
+        #     if bool_overwrite:
+        #         logging.info(f"Folder {folder_name} already exists; overwriting")
+        #     else:
+        #         # Check if the folder already exists and if it has all the arrays to be saved
+        #         bool_all_in_npz, arr_str = hpfn.check_npz_contents(
+        #             Path(save_folder_path, "np_arrays.npz"), arr_str_list_to_save)
+        #         if not bool_all_in_npz:
+        #            logging.info(f"Array {arr_str} not found in {folder_name}; will overwrite")
+        #         # Check if all the copy folders already exist and if they all have the arrays to be saved
+        #         elif save_new_upto > 1:
+        #             cnt = 2
+        #             new_folder_name = hpfn.get_model_str(lattice_str, lattice_dim, sys_len, V_rsv_offset
+        #                                                  , runnum = cnt, param_dict = param_dict)
+        #             new_save_folder_path = Path(data_folder, parent_folder_name, new_folder_name)
+        #             while new_save_folder_path.exists() and cnt < save_new_upto:
+        #                 cnt += 1
+        #                 new_folder_name = hpfn.get_model_str(lattice_str, lattice_dim, sys_len, V_rsv_offset
+        #                                                      , runnum = cnt, param_dict = param_dict)
+        #                 new_save_folder_path = Path(data_folder, parent_folder_name, new_folder_name)
+        #             if new_save_folder_path.exists():
+        #                 logging.info(f"Folder {folder_name} already exists up to {cnt} copies; skip this one")
+        #                 continue
+        #             else:
+        #                 logging.info(f"Folder {folder_name} already exists; append _{cnt:03d}")
+        #                 save_folder_path = new_save_folder_path
+        #         else:
+        #             logging.info(f"Folder {folder_name} already exists; skip this one")
+        #             continue
+        # else:
+        #     logging.info(f"working on V = {V_rsv_offset:.4f} ...")
 
     H_total = H_bare + H_offset_ones * V_rsv_offset + V_std_random * np.diag(rng1.standard_normal(my_tb_model.n_orbs))
     eigvals, eigvecs = eigh(H_total)

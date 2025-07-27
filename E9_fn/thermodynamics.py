@@ -161,14 +161,7 @@ def find_SvN(rho: np.ndarray):
         if not util.IsHermitian(rho):
             raise(Exception("The input density matrix is not Hermitian!"))
         else:
-            eigvals, _ = eigh(rho)
-            rho_diag = eigvals.diagonal()
-    if not np.allclose(rho_diag.sum(), 1):
-        logging.warning("The trace of the input density matrix is not 1!")
+            rho_diag = eigh(rho, eigvals_only = True)
+    rho_diag[np.where(rho_diag < 0)] = 0.   # remove negative eigenvalues
     
-    return -(rho_diag * np.log(rho_diag)).sum()
-
-#%% Simulation
-if __name__ == "__main__":
-    # removed old incompatible code on 20240114
-    pass
+    return -np.nan_to_num(rho_diag * np.log(rho_diag)).sum()

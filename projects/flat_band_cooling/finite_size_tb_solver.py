@@ -9,6 +9,7 @@ from secrets import randbits
 import sys
 E9path = Path("C:/", "Users", "ken92", "Documents", "Studies", "E5", "simulation", "E9_simulations")
 sys.path.insert(1, str(E9path))
+import E9_fn.thermodynamics as thmdy
 from E9_fn import util
 from E9_fn.tight_binding import E9tb
 from projects.flat_band_cooling import helper_fns as hpfn
@@ -28,7 +29,7 @@ rng1 = np.random.default_rng(rng_seed)
 
 #%% Define the model and solve it
 lattice_str = "kagome"
-lattice_len = 20
+lattice_len = 10
 tnnn = -0.02
 lattice_dim = (lattice_len, lattice_len)    # 2D lattices
 # lattice_dim = (lattice_len, 1)              # 1D lattices
@@ -40,7 +41,7 @@ my_tb_model= E9tb.tbmodel_2D(lat_dim = lattice_dim, **tb_params)
 H_bare = my_tb_model.H
 
 # Add offset to the bare model
-sys_len = 8
+sys_len = 6
 sys_range = ((lattice_len - sys_len) // 2, (lattice_len + sys_len) // 2)
 n_sys = sys_len**2
 V_rsv_offset = -2
@@ -81,12 +82,20 @@ for i in range(len(density_sys)):
     eigvec = eigvecs[:, i]
     density_sys[i] = sum(abs(eigvec[sys_reduced_uc_ind]**2))
 
+# von Neumann entropy in the system
+S_sys = np.zeros_like(eigvals)
+for i in range(my_tb_model.n_orbs):
+    eigvec = eigvecs[:, i]
+    rho = np.outer(eigvec.conj().T, eigvec)
+    rho_sys = util.get_red_den_mat(rho, sys_reduced_uc_ind)
+    S_sys[i] = thmdy.find_SvN(rho_sys)
+
 # When I care enough, calculate the ratio of the density on the edge for each state
 pass
 
 #%% Plots
 plot_real_space = False
-plot_state_list = [22, 33]
+plot_state_list = [200, 277]
 
 # fig_H, ax_H = util.make_simple_axes(fignum = 100)
 # ax_H.matshow(H_total)
@@ -97,6 +106,7 @@ fig_E.suptitle("{} (total {}, system {}, reservoir offset = {}, V_std_random = {
 ax_E = fig_E.add_subplot(221)
 ax_DoS = fig_E.add_subplot(222)
 ax_nu = fig_E.add_subplot(223)
+ax_S_sys = fig_E.add_subplot(224)
 ax_E.scatter(np.arange(len(eigvals)), eigvals)
 ax_E.set_title("Energy of all states")
 ax_E.scatter(plot_state_list, eigvals[plot_state_list], color = "red", label = "selected states")
@@ -106,6 +116,10 @@ ax_DoS.hist(eigvals, bins = E_bins, orientation = "horizontal")
 ax_DoS.set_title("DoS")
 ax_nu.plot(density_sys)
 ax_nu.set_title(r"$\nu_{sys}$")
+ax_S_sys.plot(S_sys, label = r"$S^{vN}_{sys}$")
+ax_S_sys.plot(density_sys * (1 - density_sys), label = r"$\nu_{sys} (1 - \nu_{sys})$")
+ax_S_sys.set_title("Entropy wannabes")
+ax_S_sys.legend()
 fig_E.tight_layout()
 
 if plot_real_space:
@@ -119,25 +133,12 @@ if plot_real_space:
         my_tb_model.plot_H(ax = ax_lat, H = H_total)
 
 #%% Save results
-def get_model_str():
-    """Return a string that describes the model."""
-    other_params_str = ""
-    if lattice_str == "kagome_withD":
-        other_params_str += f"_tnnn{tnnn:.4f}"
-    return (f"{lattice_str}_lat{lattice_dim[0]}x{lattice_dim[1]}"
-            f"_sys{sys_len}x{sys_len}_Vrsv{V_rsv_offset}{other_params_str}").replace(".", "p")
-
-def save_arr_data(file_path, arr_str_list):
-    """Save specified arrays using np.savez."""
-    arr_dict = {arr_str: eval(arr_str) for arr_str in arr_str_list}
-    np.savez(file_path, **arr_dict)
-
 if bool_save_results:
-    folder_name = get_model_str()
+    folder_name = hpfn.get_model_str()
     save_folder_path = Path(save_folder, folder_name)
     if save_folder_path.exists():
         logging.info(f"Folder {folder_name} already exists; overwriting")
     else:
-        save_arr_data(save_folder_path, ["eigvals", "eigvecs", "n_sys", "density_sys"])
+        util.save_arr_data(save_folder_path, ["eigvals", "eigvecs", "n_sys", "density_sys"])
         
         logging.info(f"Files saved to {folder_name}")
