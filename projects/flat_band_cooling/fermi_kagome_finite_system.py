@@ -15,13 +15,14 @@ import E9_fn.E9_models as E9M
 
 #%% Experiment initialization
 # Load the pre-calculated orbital energies, and get some basic values from it
-file_name = "kagome_lat10x10_sys6x6_Vrsv-2.npz"
-file_path = Path(E9path, "projects", "flat_band_cooling", "eigvals_library", file_name)
+file_name = Path("sawtooth_lat30x1_sys0x0_Vrsv0p0000", "np_arrays.npz")
+file_path = Path(E9path, "projects", "flat_band_cooling", "eigvals_library", "sawtooth", file_name)
 loaded_file = np.load(file_path)
 E_orbs_exp = loaded_file["eigvals"]
 d_sys_exp = loaded_file["density_sys"]
 n_orbs = len(E_orbs_exp)
-n_sys = loaded_file["n_sys"]
+# n_sys = loaded_file["n_sys"]
+n_sys = 0
 n_rsv = n_orbs - n_sys
 E_range = (E_orbs_exp[0], E_orbs_exp[-1])
 

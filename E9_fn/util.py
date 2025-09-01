@@ -137,6 +137,30 @@ def find_sign_change(arr):
     node_finder = arr[:-1] * arr[1:]
     return np.where(node_finder < 0)[0]
 
+def arr_insert_sorted(arr: np.ndarray, values):
+    """Insert one or more values into a sorted 1D NumPy array while keeping it sorted.
+    Duplicate values already in arr will be skipped.
+
+    Args:
+        arr:
+            A 1D NumPy array, assumed to be sorted in increasing order.
+        values:
+            A scalar or iterable of values to insert into arr. Can be in arbitrary order.
+
+    Returns:
+        A new NumPy array with the values inserted in the correct positions,
+        without duplicating existing entries.
+    """
+    arr = np.asarray(arr)
+    values = np.atleast_1d(values)
+    values = np.sort(values)
+    values = np.setdiff1d(values, arr, assume_unique = False)   # remove duplicates
+
+    if values.size == 0:
+        return arr  # nothing to insert
+    idxs = np.searchsorted(arr, values)
+    return np.insert(arr, idxs, values)
+
 #%% Linear algebra
 def dagger(mat, axis = None):
     """Return the conjugate transpose of the input matrix.
@@ -499,37 +523,83 @@ def set_custom_plot_style(activate: bool = True, overwrite: dict = {}):
     else:
         plt.rcdefaults()
 
-def get_color(var, var_list:np.ndarray, cmap, assignment = "index"):
-    """Get a color from a list of colors based on the variable's index or value.
+def get_color(var, var_list: np.ndarray, cmap, assignment = "index", 
+              crange = (0.0, 1.0), cfn = lambda x: x):
+    """Get a color from a colormap based on a variable's index or value, 
+    with optional range and scaling adjustments.
 
     Args:
-        var: 
-            The variable whose color is to be determined. Can be a value from var_list.
-        var_list: 
-            A NumPy array of reference values. Determines how colors are mapped.
-        cmap: 
+        var:
+            The variable whose color is to be determined. 
+            Should either be a member of var_list (if assignment = "index")
+            or a numeric value comparable to elements in var_list (if assignment = "value").
+        var_list:
+            A NumPy array (or list) of reference values. Determines how colors are mapped.
+        cmap:
             A Matplotlib colormap object (e.g., plt.cm.viridis).
-        assignment: 
+        assignment:
             Specifies how to map the variable to a color:
             - "index": Color is chosen based on the index of var in var_list.
             - "value": Color is chosen based on var's relative numeric value in var_list.
+        crange:
+            A tuple (cmin, cmax) defining the normalized range of the colormap to use.
+            Default is (0, 1), meaning the full range of cmap.
+        cfn:
+            A strictly increasing function that rescales the normalized values before
+            mapping to colors. It should satisfy cfn(0) = 0 and cfn(1) = 1.
+            Example: lambda x: x**3 compresses midrange values.
 
     Returns:
         A color from the given colormap, represented as an RGB or RGBA tuple.
     """
+    if isinstance(var_list, list):
+        var_list = np.array(var_list)
+
     if assignment == "index":
         try:
             arg = np.where(var_list == var)[0][0]
         except ValueError:
             logging.error(f"Variable {var} not found in the list.")
             raise
-        return cmap(arg / (len(var_list) - 1))
+        frac = arg / (len(var_list) - 1) if len(var_list) > 1 else 0.5
+
     elif assignment == "value":
-        span = max(var_list) - min(var_list)
-        return cmap((var - min(var_list)) / span) if span != 0 else cmap(0.5)
+        vmin, vmax = np.min(var_list), np.max(var_list)
+        span = vmax - vmin
+        frac = (var - vmin) / span if span != 0 else 0.5
+
     else:
         raise ValueError("Invalid assignment type. Use 'index' or 'value'.")
 
+    # Apply colormap range scaling
+    cmin, cmax = crange
+    if not (0.0 <= cmin < cmax <= 1.0):
+        raise ValueError("crange must satisfy 0.0 <= cmin < cmax <= 1.0")
+    scaled_frac = cmin + (cmax - cmin) * frac
+
+    # Apply custom scaling function
+    scaled_frac = cfn(scaled_frac)
+
+    return cmap(scaled_frac)
+
+def fix_clabel_orientation(labels):
+    """
+    Ensure contour labels are always upright (never upside-down).
+
+    Parameters
+    ----------
+    labels : list of matplotlib.text.Text
+        The list returned by ax.clabel().
+    """
+    for lbl in labels:
+        angle = lbl.get_rotation()
+        # Wrap angle to [-90, 90] so text is never upside down
+        if angle > 90:
+            lbl.set_rotation(angle - 180)
+        elif angle < -90:
+            lbl.set_rotation(angle + 180)
+
+# I want to remove this function
 def make_simple_axes(ax = None, fignum = None, fig_kwarg = {}):
     """Make a figure with one single Axes if ax is None, and return (figure, axes).
     

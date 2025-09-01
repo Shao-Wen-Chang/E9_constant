@@ -26,17 +26,18 @@ logging.basicConfig(filename = logpath, level = loglevel)
 # the tight binding calculation
 
 #%% Experiment initialization
-lattice_str = "kagome"
-lattice_len = 20
-sys_len = 12
+lattice_str = "sawtooth"
+lattice_len = 40
+sys_len = 15
+# Working from high to low entropy is easier
 s_avg = np.hstack((np.linspace(0.51, 0.24, 10), np.linspace(0.22, 0.12, 21)))
-# S_total = np.linspace(40, 10, 16)    # Working from high to low entropy is easier
-V_rsv_offsets = np.linspace(-3.5, 2, 56)#np.linspace(-2., 2., 11)
+s_avg = np.hstack((np.linspace(0.81, 0.27, 28), np.linspace(0.25, 0.15, 21))) # sawtooth
+V_rsv_offsets = np.linspace(-4.5, 2, 66)#np.linspace(-2., 2., 11)
 l_res = 0
 V_std_random = 0.
-tnnn = -0.01
-nu_sys = 4/12
-nu_rsv = 5/6
+tnnn = 0.
+nu_sys = 3/12
+nu_rsv = 10.2/12
 runnum_to_load = 1
 
 # initial guesses at the first value of total entropy for each offset
@@ -56,12 +57,14 @@ if tnnn != 0 and lattice_str in {"kagome_nnn", "bilayer_kagome"}:
 if l_res != 0:
     param_dict["lres"] = l_res
 
+# Dirty fix to make life easier when looking at sawtooth lattices
 lattice_dim = (lattice_len, lattice_len)
-# lattice_dim = (lattice_len, 1)
 n_orbs_tot = lattice_len**2 * 3
 n_orbs_sys = sys_len**2 * 3
-# n_orbs_tot = lattice_len * 2
-# n_orbs_sys = sys_len * 2
+if lattice_str.startswith("sawtooth"):
+    lattice_dim = (lattice_len, 1)
+    n_orbs_tot = lattice_len * 2
+    n_orbs_sys = sys_len * 2
 n_orbs_rsv = n_orbs_tot - n_orbs_sys
 N_tot = int(nu_sys * n_orbs_sys + nu_rsv * n_orbs_rsv)
 N_offsets = len(V_rsv_offsets)
@@ -164,6 +167,42 @@ for ttl, data, ax in zip([r"$T/J$", r"$\nu_{S}$",   r"$T/T_F$", r"$\mu/J$"],
 fig_VS.suptitle((f"{lattice_str}, lattice size {lattice_dim}, system size {sys_len}x{sys_len}"
                  " (" r"$\nu_{sys} =$" f"{nu_sys:.3f}, "r"$\nu_{rsv} =$" f"{nu_rsv:.3f}), \n"
                  f"; N_atoms = {N_tot}, V_std_random = {V_std_random:.3f}"))
+
+#%% fig2a plots
+util.set_custom_plot_style(overwrite = {"font.size": 10})
+mag_fig = 2.5
+bool_save_fig = True
+
+fig_2b = plt.figure(figsize = (1.7 * mag_fig, 1.3 * mag_fig))
+ax_2b = fig_2b.add_subplot(111)
+
+mesh_T_2b = ax_2b.pcolormesh(V_rsv_offsets, s_avg, all_T.T, shading = 'auto', cmap = 'coolwarm')
+ax_2b.pcolormesh(V_rsv_offsets, s_avg, np.ones_like(all_fails.T), shading = 'auto'
+                , color = "red", alpha = all_fails.T * 0.5, edgecolors = 'none')
+
+# contours (filling factor in the system)
+cntr_levels_ref = np.arange(0.3, 1.0001, 0.1)
+cntr_levels_all = util.arr_insert_sorted(cntr_levels_ref, nu_sys)
+cntr_lw = np.ones_like(cntr_levels_all)
+cntr_lw[cntr_levels_all == nu_sys] = 2
+cntr_colors = np.full_like(cntr_levels_all, "w", dtype = str)
+cntr_colors[cntr_levels_all == nu_sys] = "k"
+
+cntr_2b = ax_2b.contour(V_rsv_offsets, s_avg, all_nu_sys.T, levels = cntr_levels_all
+                        , colors = cntr_colors, linestyles = "solid", linewidths = cntr_lw)
+cntr_labels = ax_2b.clabel(cntr_2b, inline = True, fmt = "%.2f")
+util.fix_clabel_orientation(cntr_labels)
+
+# Add colorbar, labels
+fig_2b.colorbar(mesh_T_2b, ax = ax_2b, label = r"$T/J$")
+ax_2b.set_xlabel(r'$V_R$')
+ax_2b.set_ylabel(r'$s^\circ$')
+
+fig2apath = Path("C:/", "Users", "ken92", "Documents", "Studies", "E5", "Projects",
+                "2023 Optical potential engineering", "paper", "fig2"
+                , f"fig2a_nsys{nu_sys:.2f}_v1.svg")
+if bool_save_fig:
+    fig_2b.savefig(fig2apath, format = "svg")
 
 #%% Other plots
 ind_Sselect = np.array([i for i in range(0, N_S, 4)])

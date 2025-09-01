@@ -470,6 +470,32 @@ def get_model_params(model_in,
                          (tnn, 0, 0, (1, 0)),
                          (tnn * np.sqrt(2), 1, 0, (1, 0)),]
         },
+
+        "bilayer_sawtooth": {
+            "lat_vec": [np.array([1, 0]),
+                        np.array([0, np.sqrt(3)])],
+            "basis_vec": [
+                np.array([0, 0]),       # 1st layer, site 1
+                np.array([0.5, 0.5]),   # 1st layer, site 2
+                np.array([0.2, -0.1]),   # 2nd layer, site 3
+                np.array([0.7, 0.4])    # 2nd layer, site 4
+            ],
+            "lat_bc": (0, 0),
+            "sublat_offsets": [0, 0, 0, 0],
+            "hoppings": [
+                # Intralayer hoppings (layer 1)
+                (tnn * np.sqrt(2), 0, 1, (0, 0)),
+                (tnn, 0, 0, (1, 0)),
+                (tnn * np.sqrt(2), 1, 0, (1, 0)),
+                # Intralayer hoppings (layer 2)
+                (tnn * np.sqrt(2), 2, 3, (0, 0)),
+                (tnn, 2, 2, (1, 0)),
+                (tnn * np.sqrt(2), 3, 2, (1, 0)),
+                # Interlayer hoppings
+                (tnnn, 0, 2, (0, 0)), # site 1 <-> site 3
+                (tnnn, 1, 3, (0, 0)), # site 2 <-> site 4
+            ]
+        },
     }
 
     p = model_dictionary[model_in]

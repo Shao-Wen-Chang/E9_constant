@@ -148,12 +148,15 @@ f_vert = c_light / lambda_vert
     # k's: laser wavevectors
 k_sw = 2 * np.pi / lambda_sw
 k_lw = 2 * np.pi / lambda_lw
-k1 = k_sw * np.array([np.sqrt(3)/2, -1/2])
-k2 = k_sw * np.array([0, 1])
-k3 = k_sw * np.array([-np.sqrt(3)/2, -1/2])
-K1 = k_lw * np.array([np.sqrt(3)/2, -1/2])
-K2 = k_lw * np.array([0, 1])
-K3 = k_lw * np.array([-np.sqrt(3)/2, -1/2])
+k1k = np.array([np.sqrt(3)/2, -1/2])
+k2k = np.array([0, 1])
+k3k = np.array([-np.sqrt(3)/2, -1/2])
+k1 = k_sw * k1k
+k2 = k_sw * k2k
+k3 = k_sw * k3k
+K1 = k_lw * k1k
+K2 = k_lw * k2k
+K3 = k_lw * k3k
     # g's: reciprocal lattice vectors
 g_sw = k_sw * np.sqrt(3)
 g_lw = k_lw * np.sqrt(3)
@@ -173,7 +176,7 @@ e_pol2 = np.array([1, 0])
 e_pol3 = np.array([-1/2, np.sqrt(3)/2])
     # a's: real space lattice vectors
 a_sw_tri = lambda_sw * (2 / 3)
-a_lw_hex = lambda_lw * (2 / 3 / np.sqrt(3))
+a_lw_hex = lambda_lw * (2 / 3)# / np.sqrt(3)) old, probably wrong
 a_vert = lambda_vert / 2
 a1 = a_sw_tri * np.array([0, 1])
 a2 = a_sw_tri * np.array([-np.sqrt(3)/2, 1/2])

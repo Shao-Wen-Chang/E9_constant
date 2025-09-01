@@ -21,13 +21,13 @@ list(map(logroot.removeHandler, logroot.handlers))
 list(map(logroot.removeFilter, logroot.filters))
 logging.basicConfig(filename = logpath, level = loglevel)
 
-#%% Define the model and solve it
-lattice_str = "kagome"
+#%% Define the model
+lattice_str = "sawtooth"
 parent_folder_name = lattice_str
-lattice_len = 20
-tnnn = -0.01
-lattice_dim = (lattice_len, lattice_len)    # 2D lattices
-# lattice_dim = (lattice_len, 1)              # 1D lattices
+lattice_len = 40
+tnnn = 0.
+# lattice_dim = (lattice_len, lattice_len)    # 2D lattices
+lattice_dim = (lattice_len, 1)              # 1D lattices
 overwrite_param = {}
 # overwrite_param = {"sublat_offsets": [0., 0., 0., 15.]}
 # overwrite_param = {"tnnn": tnnn, "lat_bc": (1, 1)}
@@ -36,20 +36,20 @@ my_tb_model= E9tb.tbmodel_2D(lat_dim = lattice_dim, **tb_params)
 H_bare = my_tb_model.H
 
 # Add (fixed) offset to the bare model
-sys_len = 12
+sys_len = 15
 sys_range = ((lattice_len - sys_len) // 2, (lattice_len + sys_len) // 2)
 n_sys = sys_len**2
-V_rsv_offsets = [0.]#np.linspace(-3.5, 2, 56)
+V_rsv_offsets = np.linspace(-5.5, -3.5, 21)#np.linspace(-3.5, 2, 56)
 l_res = 0.   # Resolution of the box potential (in units of lattice cell size)
 V_std_random = 0.
 
 # Find what unit cells are in the reservoir by excluding the unit cells in the system
 # 2D lattices:
-sys_natural_uc_ind = set([(ii, jj) for jj in range(my_tb_model.lat_dim[1]) if sys_range[0] <= jj and jj < sys_range[1]
-                                    for ii in range(my_tb_model.lat_dim[0]) if sys_range[0] <= ii and ii < sys_range[1]])
-# 1D lattices:
-# sys_natural_uc_ind = set([(ii, jj) for jj in range(my_tb_model.lat_dim[1])
+# sys_natural_uc_ind = set([(ii, jj) for jj in range(my_tb_model.lat_dim[1]) if sys_range[0] <= jj and jj < sys_range[1]
 #                                     for ii in range(my_tb_model.lat_dim[0]) if sys_range[0] <= ii and ii < sys_range[1]])
+# 1D lattices:
+sys_natural_uc_ind = set([(ii, jj) for jj in range(my_tb_model.lat_dim[1])
+                                    for ii in range(my_tb_model.lat_dim[0]) if sys_range[0] <= ii and ii < sys_range[1]])
 rsv_natural_uc_ind = set([(ii, jj) for jj in range(my_tb_model.lat_dim[1])
                                     for ii in range(my_tb_model.lat_dim[0])])
 rsv_natural_uc_ind -= sys_natural_uc_ind
@@ -108,38 +108,6 @@ for V_rsv_offset in V_rsv_offsets:
         if bool_all_in_npz:         # Folders for all cnt exist and have all arrays, skip this offset
             logging.info(f"Folder {folder_name} already exists up to {cnt} copies; skip this one")
             continue
-        
-        # if save_folder_path.exists():
-        #     if bool_overwrite:
-        #         logging.info(f"Folder {folder_name} already exists; overwriting")
-        #     else:
-        #         # Check if the folder already exists and if it has all the arrays to be saved
-        #         bool_all_in_npz, arr_str = hpfn.check_npz_contents(
-        #             Path(save_folder_path, "np_arrays.npz"), arr_str_list_to_save)
-        #         if not bool_all_in_npz:
-        #            logging.info(f"Array {arr_str} not found in {folder_name}; will overwrite")
-        #         # Check if all the copy folders already exist and if they all have the arrays to be saved
-        #         elif save_new_upto > 1:
-        #             cnt = 2
-        #             new_folder_name = hpfn.get_model_str(lattice_str, lattice_dim, sys_len, V_rsv_offset
-        #                                                  , runnum = cnt, param_dict = param_dict)
-        #             new_save_folder_path = Path(data_folder, parent_folder_name, new_folder_name)
-        #             while new_save_folder_path.exists() and cnt < save_new_upto:
-        #                 cnt += 1
-        #                 new_folder_name = hpfn.get_model_str(lattice_str, lattice_dim, sys_len, V_rsv_offset
-        #                                                      , runnum = cnt, param_dict = param_dict)
-        #                 new_save_folder_path = Path(data_folder, parent_folder_name, new_folder_name)
-        #             if new_save_folder_path.exists():
-        #                 logging.info(f"Folder {folder_name} already exists up to {cnt} copies; skip this one")
-        #                 continue
-        #             else:
-        #                 logging.info(f"Folder {folder_name} already exists; append _{cnt:03d}")
-        #                 save_folder_path = new_save_folder_path
-        #         else:
-        #             logging.info(f"Folder {folder_name} already exists; skip this one")
-        #             continue
-        # else:
-        #     logging.info(f"working on V = {V_rsv_offset:.4f} ...")
 
     H_total = H_bare + H_offset_ones * V_rsv_offset + V_std_random * np.diag(rng1.standard_normal(my_tb_model.n_orbs))
     eigvals, eigvecs = eigh(H_total)
@@ -153,9 +121,9 @@ for V_rsv_offset in V_rsv_offsets:
         density_sys[i] = sum(abs(eigvec[sys_reduced_uc_ind]**2))
 
     # Save results
-        dict_save = my_tb_model.to_dict()
-        if V_std_random != 0:
-            dict_save["rng_seed"] = rng_seed
-        util.save_arr_data(Path(save_folder_path, "np_arrays"), arr_str_list_to_save, [eval(a) for a in arr_str_list_to_save])
-        util.save_dict(Path(save_folder_path, "tb_model_params"), dict_save)
-        logging.debug(f"Files saved to {save_folder_path}")
+    dict_save = my_tb_model.to_dict()
+    if V_std_random != 0:
+        dict_save["rng_seed"] = rng_seed
+    util.save_arr_data(Path(save_folder_path, "np_arrays"), arr_str_list_to_save, [eval(a) for a in arr_str_list_to_save])
+    util.save_dict(Path(save_folder_path, "tb_model_params"), dict_save)
+    logging.debug(f"Files saved to {save_folder_path}")
