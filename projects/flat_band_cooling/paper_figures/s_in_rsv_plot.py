@@ -13,7 +13,7 @@ def S_flatband(nu):
     return -(1 - nu) * np.log(1 - nu) - nu * np.log(nu)
 
 mag_fig = 3
-bool_save_fig = False
+bool_save_fig = True
 cmap = plt.get_cmap('coolwarm')
 
 fig_s, ax_s = plt.subplots(figsize = (1.6 * mag_fig, 1 * mag_fig))
@@ -37,6 +37,6 @@ ax_s.set_xlabel(r"$n_R$")
 ax_s.set_ylabel(r"$s_R/k_B$")
 
 fig1bpath = Path("C:/", "Users", "ken92", "Documents", "Studies", "E5", "Projects",
-                "2023 Optical potential engineering", "paper", "fig1", "fig1b_v1.svg")
+                "2023 Optical potential engineering", "paper", "fig1", "fig1b_v1.png")
 if bool_save_fig:
-    fig_s.savefig(fig1bpath, format = "svg")
+    fig_s.savefig(fig1bpath, format = "png")

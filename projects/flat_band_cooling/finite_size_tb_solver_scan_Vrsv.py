@@ -36,10 +36,10 @@ my_tb_model= E9tb.tbmodel_2D(lat_dim = lattice_dim, **tb_params)
 H_bare = my_tb_model.H
 
 # Add (fixed) offset to the bare model
-sys_len = 15
+sys_len = 20
 sys_range = ((lattice_len - sys_len) // 2, (lattice_len + sys_len) // 2)
 n_sys = sys_len**2
-V_rsv_offsets = np.linspace(-5.5, -3.5, 21)#np.linspace(-3.5, 2, 56)
+V_rsv_offsets = np.linspace(-5.5, 2., 76)#np.linspace(-3.5, 2, 56)
 l_res = 0.   # Resolution of the box potential (in units of lattice cell size)
 V_std_random = 0.
 

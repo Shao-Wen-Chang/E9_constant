@@ -112,6 +112,8 @@ for i_rsv, V_rsv in enumerate(V_rsv_offsets):
                                                     mubounds = (-3, 6),
                                                     options_dict = {"fatol": 1e-8, "xatol": 1e-8})
         T_now, mu_now = Tmu_out[0], Tmu_out[1]
+        
+        # Double check that the solution is within the specified tolerance
         E_now = thmdy.find_E(eigvals, T_now, mu_now, +1)
         N_now = thmdy.find_Np(eigvals, T_now, mu_now, +1)
         S_now = thmdy.find_S(eigvals, T_now, N_now, +1, mu_now, E_now)

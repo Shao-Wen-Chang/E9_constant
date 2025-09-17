@@ -27,7 +27,7 @@ rng1 = np.random.default_rng(rng_seed)
 #%% Define the model
 lattice_str = "sawtooth"
 parent_folder_name = lattice_str
-lattice_len = 10
+lattice_len = 40
 tnnn = -0.02
 # lattice_dim = (lattice_len, lattice_len)    # 2D lattices
 lattice_dim = (lattice_len, 1)              # 1D lattices
@@ -39,7 +39,7 @@ my_tb_model= E9tb.tbmodel_2D(lat_dim = lattice_dim, **tb_params)
 H_bare = my_tb_model.H
 
 # Add offset to the bare model
-sys_len = 0
+sys_len = 20
 sys_range = ((lattice_len - sys_len) // 2, (lattice_len + sys_len) // 2)
 n_sys = sys_len**2
 V_rsv_offset = 0.

@@ -292,7 +292,7 @@ def I_gaussian_beam_3D(r, z, lamb_in, w0x, w0y = None, theta = 0):
         i)   is for intensity, not electric field.
         ii)  doesn't include phases.
         iii) is different from the normal distribution (no 1/2 in the exponent).
-    Beam intensity is normalized to be 1 at the maximum.
+    Beam intensity is normalized to be 1 at the maximum (so that it plays well with I_from_power).
     """
     if w0y is None: w0y = w0x
     wzx = w_gaussian_beam(z, lamb_in, w0x)
