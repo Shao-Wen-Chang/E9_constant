@@ -134,8 +134,8 @@ class tbmodel_2D:
             uc2_ind = self.get_reduced_index(uc2_natural_uc_ind[:, 0], uc2_natural_uc_ind[:, 1], j)
             logging.debug(uc1_ind)
             logging.debug(uc2_ind)
-            if any(uc1_ind == uc2_ind):
-                raise(Exception("somehow you're putting the hopping terms in the diagonal! (Do you have a closed b.c. on a small dimension?)"))
+            # if any(uc1_ind == uc2_ind):   # Sometimes I actually want to do this
+            #     raise(Exception("somehow you're putting the hopping terms in the diagonal! (Do you have a closed b.c. on a small dimension?)"))
             H[uc1_ind, uc2_ind] = t
             H[uc2_ind, uc1_ind] = t.conjugate() # make sure that H is Hermitian
         return H, _as_closed_bc
@@ -459,7 +459,7 @@ def get_model_params(model_in,
             ]
         },
 
-        "sawtooth":{            # sawtooth lattice - 2nd dimension is supposed to be 1
+        "sawtooth": {            # sawtooth lattice - 2nd dimension is supposed to be 1
             "lat_vec": [np.array([1, 0]),
                         np.array([0, np.sqrt(3)])],
             "basis_vec": [np.array([0, 0]),
@@ -469,6 +469,38 @@ def get_model_params(model_in,
             "hoppings": [(tnn * np.sqrt(2), 0, 1, (0, 0)),
                          (tnn, 0, 0, (1, 0)),
                          (tnn * np.sqrt(2), 1, 0, (1, 0)),]
+        },
+
+        "sawtooth_shifted": {    # sawtooth lattice with flat band shifted to create a touching
+            "lat_vec": [np.array([1, 0]),
+                        np.array([0, np.sqrt(3)])],
+            "basis_vec": [np.array([0, 0]),
+                          np.array([0.5, 0.5])],
+            "lat_bc": (0, 0),   # 2nd dimension should have bc = 0
+            "sublat_offsets": [0, 0],
+            "hoppings": [(tnn * np.sqrt(2), 0, 1, (0, 0)),
+                         (tnn, 0, 0, (1, 0)),
+                         (tnn * np.sqrt(2), 1, 0, (1, 0)),
+                         # Additional terms are exponentially decaying - include up to 3rd order
+                         # Note that I don't have the 2*pi factor in energy
+                         # H'_AA
+                         (-tnn * 2 / np.sqrt(3)                      , 0, 0, (0, 0)),
+                         (-tnn * 2 / np.sqrt(3) * (np.sqrt(3) - 2)   , 0, 0, (1, 0)),
+                         (-tnn * 2 / np.sqrt(3) * (np.sqrt(3) - 2)**2, 0, 0, (2, 0)),
+                         (-tnn * 2 / np.sqrt(3) * (np.sqrt(3) - 2)**3, 0, 0, (3, 0)),
+                         # H'_BB
+                         (-tnn * 2 * (1 - 1 / np.sqrt(3))               , 1, 1, (0, 0)),
+                         ( tnn * 2 / np.sqrt(3) * (np.sqrt(3) - 2)      , 1, 1, (1, 0)),
+                         ( tnn * 2 / np.sqrt(3) * (np.sqrt(3) - 2)**2   , 1, 1, (2, 0)),
+                         ( tnn * 2 / np.sqrt(3) * (np.sqrt(3) - 2)**3   , 1, 1, (3, 0)),
+                         # H'_AB
+                         ( tnn * 2 / np.sqrt(6) * (np.sqrt(3) - 1)                          , 1, 0, (0, 0)),
+                         ( tnn * 2 / np.sqrt(6) * (np.sqrt(3) - 1) * (np.sqrt(3) - 2)       , 1, 0, (1, 0)),
+                         ( tnn * 2 / np.sqrt(6) * (np.sqrt(3) - 1) * (np.sqrt(3) - 2)**2    , 1, 0, (2, 0)),
+                         ( tnn * 2 / np.sqrt(6) * (np.sqrt(3) - 1) * (np.sqrt(3) - 2)**3    , 1, 0, (3, 0)),
+                         (-tnn * 2 / np.sqrt(6) * (-np.sqrt(3) - 1) * (np.sqrt(3) - 2)      , 1, 0, (1, 0)),
+                         (-tnn * 2 / np.sqrt(6) * (-np.sqrt(3) - 1) * (np.sqrt(3) - 2)**2   , 1, 0, (2, 0)),
+                         (-tnn * 2 / np.sqrt(6) * (-np.sqrt(3) - 1) * (np.sqrt(3) - 2)**3   , 1, 0, (3, 0)),]
         },
 
         "bilayer_sawtooth": {

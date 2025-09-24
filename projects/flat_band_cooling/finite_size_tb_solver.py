@@ -25,7 +25,7 @@ rng_seed = randbits(128)
 rng1 = np.random.default_rng(rng_seed)
 
 #%% Define the model
-lattice_str = "sawtooth"
+lattice_str = "sawtooth_shifted"
 parent_folder_name = lattice_str
 lattice_len = 40
 tnnn = -0.02
@@ -39,7 +39,7 @@ my_tb_model= E9tb.tbmodel_2D(lat_dim = lattice_dim, **tb_params)
 H_bare = my_tb_model.H
 
 # Add offset to the bare model
-sys_len = 20
+sys_len = 0
 sys_range = ((lattice_len - sys_len) // 2, (lattice_len + sys_len) // 2)
 n_sys = sys_len**2
 V_rsv_offset = 0.
@@ -102,7 +102,7 @@ for i in range(my_tb_model.n_orbs):
     eigvec = eigvecs[:, i]
     rho = np.outer(eigvec.conj().T, eigvec)
     rho_sys = util.get_red_den_mat(rho, sys_reduced_uc_ind)
-    S_sys[i] = thmdy.find_SvN(rho_sys)
+    S_sys[i] = thmdy.find_SvN_fermi(rho_sys)
 
 # When I care enough, calculate the ratio of the density on the edge for each state
 pass

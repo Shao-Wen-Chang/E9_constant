@@ -39,7 +39,8 @@ def get_eqn_of_state_solver(from_vars: str, to_vars: str):
 
 def muVT_from_NVT_solver(N: float,
                          T: float,
-                         E_orbs: np.ndarray) -> tuple[float, RootResults]:
+                         E_orbs: np.ndarray,
+                         logging_fn = logging.warning) -> tuple[float, RootResults]:
     """Find chemical potential mu given N and T."""
     def N_err(mu):
         N_from_mu = sum(util.fermi_stat(E_orbs, T, mu))
@@ -52,16 +53,17 @@ def muVT_from_NVT_solver(N: float,
     
     rrst = root_scalar(N_err, x0 = mu_guess, method = "secant")
     if not rrst.converged:
-        logging.warning("muVT_from_NVT_solver failed to converge! Try loosening xtol")
+        logging_fn("muVT_from_NVT_solver failed to converge! Try loosening xtol")
         rrst = root_scalar(N_err, x0 = mu_guess, method = "secant", xtol = 1e-2)
         if not rrst.converged:
-            logging.warning("muVT_from_NVT_solver still failed to converge at xtol = 1e-2")
+            logging_fn("muVT_from_NVT_solver still failed to converge at xtol = 1e-2")
     return rrst.root, rrst
 
 def muVT_from_NVE_solver(N: float,
                          E: float,
                          E_orbs: np.ndarray,
-                         T_guess: float = None) -> tuple[float, float, RootResults]:
+                         T_guess: float = None,
+                         logging_fn = logging.warning) -> tuple[np.ndarray[float], RootResults]:
     """Find a muVT system that give the right N and E.
     
     For each T, this function finds a mu such that the number of particles matches N,
@@ -93,20 +95,20 @@ def muVT_from_NVE_solver(N: float,
         T_guess = abs(T_guess)
     
     def E_err(T):
-        mu, _ = muVT_from_NVT_solver(N, T_guess, E_orbs)
+        mu, _ = muVT_from_NVT_solver(N, T_guess, E_orbs, logging_fn)
         E_from_mu_and_T = sum(E_orbs * util.fermi_stat(E_orbs, T, mu))
         return abs(E - E_from_mu_and_T)
     
     rrst = root_scalar(E_err, x0 = T_guess, method = "secant")
     if not rrst.converged:
-        logging.warning("muVT_from_NVE_solver failed to converge! Try loosening xtol")
+        logging_fn("muVT_from_NVE_solver failed to converge! Try loosening xtol")
         rrst = root_scalar(E_err, x0 = T_guess, method = "secant", xtol = 1e-2)
         if not rrst.converged:
-            logging.warning("muVT_from_NVE_solver still failed to converge at xtol = 1e-2")
+            logging_fn("muVT_from_NVE_solver still failed to converge at xtol = 1e-2")
     
     T_out = rrst.root
     mu, _ = muVT_from_NVT_solver(N, T_out, E_orbs)
-    return mu, T_out, rrst
+    return np.array([T_out, mu]), rrst
 
 def NVT_from_NVS_solver(S_tar: float,
                       exp0: E9M.NVT_exp,
@@ -149,14 +151,15 @@ def NVT_from_NVS_solver(S_tar: float,
     return rrst.root, rrst
 
 def muVT_from_NVS_solver(S_tar: float,
-                       N_tar: float,
-                       subregion_list: list[E9M.muVT_subregion],
-                       T0: float,
-                       mu0: float,
-                       Tbounds: tuple = (0, 5),
-                       mubounds: tuple = (0, 6),
-                       method: str = "Nelder-Mead",
-                       options_dict: dict = None) -> (np.ndarray[float], RootResults):
+                        N_tar: float,
+                        subregion_list: list[E9M.muVT_subregion],
+                        T0: float,
+                        mu0: float,
+                        Tbounds: tuple = (0, 5),
+                        mubounds: tuple = (0, 6),
+                        method: str = "Nelder-Mead",
+                        options_dict: dict = None,
+                        logging_fn = logging.warning) -> (np.ndarray[float], RootResults):
     """Solve for mu and T given S and N (V is held constant).
     
     Returns:
@@ -173,7 +176,7 @@ def muVT_from_NVS_solver(S_tar: float,
 
     orst = minimize(err_fn, x0 = [T0, mu0], bounds = [Tbounds, mubounds], method = method,
                     options = options_dict)
-    if not orst.success: logging.warning("Algorithm failed to converge!")
+    if not orst.success: logging_fn("Algorithm failed to converge!")
     return orst.x, orst
 
 #%% Method that don't work yet

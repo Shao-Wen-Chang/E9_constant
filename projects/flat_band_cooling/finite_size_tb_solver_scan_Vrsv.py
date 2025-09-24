@@ -24,7 +24,7 @@ logging.basicConfig(filename = logpath, level = loglevel)
 #%% Define the model
 lattice_str = "sawtooth"
 parent_folder_name = lattice_str
-lattice_len = 40
+lattice_len = 100
 tnnn = 0.
 # lattice_dim = (lattice_len, lattice_len)    # 2D lattices
 lattice_dim = (lattice_len, 1)              # 1D lattices
@@ -36,7 +36,7 @@ my_tb_model= E9tb.tbmodel_2D(lat_dim = lattice_dim, **tb_params)
 H_bare = my_tb_model.H
 
 # Add (fixed) offset to the bare model
-sys_len = 20
+sys_len = 50
 sys_range = ((lattice_len - sys_len) // 2, (lattice_len + sys_len) // 2)
 n_sys = sys_len**2
 V_rsv_offsets = np.linspace(-5.5, 2., 76)#np.linspace(-3.5, 2, 56)
@@ -70,8 +70,8 @@ data_folder = Path(E9path, "projects", "flat_band_cooling", "eigvals_library")
 bool_save_results = True
 bool_overwrite = False      # always overwrite existing results if True, check existing results if False
 save_new_upto = 1           # if overwrite = False and there is a existing folder, save another result up to the n-th folder
-# arr_str_list_to_save = ["eigvals", "eigvecs", "density_sys"]
-arr_str_list_to_save = ["eigvals", "density_sys"]
+arr_str_list_to_save = ["eigvals", "eigvecs", "density_sys"]
+# arr_str_list_to_save = ["eigvals", "density_sys"]
 
 param_dict = dict()
 if V_std_random != 0:

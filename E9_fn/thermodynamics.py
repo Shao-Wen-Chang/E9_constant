@@ -149,19 +149,20 @@ def find_S(E_orbs, T, Np, xi, mu = None, E_total = None, N_BEC: int = 0):
     else:
         return (E_total - mu * Np) / T + xi * np.log(1 + xi * np.exp((mu - E_orbs) / T)).sum()
 
-def find_SvN(rho: np.ndarray):
-    """Find the von Neumann entropy of a given density matrix (or the eigenvalues of it).
+def find_SvN_fermi(rho: np.ndarray):
+    """Find the von Neumann entropy of a given covariance matrix (or the eigenvalues of it).
     
-    If rho is 1-dimensional, it is assumed to be the eigenvalues of some density matrix.
+    If rho is 1-dimensional, it is assumed to be the eigenvalues of some covariance matrix.
+    I copied Jaewon's formula, which is also in (Surace and Tagliacozzo 2022), eqn.(89) - need to work it out myself
     """
     rho_diag = rho
     if rho.ndim > 2:
         raise(Exception("The dimension of input ndarray must be 1 or 2"))
     elif rho.ndim == 2:
         if not util.IsHermitian(rho):
-            raise(Exception("The input density matrix is not Hermitian!"))
+            raise(Exception("The input covariance matrix is not Hermitian!"))
         else:
             rho_diag = eigh(rho, eigvals_only = True)
     rho_diag[np.where(rho_diag < 0)] = 0.   # remove negative eigenvalues
     
-    return -np.nan_to_num(rho_diag * np.log(rho_diag)).sum()
+    return np.nan_to_num(-rho_diag * np.log(rho_diag) - (1 - rho_diag) * np.log(1 - rho_diag)).sum()
