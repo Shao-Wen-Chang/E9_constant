@@ -45,7 +45,7 @@ runnum_to_load = 1
 N_V_rsv_neg0 = len(V_rsv_offsets_neg0)
 N_V_rsv_pos = len(V_rsv_offsets_pos)
 N_tol = 1e-3            # Tolerable error in resultant N
-S_tol = 1e-1            # Tolerable error in resultant S
+E_tol = 1e-1            # Tolerable error in resultant E
 
 #%% --------------- Load the pre-calculated orbital energies ---------------
 parent_folder_name = lattice_str
@@ -116,10 +116,10 @@ all_N_sys = np.full((N_offsets, N_Ts), np.nan)     # of \rho_{min}, summing cont
 all_SvN_sys = np.full((N_offsets, N_Ts), np.nan)    # of \rho_{min}
 all_SvN_rsv = np.full((N_offsets, N_Ts), np.nan)    # of \rho_{min}
 
-# "minimum energy" results
-all_T_star_G = np.full((N_offsets, N_Ts), np.nan)
-all_mu_star_G = np.full((N_offsets, N_Ts), np.nan)
-all_E_G = np.full((N_offsets, N_Ts), np.nan)
+# "constant energy" results
+all_T_star_E = np.full((N_offsets, N_Ts), np.nan)
+all_mu_star_E = np.full((N_offsets, N_Ts), np.nan)
+all_S_E = np.full((N_offsets, N_Ts), np.nan)
 all_fails = np.zeros((N_offsets, N_Ts))
 def get_i_rsv_for_flag(flag, i):
     if flag == 0:   # V_rsv_offsets_pos
@@ -133,8 +133,8 @@ name_sr1 = sp_name
 
 for i_T, T_init in enumerate(T_init_list):
     # ------------ initial state ------------
-    mu_init, rrst = eqfind.muVT_from_NVT_solver(N_tot, T_init, eigvals_Vrsv0)
-    if rrst.converged:
+    mu_init, orst = eqfind.muVT_from_NVT_solver(N_tot, T_init, eigvals_Vrsv0)
+    if orst.converged:
         filling_factor_T = util.fermi_stat(eigvals_Vrsv0, T_init, mu_init)
         all_fill_init[:, i_T] = filling_factor_T
         all_S_tot[i_T] = thmdy.find_S(eigvals_Vrsv0, T_init, N_tot, +1, mu_init)
@@ -194,19 +194,20 @@ for i_T, T_init in enumerate(T_init_list):
             
             i_rsv = get_i_rsv_for_flag(sgn_flag, i_rsv_sgn)
             eigvals = all_eigvals[i_rsv, :]
-            
-            # --------- "minimum energy" case, i.e. Gibbs state with the same entropy ---------
+            E_tar = all_E_min[i_rsv, i_T]
+
+            # --------- "constant energy" case, i.e. Gibbs state with the same energy ---------
             E_range = (eigvals[0], eigvals[-1])
             sr_list = [E9M.muVT_subregion(name_sr1, sp_name, N_orbs, +1, None, E_range, [], eigvals)]
 
-            Tmu_out, orst = eqfind.muVT_from_NVS_solver(S_tar,
+            Tmu_out, orst = eqfind.muVT_from_NVE_solver(E_tar,
                                                         N_tot,
                                                         sr_list,
                                                         T_guess_now,
                                                         mu_guess_now,
                                                         Tbounds = (0, 2),
-                                                        mubounds = (-6, 6),
-                                                        options_dict = {"fatol": 1e-8, "xatol": 1e-8},
+                                                        mubounds = (-3, 6),
+                                                        options_dict = {"maxiter": 1e4, "maxfev": 1e4, "fatol": 1e-7, "xatol": 1e-5},
                                                         logging_fn = bad_rsv_log_fn)
             T_star, mu_star = Tmu_out[0], Tmu_out[1]
 
@@ -214,18 +215,18 @@ for i_T, T_init in enumerate(T_init_list):
             E_now = thmdy.find_E(eigvals, T_star, mu_star, +1)
             N_now = thmdy.find_Np(eigvals, T_star, mu_star, +1)
             S_now = thmdy.find_S(eigvals, T_star, N_now, +1, mu_star, E_now)
-            N_err, S_err = N_now - N_tot, S_now - S_tar
+            N_err, E_err = N_now - N_tot, E_now - E_tar
             if orst.success:
-                if abs(N_err) < N_tol and abs(S_err) < S_tol:
-                    all_T_star_G[i_rsv, i_T] = T_star
-                    all_mu_star_G[i_rsv, i_T] = mu_star
-                    all_E_G[i_rsv, i_T] = E_now
+                if abs(N_err) < N_tol and abs(E_err) < E_tol:
+                    all_T_star_E[i_rsv, i_T] = T_star
+                    all_mu_star_E[i_rsv, i_T] = mu_star
+                    all_S_E[i_rsv, i_T] = S_now
                     # all_nu_sys[i_rsv, i_T] = np.sum(util.fermi_stat(eigvals, T_now, mu_now) * density_sys) / n_orbs_sys
                     T_guess_now = T_star
                     mu_guess_now = mu_star
                 else:
                     bad_rsv_log_fn(f"The solution doesn't satisfy the specified tolerance! ({TVS_msg})")
-                    bad_rsv_log_fn(f"(N_err = {N_err:.4f}, S_err = {S_err:.4f})")
+                    bad_rsv_log_fn(f"(N_err = {N_err:.4f}, E_err = {E_err:.4f})")
                     bad_rsv_log_fn(f"Supressing the logging level to debug for the following offsets for T = {T_init:.4f}")
                     all_fails[i_rsv, i_T] = 1.
                     bad_rsv_log_fn = logging.debug
@@ -234,7 +235,7 @@ for i_T, T_init in enumerate(T_init_list):
                 all_fails[i_rsv, i_T] = 1.
                 bad_rsv_log_fn = logging.debug
 
-all_Delta_E = all_E_min - all_E_G
+all_Delta_S = all_S_tot[np.newaxis, :] - all_S_E
 all_Delta_s_sys = all_SvN_sys / all_N_sys - all_SvN_sys_init[np.newaxis, :] / all_N_sys_init[np.newaxis, :]
 
 #%% --------------- T-x plots (initial parameters x) ---------------
@@ -261,12 +262,13 @@ ax_N_sys = fig_VrsvT.add_subplot(222)
 ax_E = fig_VrsvT.add_subplot(223)
 # ax_s_init = fig_VrsvT.add_subplot(224)
 
-for ttl, data, ax in zip([r"$\Delta s_{sys}$",  r"$N_{S}$", r'$\Delta E_{tot} / N_{tot}$'],
-                         [all_Delta_s_sys,      all_N_sys,  all_Delta_E / N_tot],
+for ttl, data, ax in zip([r"$\Delta s_{sys}$",  r"$N_{S}$", r'$\Delta S_{tot} / N_{tot}$'],
+                         [all_Delta_s_sys,      all_N_sys,  all_Delta_S / N_tot],
                          [ax_s_sys,             ax_N_sys,   ax_E]):
     mesh_T = ax.pcolormesh(V_rsv_offsets, T_init_list, data.T, shading = 'auto', cmap = 'viridis')
-    
     fig_VrsvT.colorbar(mesh_T, ax = ax)
+
+    # Add colorbar, labels
     ax.set_xlabel('V_rsv_offsets')
     ax.set_ylabel(r'$T_{init}$')
     ax.set_title(ttl)

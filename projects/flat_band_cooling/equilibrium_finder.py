@@ -59,31 +59,28 @@ def muVT_from_NVT_solver(N: float,
             logging_fn("muVT_from_NVT_solver still failed to converge at xtol = 1e-2")
     return rrst.root, rrst
 
-def muVT_from_NVE_solver(N: float,
-                         E: float,
-                         E_orbs: np.ndarray,
-                         T_guess: float = None,
-                         logging_fn = logging.warning) -> tuple[np.ndarray[float], RootResults]:
-    """Find a muVT system that give the right N and E.
+def muVT_from_NVE_solver(E_tar: float,
+                         N_tar: float,
+                         subregion_list: list[E9M.muVT_subregion],
+                         T_guess: float,
+                         mu_guess: float,
+                         Tbounds: tuple,
+                         mubounds: tuple,
+                         method: str = "Nelder-Mead",
+                         options_dict: dict = None,
+                         logging_fn = logging.warning) -> (np.ndarray[float], RootResults):
+    """Solve for mu and T given S and N (V is held constant).
     
-    For each T, this function finds a mu such that the number of particles matches N,
-    and then checks if the energy matches E.
-    
-    If this doesn't work, then try to change T such that mu is increased (decreased)
-    for E too small (large).
-
-    The algorithm makes use of the fact that both the particle number and total energy
-    are monotonically increasing functions of mu at a given T. Assuming that for a fixed
-    N, mu increases with T at large T
-
-    Args:
-        N: total number of particles in the system.
-        E: total energy of the system.
-        E_orbs: energy levels of the system.
-        T_guess: initial guess for T. If None, it will be set to 1 or -1.
+    The old method was based on root_scalar and seems much slower.
+    Assumes only one species and one subregion for now; generalize if this works.
+    Returns:
+        rrst.root: an array of [T, mu] that will give the correct S and N.
+        orst: the OptimizeResult object returned by root_scalar for full information.
     """
+    # Check that the input energy is physically possible
+    E_orbs = subregion_list[0].E_orbs
     E_avg_T_infty = E_orbs.mean()
-    E_avg_input = E / N
+    E_avg_input = E_tar / N_tar
     if E_avg_input > E_orbs[-1] or E_avg_input < E_orbs[0]:
         logging.warning("Illegal average energy input")
         return None, None
@@ -94,21 +91,18 @@ def muVT_from_NVE_solver(N: float,
         logging.debug("E / N is smaller than the average energy at T = inf, try T > 0")
         T_guess = abs(T_guess)
     
-    def E_err(T):
-        mu, _ = muVT_from_NVT_solver(N, T_guess, E_orbs, logging_fn)
-        E_from_mu_and_T = sum(E_orbs * util.fermi_stat(E_orbs, T, mu))
-        return abs(E - E_from_mu_and_T)
-    
-    rrst = root_scalar(E_err, x0 = T_guess, method = "secant")
-    if not rrst.converged:
-        logging_fn("muVT_from_NVE_solver failed to converge! Try loosening xtol")
-        rrst = root_scalar(E_err, x0 = T_guess, method = "secant", xtol = 1e-2)
-        if not rrst.converged:
-            logging_fn("muVT_from_NVE_solver still failed to converge at xtol = 1e-2")
-    
-    T_out = rrst.root
-    mu, _ = muVT_from_NVT_solver(N, T_out, E_orbs)
-    return np.array([T_out, mu]), rrst
+    sp_name = subregion_list[0].species
+    def err_fn(Tmu_guess):
+        T_guess = Tmu_guess[0]
+        mu_guess = Tmu_guess[1]
+        exp_guess = E9M.muVT_exp(T_guess, subregion_list, {sp_name: mu_guess})
+        E, N = exp_guess.E, exp_guess.N_dict[sp_name]
+        return abs(E - E_tar) + abs(N - N_tar)
+
+    orst = minimize(err_fn, x0 = [T_guess, mu_guess], bounds = [Tbounds, mubounds]
+                    , method = method, options = options_dict)
+    if not orst.success: logging_fn("Algorithm failed to converge!")
+    return orst.x, orst
 
 def NVT_from_NVS_solver(S_tar: float,
                       exp0: E9M.NVT_exp,
@@ -153,29 +147,30 @@ def NVT_from_NVS_solver(S_tar: float,
 def muVT_from_NVS_solver(S_tar: float,
                         N_tar: float,
                         subregion_list: list[E9M.muVT_subregion],
-                        T0: float,
-                        mu0: float,
-                        Tbounds: tuple = (0, 5),
-                        mubounds: tuple = (0, 6),
+                        T_guess: float,
+                        mu_guess: float,
+                        Tbounds: tuple,
+                        mubounds: tuple,
                         method: str = "Nelder-Mead",
                         options_dict: dict = None,
                         logging_fn = logging.warning) -> (np.ndarray[float], RootResults):
     """Solve for mu and T given S and N (V is held constant).
     
+    Assumes only one species and one subregion for now; generalize if this works.
     Returns:
         rrst.root: an array of [T, mu] that will give the correct S and N.
-        orst: the OptimizeResult object returned by root_scalar for full information."""
-    # Assumes only one species for now; generalize if this works
+        orst: the OptimizeResult object returned by root_scalar for full information.
+        """
     sp_name = subregion_list[0].species
     def err_fn(Tmu_guess):
         T_guess = Tmu_guess[0]
         mu_guess = Tmu_guess[1]
         exp_guess = E9M.muVT_exp(T_guess, subregion_list, {sp_name: mu_guess})
-        S, T, N = exp_guess.S, exp_guess.T, exp_guess.N_dict[sp_name]
+        S, N = exp_guess.S, exp_guess.N_dict[sp_name]
         return abs(S - S_tar) + abs(N - N_tar)
 
-    orst = minimize(err_fn, x0 = [T0, mu0], bounds = [Tbounds, mubounds], method = method,
-                    options = options_dict)
+    orst = minimize(err_fn, x0 = [T_guess, mu_guess], bounds = [Tbounds, mubounds]
+                    , method = method, options = options_dict)
     if not orst.success: logging_fn("Algorithm failed to converge!")
     return orst.x, orst
 
