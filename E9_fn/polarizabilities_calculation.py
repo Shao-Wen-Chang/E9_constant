@@ -9,7 +9,7 @@ from E9_fn import util
 
 #%% functions
 # TODO: add more comments, I can't read this
-def alpha_pol(K, lamb_in, line_list, state, q = None, F = None, I = None):
+def alpha_pol(K, lamb_in, line_list, state, q = None, F = None, I = None, log_fn = logging.info):
     """[A2·s4·kg−1] Returns the (rank-K) polarizability given a list of lines, ignoring scattering.
     
     See [Axner04], esp. for terminologies in Appendix A. You should understand what I mean by: the result applies for
@@ -30,7 +30,9 @@ def alpha_pol(K, lamb_in, line_list, state, q = None, F = None, I = None):
                     compared to hyperfine splitting. (In particular, this can be violated when one works with very
                     very strong lattices used during microscope imaging.)
                     TODO: review the physics (i.e. when is HF relevant)
-        I:          Required for hyperfine states calculations."""
+        I:          Required for hyperfine states calculations.
+        log_fn:     logging function used when handling line date.
+    """
     alpha = np.zeros_like(lamb_in)
     wl = 2 * np.pi * (E9c.c_light / lamb_in)
     for line in line_list:
@@ -41,7 +43,7 @@ def alpha_pol(K, lamb_in, line_list, state, q = None, F = None, I = None):
         lamb, f_ik = line['lambda'], line['f_ik'] # numbers used in calculation
         if f_ik is None:
             # No oscillator strength (although Einstein A-coefficient might be nonzero)
-            logging.info(line_name + ' transition does not have f_ik data (not E1 allowed?)')
+            log_fn(line_name + ' transition does not have f_ik data (not E1 allowed?)')
             continue
         
         if line['gs'] == state:
@@ -51,7 +53,7 @@ def alpha_pol(K, lamb_in, line_list, state, q = None, F = None, I = None):
             J1, J2 = line['Je'], line['Jg']
             wa = - 2 * np.pi * (E9c.c_light / lamb) # (negaive if the state of concern is the excited state)
         else:
-            logging.info(line_name + ' transition has no effect and is ignored')
+            log_fn(line_name + ' transition has no effect and is ignored')
             continue
         
         # Actual calculation
@@ -82,12 +84,20 @@ def alpha_pol(K, lamb_in, line_list, state, q = None, F = None, I = None):
 
     return prefactor * alpha
 
+def _I2depth_from_pol(I_in, alpha_pol, unit):
+    """Find the effective potential depth in some specified unit given some polarizability."""
+    if unit == "uK":
+        factor = 1 / E9c.k_B * 1e6
+    elif unit == "J":
+        factor = 1.
+    peak_E2 = 2 * I_in / E9c.c_light / E9c.epsilon_0    # square of the electric field
+    return - peak_E2 * (alpha_pol / 4) * factor
+
 def I2uK_from_pol(I_in, alpha_pol):
-    """Find effective potential in uK given some polarizability."""
-    # TODO: think about what I will usually want to use
-    # these are copied from my old ipynb
-    peak_E2 = 2 * I_in / E9c.c_light / E9c.epsilon_0
-    return - peak_E2 * (alpha_pol / 4) / E9c.k_B * 1e6 
+    return _I2depth_from_pol(I_in, alpha_pol, "uK")
+
+def I2J_from_pol(I_in, alpha_pol):
+    return _I2depth_from_pol(I_in, alpha_pol, "J")
 
 def C_av2B(hfs, ul = np.array([1, 0, 0])):
     """Calculate the conversion factor for effective B field (at E = 1 V/m).
@@ -105,10 +115,11 @@ def C_av2B(hfs, ul = np.array([1, 0, 0])):
 
 #%% Convenience functions
 # For very far detuned light with reasonably small power, the following functions should be enough
+# set log_fn to info if the line data is modified to check
 def alpha_s_K_4S1o2(lamb_in):
     """Scalar polarizability of K in the (find structuree) ground state manifold."""
-    return alpha_pol(0, lamb_in, TLData.K_4S1o2_lines, '4S1o2', q = None, F = None, I = None)
+    return alpha_pol(0, lamb_in, TLData.K_4S1o2_lines, '4S1o2', q = None, F = None, I = None, log_fn = logging.debug)
 
 def alpha_s_Rb_5S1o2(lamb_in):
     """Scalar polarizability of K in the (find structuree) ground state manifold."""
-    return alpha_pol(0, lamb_in, TLData.Rb_D12_doublet, '5S1o2', q = None, F = None, I = None)
+    return alpha_pol(0, lamb_in, TLData.Rb_D12_doublet, '5S1o2', q = None, F = None, I = None, log_fn = logging.debug)

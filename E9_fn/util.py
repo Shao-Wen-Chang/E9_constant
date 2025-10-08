@@ -260,6 +260,10 @@ def lambda_de_broglie(m, T):
     return E9c.hnobar / np.sqrt(2 * np.pi * m * E9c.k_B * T)
 
 # Gaussian beam related
+#   For Gaussian beam functions, the convention is
+#       z-axis: optical axis
+#       y-axis: vertical axis
+#       x-axis: the remaining axis
 def I_from_power(P0, w0x, w0y = None):
     """[W/m^2] Return peak intensity of a gaussian beam with power P and beam waist w0.
     
@@ -300,24 +304,34 @@ def I_gaussian_beam_3D(r, z, lamb_in, w0x, w0y = None, theta = 0):
     x, y = r * np.cos(theta), r * np.sin(theta)
     return (w0x / wzx) * np.exp(-(x / wzx)**2 / 2) * (w0y / wzy) * np.exp(-(y / wzy)**2 / 2)
 
-def x2approx_gaussian_beam_3D(lamb_in, w0, theta = 0):
+def x2approx_gaussian_beam_3D(lamb_in, w0x, w0y = None, theta = 0., waxis = "x"):
     """Returns the harmonic oscillator approximation (i.e. taylor expansion up to x^2) of a gaussian beam.
     
     For a gaussian beam given by I(r, z) = I_max * I_gaussian(r = l * cos(theta), z = l * sin(theta), ...)
     , the expansion around l = 0 is
         I(r, z) = I_max * (1 - (return value of this function) * l^2 + O(l^4))
-    , and to approximate trap frequency, use: (V_max = I_max * polarizibility)
-        V(r, z) = V_max * (return) = (1 / 2) * m * w_eff^2 (up to 2nd order)
-    to get, for example,
-        w_eff(theta = np.pi/2) = np.sqrt(4 * V_max / m / w0**2)
+    , and to approximate trap frequency omega_eff, use: (V_max = I_max * polarizibility)
+        V_max * (return) = (1 / 2) * m * omega_eff^2 (up to 2nd order)
+    to get
+        omega_eff = np.sqrt(2 * V_max * (return) / m)
+    for example, for theta = pi/2 (along the waist), we get
+        omega_eff(theta = np.pi/2) = np.sqrt(4 * V_max / m / w0r**2)
+    , as expected.
     
     One gets the result for arbitrary theta easily by "adding up" the contribution from the (w0/w(z)) term
     and the gaussian term.
 
     Args:
-        theta:  angle with respect to the z (optical) axis."""
-    z_part = 1 / rayleigh_range(lamb_in, w0)**2
-    r_part = 2 / w0**2
+        theta:  angle with respect to the z (optical) axis.
+        waxis:  for now use w0x or w0y for calculation (can generalize, but need to change z_part too)
+    """
+    if w0y is None: w0y = w0x
+    w0r = w0x
+    if waxis == "y": w0r = w0y
+    elif waxis != "x": raise(ValueError("waxis must be 'x' or 'y'"))
+
+    z_part = (1 / rayleigh_range(lamb_in, w0x)**2 + 1 / rayleigh_range(lamb_in, w0y)**2) / 2
+    r_part = 2 / w0r**2
     return np.cos(theta)**2 * z_part + np.sin(theta)**2 * r_part
 
 # Others
