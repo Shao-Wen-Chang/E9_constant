@@ -350,6 +350,13 @@ def quadrupole_Bfield_vec(pos, Bz_grad):
     return B
 
 #%% Special functions not defined in scipy
+def sinc(x):
+    """The sinc function sin(x)/x.
+    
+    np.sinc is defined as sinc(pi * x) / (pi * x) and I don't like it.
+    """
+    return np.sinc(x / np.pi)
+
 def gaussian_2D(xy,
                 x0: float,
                 y0: float, 
@@ -537,7 +544,7 @@ def set_custom_plot_style(activate: bool = True, overwrite: dict = {}):
     else:
         plt.rcdefaults()
 
-def get_color(var, var_list: np.ndarray, cmap, assignment = "index", 
+def get_color(var, var_list: np.ndarray, cmap = plt.cm.viridis, assignment = "index", 
               crange = (0.0, 1.0), cfn = lambda x: x):
     """Get a color from a colormap based on a variable's index or value, 
     with optional range and scaling adjustments.

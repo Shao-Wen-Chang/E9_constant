@@ -24,7 +24,8 @@ from scipy.special import zeta
 def Gamma_scat(s0, delta, gamma):
     """[Hz] Returns the photon scattering rate as calculated by TLS optical Bloch equation.
     
-    This is \gamma_p in [PvdS] eqn 2.26."""
+    This is \gamma_p in [PvdS] eqn 2.26.
+    """
     return (gamma / 2) * s0 / (1 + s0 + (2 * delta / gamma)**2)
 
 #%% Laser cooling related
@@ -321,7 +322,7 @@ def V0_from_I(Gamma, nu, fl, I, gF, mF, P_pol = 0, Delta_FS = 0):
     """[J] Gives the trap depth for a hyperfine state (hfs).
     
     See [Grimm99] eqn.20. This works for the large detuning (>> fine structure splitting of relevant excited states) limit.
-        Gamma: [Hz] (average) linewidth of relevant excited states. Usually the 2P3/2 and 2P1/2 states.
+        Gamma: [rad/s] (average) linewidth of relevant excited states. Usually the 2P3/2 and 2P1/2 states.
         nu: [Hz] (average) excited state energy in frequency. Note that w0 = 2 * pi * nu.
         fl: [Hz] frequency of light field. Note that wl = 2 * pi * fl.
         I: [W/m^2] light intensity.
@@ -331,7 +332,6 @@ def V0_from_I(Gamma, nu, fl, I, gF, mF, P_pol = 0, Delta_FS = 0):
         Delta_FS: [Hz] difference between the two excited state. Note that [Grimm99] use angular frequency [rad/s]."""
     w0 = 2 * np.pi * nu
     wl = 2 * np.pi * fl
-    Gamma = 2 * np.pi * Gamma
     Delta = wl - w0
     Delta_FS = 2 * np.pi * Delta_FS
     return (3 * np.pi * E9c.c_light**2 / 2 / w0**3) * (Gamma / Delta) * (1 + (P_pol * gF * mF / 3) * (Delta_FS / Delta)) * I

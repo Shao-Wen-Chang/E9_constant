@@ -85,8 +85,10 @@ a_bg_Li6 = -1405 * a0       # not sure
 U_GPE_Rb87 = 4 * np.pi * a_bg_Rb87
 
 # Line constants organized by species
-    # Saturation intensities are in [W/m^2]; divide by 10 for [mW/cm^2]. Assuming circularly polarized light
-    # nu's and gamma's are in FREQUENCIES, not ANGULAR FREQUENCIES
+    # Saturation intensities are in [W/m^2]; divide by 10 for [mW/cm^2]. They are given by e.g.
+    # E9c.hbar * (2 * np.pi * E9c.nu_K40_4_2P3o2)**3 * E9c.gamma_K40_D2 / (12 * np.pi * E9c.c_light**2)
+    # Assuming on resonance, closed transition & correct circular polarization
+    # nu's are in FREQUENCIES, and gamma's are in ANGULAR FREQUENCIES
 # 39K
 lambda_K39_D1 = 770.108385049e-9
 lambda_K39_D2 = 766.700921822e-9
@@ -97,14 +99,15 @@ nu_K40_4_2P = (nu_K40_4_2P1o2 + nu_K40_4_2P3o2) / 2 # average of D1 & D2 line fo
 Delta_K40_4_2P = (nu_K40_4_2P3o2 - nu_K40_4_2P1o2) # diffference of D1 & D2 line for convenience
 lambda_K40_D1 = 770.108136507e-9
 lambda_K40_D2 = 766.700674872e-9
-gamma_K40_D2 = 6.035e6
+gamma_K40_D2 = 6.035e6 * 2 * np.pi
+I_sat_K40_D2 = 17.5019
 # 87Rb
 nu_Rb87_5_2P1o2 = 377.107463380e12      # 87Rb D1 line
 nu_Rb87_5_2P3o2 = 384.2304844685e12     # 87Rb D2 line
 nu_Rb87_5_2P = (nu_Rb87_5_2P1o2 + nu_Rb87_5_2P3o2) / 2  # average of D1 & D2 line for convenience
 Delta_Rb87_5_2P = (nu_Rb87_5_2P3o2 - nu_Rb87_5_2P1o2)   # diffference of D1 & D2 line for convenience
 lambda_Rb87_D2 = 780.241209686e-9
-gamma_Rb87_D2 = 6.0666e6
+gamma_Rb87_D2 = 6.0666e6 * 2 * np.pi
 I_sat_Rb87_D2 = 16.6933
 
 # Trap loss constants
@@ -213,11 +216,23 @@ kB12 = K3
 kB23 = -K1
 # freq_K = np.linalg.norm(G3) * hbar / np.sqrt(3) / m_unit / A / l_unit**2 # don't remember what's this
 
-# recoil energies
-E_R1064_Rb87 = hbar**2 / 2 / m_Rb87 * (2*np.pi/lambda_lw)**2 # 1064 photon recoil energy
-E_R532_Rb87  = hbar**2 / 2 / m_Rb87 * (2*np.pi/lambda_sw)**2 # 532 photon recoil energy
-E_R1064_K40  = hbar**2 / 2 / m_K40 * (2*np.pi/lambda_lw)**2 # 1064 photon recoil energy
-E_R532_K40   = hbar**2 / 2 / m_K40 * (2*np.pi/lambda_sw)**2 # 532 photon recoil energy
+# recoil momenta, velocities, and energies
+p_r1064 = hnobar / lambda_lw
+p_r532 = hnobar / lambda_sw
+p_r780 = hnobar / lambda_Rb87_D2         # imaging frequencies (only consider for relevant species)
+p_r767 = hnobar / lambda_K40_D2
+
+v_r1064_Rb87 = p_r1064 / m_Rb87
+v_r532_Rb87 = p_r532 / m_Rb87
+v_r780_Rb87 = p_r780 / m_Rb87
+v_r1064_K40 = p_r1064 / m_K40
+v_r532_K40 = p_r532 / m_K40
+v_r767_K40 = p_r767 / m_K40
+
+E_r1064_Rb87 = p_r1064**2 / 2 / m_Rb87  # 1064 photon recoil energy
+E_r532_Rb87  = p_r532**2 / 2 / m_Rb87   # 532 photon recoil energy
+E_r1064_K40  = p_r1064**2 / 2 / m_K40   # 1064 photon recoil energy
+E_r532_K40   = p_r532**2 / 2 / m_K40    # 532 photon recoil energy
 
 #%% Natural units for lattice calculations
 # m_atom = hbar = l_sw = 1
