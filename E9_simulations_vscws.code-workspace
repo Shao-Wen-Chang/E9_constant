@@ -1,8 +1,11 @@
 {
 	"folders": [
-		{
-			"path": "."
-		}
-	],
+        {
+            "path": "."
+        },
+        {
+            "path": "../Kagome-Hubbard-DMRG"
+        }
+    ],
 	"settings": {}
 }
