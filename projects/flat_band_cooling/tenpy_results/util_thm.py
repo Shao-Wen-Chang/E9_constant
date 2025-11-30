@@ -15,29 +15,13 @@ def parse_folder_name(folder_name: str) -> dict:
     if len(parts) < 3:
         raise ValueError(f"Folder name doesn't have expected format: {folder_name}")
 
-    lattice_geometry = parts[0]
-    spin_part = parts[1]
-    interact_part = parts[2]
-
-    # Spin: True = spinful, False = spinless
-    if spin_part == "spinful":
-        spinful = True
-    elif spin_part == "spinless":
-        spinful = False
-    else:
-        raise ValueError(f"Unknown spin specifier: {spin_part}")
-
-    # Interacting: True = I, False = NI
-    if interact_part == "I":
-        interacting = True
-    elif interact_part == "NI":
-        interacting = False
-    else:
-        raise ValueError(f"Unknown interaction specifier: {interact_part}")
+    geometry = parts[0]
+    spin = parts[1]
+    interacting = parts[2]
 
     params = {
-        "lattice_geometry": lattice_geometry,
-        "spinful": spinful,
+        "geometry": geometry,
+        "spin": spin,
         "interacting": interacting,
     }
 
