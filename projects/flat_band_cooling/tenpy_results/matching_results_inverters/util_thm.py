@@ -165,7 +165,7 @@ def slice_constant_V(
 ):
     """
     Given V(N, S) and param(N, S) on a rectangular grid, extract param along the
-    constant-V curve V(N, S) = V0, assuming N(S) is single-valued.
+    constant-V curve V(N, S) = V0, assuming N(S)|(V = V0) is single-valued.
 
     Although the function has "V" in its name, one doesn't really need to use V_offset
     for V_all.

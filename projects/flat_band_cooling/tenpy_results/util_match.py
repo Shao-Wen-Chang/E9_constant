@@ -1,5 +1,7 @@
 from pathlib import Path
 import numpy as np
+import pandas as pd
+import os
 
 def parse_folder_name(folder_name: str) -> dict:
     """
@@ -139,3 +141,112 @@ def s2_at_mu(mu_vals, beta_vals, s2_grid, mu_of_beta, fill_value=np.nan):
                                   left=fill_value, right=fill_value)
 
     return s2_of_beta
+
+def _match_rows(df, row, cols, float_tol=1e-8):
+    """Return boolean mask of rows in df that match `row` on all `cols`."""
+    if df.empty or len(cols) == 0:
+        return np.zeros(len(df), dtype=bool)
+
+    mask = np.ones(len(df), dtype=bool)
+
+    for col in cols:
+        val = row[col]
+        s = df[col]
+
+        if pd.api.types.is_numeric_dtype(s):
+            # numeric comparison with tolerance, NaN == NaN
+            mask &= np.isclose(
+                s.to_numpy(dtype=float),
+                float(val),
+                atol=float_tol,
+                rtol=0.0,
+                equal_nan=True,
+            )
+        else:
+            # non-numeric: exact match, treating NaN == NaN
+            if pd.isna(val):
+                mask &= s.isna().to_numpy()
+            else:
+                mask &= (s == val).to_numpy()
+
+    return mask
+
+def update_eos_csv(
+    df_new: pd.DataFrame,
+    csv_path: Path,
+    param_cols: list,
+    bool_overwrite_conflict: bool = False,
+    float_tol: float = 1e-8,
+):
+    """
+    Merge df_new into a CSV at csv_path.
+
+    param_cols:
+        Columns that define the *input parameters* (including file_mtime).
+
+    Logic per new row:
+        - Look for rows in existing CSV with exactly the same param_cols.
+        - If none exist: append the new row.
+        - If one or more exist:
+            * Compare "result columns" (all columns not in param_cols).
+            * If any existing row has identical results (within float_tol): do nothing.
+            * Otherwise:
+                - if bool_overwrite_conflict: replace all matching rows with the new row.
+                - else: print a warning, keep existing rows, ignore new row.
+    """
+    # 1. Load existing CSV, or start from empty
+    if os.path.exists(csv_path):
+        df_old = pd.read_csv(csv_path)
+    else:
+        df_old = pd.DataFrame()
+
+    # 2. Align columns between old and new
+    all_cols = sorted(set(df_old.columns) | set(df_new.columns))
+    df_old = df_old.reindex(columns=all_cols)
+    df_new = df_new.reindex(columns=all_cols)
+
+    # "Results" = everything that isn't an input
+    result_cols = [c for c in all_cols if c not in param_cols]
+
+    # 3. If no old data, just save and return
+    if df_old.empty:
+        df_new.to_csv(csv_path, index=False)
+        return
+
+    identical_counter = 0
+    # 4. Process each new row
+    for _, row in df_new.iterrows():
+        # rows with the same input parameters (incl. mtime, since it's in param_cols)
+        mask_same_inputs = _match_rows(df_old, row, param_cols, float_tol=float_tol)
+
+        if not mask_same_inputs.any():
+            df_old = pd.concat([df_old, row.to_frame().T], ignore_index=True)
+            continue
+
+        # There are existing rows with identical inputs
+        existing_df = df_old.loc[mask_same_inputs]
+
+        # Check if any of them has identical results as well
+        mask_identical_results = _match_rows(
+            existing_df, row, result_cols, float_tol=float_tol
+        )
+        if mask_identical_results.any():
+            identical_counter += 1
+            continue
+
+        # If we get here: same inputs, but *no* row with same results => conflict
+        print(
+            "WARNING: conflicting results for identical input parameters; "
+            f"Ntot={row.get('Ntot')}, beta={row.get('beta')}, "
+            f"n_s={row.get('n_s')}, mtime={row.get('file_mtime')}"
+        )
+
+        if bool_overwrite_conflict:
+            df_old = df_old.drop(existing_df.index)
+            df_old = pd.concat([df_old, row.to_frame().T], ignore_index=True)
+        else:
+            pass
+
+    if identical_counter > 0:
+        print(f"{identical_counter} rows already existed in .csv")
+    df_old.to_csv(csv_path, index=False)
