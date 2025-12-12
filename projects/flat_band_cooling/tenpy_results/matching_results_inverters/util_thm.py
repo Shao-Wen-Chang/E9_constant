@@ -8,8 +8,8 @@ import pandas as pd
 def invert_NS_to_beta_param_df(
     df,
     N_target,
-    S_target,
-    param_str: str,
+    S_targets,
+    param_str_list: str | list[str],
     *,
     beta_min=None,
     beta_max=None,
@@ -28,9 +28,9 @@ def invert_NS_to_beta_param_df(
         Must contain columns: "Ntot", "beta", "S2_tot", param_str.
     N_target : float
         Desired total particle number (must match some Ntot in df).
-    S_target : float
+    S_targets : float or np.array
         Desired S_tot.
-    param_str : str
+    param_str_list : str or list of str
         Column name of the parameter of interest (e.g. "V_offset", "mu_glob", ...).
     beta_min, beta_max : float or None
         Optional bounds to restrict the beta range used for the inversion.
@@ -44,6 +44,9 @@ def invert_NS_to_beta_param_df(
         beta(N_target, S_target), param(N_target, S_target),
         or (fill_value, fill_value) if not found.
     """
+    if type(param_str_list) == str:
+        param_str_list = [param_str_list]
+    fill_value_arr = np.full_like(S_targets, fill_value)
 
     # 1) select rows for this N_target
     N_vals = df["Ntot"].to_numpy(dtype=float)
@@ -54,31 +57,33 @@ def invert_NS_to_beta_param_df(
     if beta_max is not None:
         mask_N &= df["beta"].to_numpy(dtype=float) <= beta_max
 
-    df_N = df.loc[mask_N, ["beta", "S2_tot", param_str]].dropna()
+    df_N = df.loc[mask_N, ["beta", "S2_tot"] + param_str_list].dropna()
     if df_N.shape[0] < 2:
         # not enough points to interpolate
-        return fill_value, fill_value
+        return fill_value_arr, fill_value_arr
 
     # 2) sort by beta (scan parameter)
     df_N = df_N.sort_values("beta")
 
     beta  = df_N["beta"].to_numpy(dtype=float)
     S     = df_N["S2_tot"].to_numpy(dtype=float)
-    param = df_N[param_str].to_numpy(dtype=float)
+    param_list = []
+    for param_str in param_str_list:
+        param_list.append(df_N[param_str].to_numpy(dtype=float))
 
     # remove any NaNs
-    mask_finite = np.isfinite(beta) & np.isfinite(S) & np.isfinite(param)
-    beta, S, param = beta[mask_finite], S[mask_finite], param[mask_finite]
+    mask_finite = np.isfinite(beta) & np.isfinite(S)
+    for param in param_list:
+        mask_finite &= np.isfinite(param)
+    
+    beta, S = beta[mask_finite], S[mask_finite]
+    for param in param_list:
+        param = param[mask_finite]
 
     if beta.size < 2:
-        return fill_value, fill_value
+        return fill_value_arr, fill_value_arr
 
-    # 3) ensure S_target is in range for this branch
-    S_min, S_max = S.min(), S.max()
-    if not (S_min <= S_target <= S_max):
-        return fill_value, fill_value
-
-    # 4) check (optional) monotonicity of S(beta) on this branch
+    # 3) check (optional) monotonicity of S(beta) on this branch
     dS = np.diff(S)
     if not (np.all(dS >= 0) or np.all(dS <= 0)):
         # not strictly monotonic -> the "inverse" is multi-valued;
@@ -87,7 +92,7 @@ def invert_NS_to_beta_param_df(
         # print("Warning: S(beta) not monotonic on this branch; inversion ambiguous.")
         pass
 
-    # 5) invert S(beta) -> beta(S)
+    # 4) invert S(beta) -> beta(S)
     # np.interp requires S to be increasing; flip if needed
     if S[0] > S[-1]:
         S_sorted = S[::-1]
@@ -96,55 +101,22 @@ def invert_NS_to_beta_param_df(
         S_sorted = S
         beta_sorted = beta
 
-    beta_star = np.interp(S_target, S_sorted, beta_sorted)
+    beta_star = np.interp(S_targets, S_sorted, beta_sorted,
+                            left=fill_value, right=fill_value)
 
-    # 6) now get param at that beta
-    param_star = np.interp(beta_star, beta, param,
-                           left=fill_value, right=fill_value)
+    # 5) now get param at that beta
+    param_star_list = []
+    for param in param_list:
+        param_star_list.append(np.interp(beta_star, beta, param,
+                            left=fill_value, right=fill_value))
 
-    return beta_star, param_star
-
-def invert_NS_curve_for_fixed_N_df(
-    df,
-    N_target,
-    S_targets,
-    param_str,
-    *,
-    beta_min=None,
-    beta_max=None,
-    fill_value=np.nan,
-):
-    """
-    Vectorized wrapper: for fixed N_target, invert a list/array of S_targets.
-
-    Returns
-    -------
-    betas : 1D array
-    params  : 1D array
-        beta(S), Delta mu(S) for each S_targets[i]
-    """
-    S_targets   = np.atleast_1d(S_targets)
-    betas       = np.full(S_targets.shape, fill_value, dtype=float)
-    params      = np.full(S_targets.shape, fill_value, dtype=float)
-
-    for i, S_target in enumerate(S_targets):
-        betas[i], params[i] = invert_NS_to_beta_param_df(
-            df,
-            N_target = N_target,
-            S_target = S_target,
-            param_str = param_str,
-            beta_min = beta_min,
-            beta_max = beta_max,
-            fill_value = fill_value,
-        )
-
-    return betas, params
+    return beta_star, param_star_list
 
 def invert_NS_mat_df(
     df,
     N_targets,
     S_targets,
-    param_str,
+    param_str_list,
     *,
     beta_min=None,
     beta_max=None,
@@ -159,23 +131,28 @@ def invert_NS_mat_df(
     params  : 2D array
         beta(S), Delta mu(S) for each S_targets[i]
     """
+    if type(param_str_list) == str:
+        param_str_list = [param_str_list]
+    
     N_targets   = np.atleast_1d(N_targets)
     S_targets   = np.atleast_1d(S_targets)
     betas       = np.full([len(N_targets), len(S_targets)], fill_value, dtype=float)
-    params      = np.full([len(N_targets), len(S_targets)], fill_value, dtype=float)
-
+    params_list = [np.full([len(N_targets), len(S_targets)], fill_value, dtype=float) for _ in param_str_list]
+    
     for i, N_target in enumerate(N_targets):
-        betas[i,:], params[i,:] = invert_NS_curve_for_fixed_N_df(
+        betas[i,:], params_at_N_tar = invert_NS_to_beta_param_df(
             df,
             N_target = N_target,
             S_targets = S_targets,
-            param_str = param_str,
+            param_str_list = param_str_list,
             beta_min = beta_min,
             beta_max = beta_max,
             fill_value = fill_value,
         )
+        for j, params in enumerate(params_list):
+            params[i,:] = params_at_N_tar[j]
 
-    return betas, params
+    return betas, params_list
 
 def slice_constant_V(
     N_vals,
