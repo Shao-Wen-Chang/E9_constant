@@ -1,0 +1,324 @@
+import numpy as np
+import pandas as pd
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+def invert_NS_to_beta_param_df(
+    df,
+    N_target,
+    S_target,
+    param_str: str,
+    *,
+    beta_min=None,
+    beta_max=None,
+    fill_value=np.nan,
+):
+    """
+    Invert (Ntot, beta) -> (param, S_tot) to get
+    (Ntot, S_tot) -> (beta, param), using df (e.g. df_matching_rslt).
+
+    We invert along beta for a fixed N_target, optionally restricted
+    to beta_min <= beta <= beta_max (to select a monotonic branch).
+
+    Parameters
+    ----------
+    df : DataFrame
+        Must contain columns: "Ntot", "beta", "S2_tot", param_str.
+    N_target : float
+        Desired total particle number (must match some Ntot in df).
+    S_target : float
+        Desired S_tot.
+    param_str : str
+        Column name of the parameter of interest (e.g. "V_offset", "mu_glob", ...).
+    beta_min, beta_max : float or None
+        Optional bounds to restrict the beta range used for the inversion.
+        For example, use beta_min=0 to ignore negative temperatures.
+    fill_value : float
+        Returned when inversion is not possible.
+
+    Returns
+    -------
+    beta_star, param_star : float, float
+        beta(N_target, S_target), param(N_target, S_target),
+        or (fill_value, fill_value) if not found.
+    """
+
+    # 1) select rows for this N_target
+    N_vals = df["Ntot"].to_numpy(dtype=float)
+    mask_N = np.isclose(N_vals, N_target)
+
+    if beta_min is not None:
+        mask_N &= df["beta"].to_numpy(dtype=float) >= beta_min
+    if beta_max is not None:
+        mask_N &= df["beta"].to_numpy(dtype=float) <= beta_max
+
+    df_N = df.loc[mask_N, ["beta", "S2_tot", param_str]].dropna()
+    if df_N.shape[0] < 2:
+        # not enough points to interpolate
+        return fill_value, fill_value
+
+    # 2) sort by beta (scan parameter)
+    df_N = df_N.sort_values("beta")
+
+    beta  = df_N["beta"].to_numpy(dtype=float)
+    S     = df_N["S2_tot"].to_numpy(dtype=float)
+    param = df_N[param_str].to_numpy(dtype=float)
+
+    # remove any NaNs
+    mask_finite = np.isfinite(beta) & np.isfinite(S) & np.isfinite(param)
+    beta, S, param = beta[mask_finite], S[mask_finite], param[mask_finite]
+
+    if beta.size < 2:
+        return fill_value, fill_value
+
+    # 3) ensure S_target is in range for this branch
+    S_min, S_max = S.min(), S.max()
+    if not (S_min <= S_target <= S_max):
+        return fill_value, fill_value
+
+    # 4) check (optional) monotonicity of S(beta) on this branch
+    dS = np.diff(S)
+    if not (np.all(dS >= 0) or np.all(dS <= 0)):
+        # not strictly monotonic -> the "inverse" is multi-valued;
+        # you can decide to warn or handle more carefully here.
+        # For now we still do a simple interp, but be aware it's ambiguous.
+        # print("Warning: S(beta) not monotonic on this branch; inversion ambiguous.")
+        pass
+
+    # 5) invert S(beta) -> beta(S)
+    # np.interp requires S to be increasing; flip if needed
+    if S[0] > S[-1]:
+        S_sorted = S[::-1]
+        beta_sorted = beta[::-1]
+    else:
+        S_sorted = S
+        beta_sorted = beta
+
+    beta_star = np.interp(S_target, S_sorted, beta_sorted)
+
+    # 6) now get param at that beta
+    param_star = np.interp(beta_star, beta, param,
+                           left=fill_value, right=fill_value)
+
+    return beta_star, param_star
+
+def invert_NS_curve_for_fixed_N_df(
+    df,
+    N_target,
+    S_targets,
+    param_str,
+    *,
+    beta_min=None,
+    beta_max=None,
+    fill_value=np.nan,
+):
+    """
+    Vectorized wrapper: for fixed N_target, invert a list/array of S_targets.
+
+    Returns
+    -------
+    betas : 1D array
+    params  : 1D array
+        beta(S), Delta mu(S) for each S_targets[i]
+    """
+    S_targets   = np.atleast_1d(S_targets)
+    betas       = np.full(S_targets.shape, fill_value, dtype=float)
+    params      = np.full(S_targets.shape, fill_value, dtype=float)
+
+    for i, S_target in enumerate(S_targets):
+        betas[i], params[i] = invert_NS_to_beta_param_df(
+            df,
+            N_target = N_target,
+            S_target = S_target,
+            param_str = param_str,
+            beta_min = beta_min,
+            beta_max = beta_max,
+            fill_value = fill_value,
+        )
+
+    return betas, params
+
+def invert_NS_mat_df(
+    df,
+    N_targets,
+    S_targets,
+    param_str,
+    *,
+    beta_min=None,
+    beta_max=None,
+    fill_value=np.nan,
+):
+    """
+    Vectorized wrapper: invert a list/array of N_targets and S_targets.
+
+    Returns
+    -------
+    betas : 2D array
+    params  : 2D array
+        beta(S), Delta mu(S) for each S_targets[i]
+    """
+    N_targets   = np.atleast_1d(N_targets)
+    S_targets   = np.atleast_1d(S_targets)
+    betas       = np.full([len(N_targets), len(S_targets)], fill_value, dtype=float)
+    params      = np.full([len(N_targets), len(S_targets)], fill_value, dtype=float)
+
+    for i, N_target in enumerate(N_targets):
+        betas[i,:], params[i,:] = invert_NS_curve_for_fixed_N_df(
+            df,
+            N_target = N_target,
+            S_targets = S_targets,
+            param_str = param_str,
+            beta_min = beta_min,
+            beta_max = beta_max,
+            fill_value = fill_value,
+        )
+
+    return betas, params
+
+def slice_constant_V(
+    N_vals,
+    S_vals,
+    V_all,
+    param_all,
+    V0,
+    fill_value=np.nan,
+    atol=1e-10,
+):
+    """
+    Given V(N, S) and param(N, S) on a rectangular grid, extract param along the
+    constant-V curve V(N, S) = V0, assuming N(S) is single-valued.
+
+    Although the function has "V" in its name, one doesn't really need to use V_offset
+    for V_all.
+
+    Parameters
+    ----------
+    N_vals : 1D array, shape (N_N,)
+        Grid values for N (axis 0 of V_all, param_all).
+    S_vals : 1D array, shape (N_S,)
+        Grid values for S (axis 1 of V_all, param_all).
+    V_all : 2D array, shape (N_N, N_S)
+        V_all[i, j] = V(N_vals[i], S_vals[j]).
+    param_all : 2D array, shape (N_N, N_S)
+        param_all[i, j] = s_s(N_vals[i], S_vals[j]).
+    V0 : float
+        Target value of V defining the curve V = V0.
+    fill_value : float (default: NaN)
+        Value used when no crossing is found at a given S.
+    atol : float
+        Tolerance for considering V == V0 at a grid point.
+
+    Returns
+    -------
+    N_on_curve : 1D array, shape (N_S,)
+        N(S) such that V(N(S), S) = V0. May contain fill_value where no solution.
+    s_s_on_curve : 1D array, shape (N_S,)
+        s_s(N(S), S) along the constant-V curve. Same masking as N_on_curve.
+    """
+    N_vals = np.asarray(N_vals, dtype=float)
+    S_vals = np.asarray(S_vals, dtype=float)
+    V_all = np.asarray(V_all, dtype=float)
+    param_all = np.asarray(param_all, dtype=float)
+
+    if V_all.shape != param_all.shape:
+        raise ValueError("V_all and param_all must have the same shape.")
+    if V_all.shape != (N_vals.size, S_vals.size):
+        raise ValueError(
+            "V_all shape must be (len(N_vals), len(S_vals)); "
+            f"got {V_all.shape} vs ({N_vals.size}, {S_vals.size})."
+        )
+
+    N_on_curve = np.full(S_vals.shape, fill_value, dtype=float)
+    s_s_on_curve = np.full(S_vals.shape, fill_value, dtype=float)
+
+    # Loop over S; for each S_j, treat V(N, S_j) as a 1D function of N
+    for j in range(S_vals.size):
+        V_col = V_all[:, j]
+        s_col = param_all[:, j]
+
+        # Skip columns with no finite data
+        if not np.any(np.isfinite(V_col)):
+            continue
+
+        diff = V_col - V0
+
+        # 1) Check for exact (within atol) hit on a grid point
+        exact_idx = np.where(np.isfinite(diff) & (np.abs(diff) <= atol))[0]
+        if exact_idx.size > 0:
+            i0 = exact_idx[0]
+            N0 = N_vals[i0]
+            s0 = s_col[i0]
+            N_on_curve[j] = N0
+            s_s_on_curve[j] = s0
+            continue
+
+        # 2) Look for a sign change of V - V0 between neighboring N points
+        found = False
+        for i in range(N_vals.size - 1):
+            if not (np.isfinite(diff[i]) and np.isfinite(diff[i+1])):
+                continue
+
+            # Check if V - V0 changes sign between i and i+1
+            if diff[i] * diff[i+1] < 0:
+                # Linear interpolation in N between (N_i, V_i) and (N_{i+1}, V_{i+1})
+                N0 = np.interp(
+                    V0,
+                    [V_col[i], V_col[i+1]],
+                    [N_vals[i], N_vals[i+1]],
+                )
+                # Interpolate s_s at that N0 using the same bracket
+                s0 = np.interp(
+                    N0,
+                    [N_vals[i], N_vals[i+1]],
+                    [s_col[i], s_col[i+1]],
+                )
+                N_on_curve[j] = N0
+                s_s_on_curve[j] = s0
+                found = True
+                break
+
+        # If no sign change found, N_on_curve[j] and s_s_on_curve[j]
+        # remain as fill_value (e.g. NaN)
+        if not found:
+            continue
+
+    return N_on_curve, s_s_on_curve
+
+#%% Obsolete
+def get_eos_file_path(params_dict, subdir = "eos_results"):
+    pattern_parts = ["eos"]
+    # Loop through the parameters in params_dict and construct the pattern
+    for param, value in params_dict.items():
+        # If value is a wildcard, use '*' in the pattern; otherwise, format the value
+        if value == "*":
+            pattern_parts.append(f"_{param}*")
+        else:
+            pattern_parts.append(f"_{param}{value:.3f}".replace(".", "p") if isinstance(value, float) else f"_{param}{value}")
+    
+    pattern_parts.append(".csv")
+    return Path(subdir, "".join(pattern_parts))
+
+def add_point(records, fixed_dict, other_dict):
+    rec = {}
+    rec.update(fixed_dict)
+    rec.update(other_dict)
+    records.append(rec)
+
+def read_eos_files(dir = ""):
+    # Load all slices
+    csv_path = Path(dir)
+    files = sorted(csv_path.glob("eos_*.csv"))
+    dfs = [pd.read_csv(f) for f in files]
+
+    # Concatenate into one big table
+    if len(dfs) == 0:
+        print("no matching files found")
+        eos = None
+    elif len(dfs) == 1:
+        eos = dfs[0]
+    else:
+        eos = pd.concat(dfs, ignore_index=True)
+
+    return eos
