@@ -469,9 +469,14 @@ def dirac_delta(x, x0 = 0, hw = 1e-6):
     else:
         return rect_fn(x, x0 = x0 - hw, x1 = x0 + hw) / (2 * hw)
 
-def Gaussian_1D(x, s = 1, mu = 0):
-    """The Gaussian normal distribution (i.e. integrates to 1)."""
-    return np.exp(-(1/2) * (x - mu)**2 / s**2) / (s * np.sqrt(2 * np.pi))
+def Gaussian_1D(x, s = 1, mu = 0, normalization = "norm1"):
+    """The Gaussian function, default to the normal distribution (i.e. integrates to 1)."""
+    if normalization == "norm1":
+        return np.exp(-(1/2) * (x - mu)**2 / s**2) / (s * np.sqrt(2 * np.pi))
+    elif normalization == "max1":
+        return np.exp(-(1/2) * (x - mu)**2 / s**2)
+    else:
+        raise(ValueError("'normalization' should be 'norm1' or 'max1'."))
 
 def gaussian_1D_integral(s):
     """The integral of a gaussian with width s and amplitude 1."""

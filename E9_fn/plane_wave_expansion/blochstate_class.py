@@ -544,32 +544,13 @@ def PlotEnergyFunctional(ax, datalist, marker = '-', label = '', color = 'r', in
     xq = [psi.q[1] for psi in datalist]
     ax.plot(xq, energies, marker, label = label, color = color)
 
-# check if I want to keep this
-def PlotBZSubplot(ax_BZ, qset = '', BZcolor = E9c.BZcolor_PRL):
-    """Plot the Brillouin zone of lattice(, and the quasimomentum path / area if given).
+def PlotBZSubplot(ax_BZ: plt.axes = None, BZcolor = E9c.BZcolor_PRL):
+    """Plot the Brillouin zone of lattice.
     
     By default the quasimomentum plotted is normalized by K.
-    Args:
-        qset: there are two different possible kinds of inputs
-                  i) string: if q-points are defined along some path. e.g. 'Kp/K, Gp/K, Mp/K, Kp/K'
-                     In this case, a series of arrows indicate the quasimomentum path.
-                 ii) a tuple of (string, points) where points is an array obtained from FindqArea(eval(qvert))
-                     Here the area of interest is shaded, and each point is marked in the BZ.
-              This input assumes that the evaluated elements are normalized by K."""
-    # Determine what input type was given
-    if qset == '':
-        qset_type = 0
-    elif type(qset) == str:
-        qset_type = 1
-        qstr = qset
-        q_verts = eval(qstr)
-    elif type(qset) == tuple:
-        qset_type = 2
-        qstr, q_pts = qset
-        q_verts = eval(qstr)
-    
+    """
+    if ax_BZ is None: fig, ax_BZ = plt.subplots(1, 1)
     # Define Path objects for BZ
-    arrow_color = '#FF5500'#'#FAB16C'
     xx, yy = np.meshgrid(np.arange(-4, 4), np.arange(-4, 4))
     path1 = util.get_closed_polygon(E9c.BZ1_vertices)
     path2 = util.get_closed_polygon(E9c.BZ2_vertices)
@@ -590,26 +571,9 @@ def PlotBZSubplot(ax_BZ, qset = '', BZcolor = E9c.BZcolor_PRL):
             x = i * E9c.G1G[0] + j * E9c.G2G[0]
             y = i * E9c.G1G[1] + j * E9c.G2G[1]
             ax_BZ.plot(x, y, 'ok')
-            if qset_type == 1: # Mark equivalent quasimomenta for final quasimomentum
-                x = i * E9c.G1G[0] + j * E9c.G2G[0] + q_verts[-1][0]
-                y = i * E9c.G1G[1] + j * E9c.G2G[1] + q_verts[-1][1]
-                ax_BZ.plot(x, y, 'or', markersize = 3)
-    
-    # Plot the quasimomentum path / area
-    if qset_type == 1:
-        for i in range(len(q_verts) - 1):
-            x, y = q_verts[i]
-            dx, dy = (q_verts[i + 1] - q_verts[i])
-            ax_BZ.arrow(x, y, dx, dy, edgecolor = arrow_color, facecolor = arrow_color, width = 0.02
-                        , head_width = 0.15 , head_length = 0.25, overhang = 0.5, length_includes_head = True)
-    elif qset_type == 2:
-        polypath = util.get_closed_polygon(q_verts)
-        patchq = patches.PathPatch(polypath, facecolor = BZcolor[0], lw = 1, alpha = 0.4)
-        ax_BZ.add_patch(patchq)
-        for pt in q_pts:
-            ax_BZ.plot(pt[0], pt[1], '.r', markersize = 1.5)
     
     # Small stuff
+    arrow_color = '#FF5500'
     ax_BZ.arrow(-2 * (E9c.G1G[0] + E9c.G2G[0]), (-2 * E9c.G1G[1] - 3 * E9c.G2G[1])
                 , E9c.kB12[0] / E9c.k_lw, E9c.kB12[1] / E9c.k_lw, edgecolor = arrow_color
                 , facecolor = arrow_color, width = 0.02, head_width = 0.15 , head_length = 0.25
@@ -621,20 +585,60 @@ def PlotBZSubplot(ax_BZ, qset = '', BZcolor = E9c.BZcolor_PRL):
     ax_BZ.set_xlim(-4, 4)
     ax_BZ.set_ylim(-3, 3)
     ax_BZ.set_aspect('equal')
-    plt.pause(0.01)
     return ax_BZ
 
-def PlotBZ(qset = '', BZcolor = E9c.BZcolor_PRL, fignum = 100):
-    """Convienent function for plotting BZ."""
-    fig = plt.figure(fignum)
-    fig.clf()
-    ax_BZ = fig.add_subplot(111)
-    PlotBZSubplot(ax_BZ, qset = qset, BZcolor = BZcolor)
-    if type(qset) == str: # see PlotBZSubplot
+def plot_qset(ax_BZ: plt.axes = None, qset = '', qset_kwargs: dict = None):
+    """Plot the quasimomentum path / area.
+    
+    By default the quasimomentum plotted is normalized by K.
+    Args:
+        qset: there are two different possible kinds of inputs
+                  i) list[str]: if q-points are defined along some path. e.g. 'Kp/K, Gp/K, Mp/K, Kp/K'
+                     In this case, a series of arrows indicate the quasimomentum path.
+                 ii) a tuple of (string, points) where points is an array obtained from FindqArea(eval(qvert))
+                     Here the area of interest is shaded, and each point is marked in the BZ.
+              This input assumes that the evaluated elements are normalized by K.
+        qset_kwargs: keyword arguments passed to scatter() or arrow()."""
+    if ax_BZ is None: fig, ax_BZ = plt.subplots(1, 1, 1)
+    qset_kwargs = dict() if qset_kwargs is None else qset_kwargs
+    # Determine what input type was given
+    if qset == '':
+        qset_type = 0
+    elif type(qset) == str:
+        qset_type = 1
         qstr = qset
-    else:
-        qstr = qset[0]
-    fig.suptitle('qset: ' + qstr)
+        q_verts = eval(qstr)
+    elif type(qset) == tuple:
+        qset_type = 2
+        qstr, q_pts = qset
+        q_verts = eval(qstr)
+    
+    xx, yy = np.meshgrid(np.arange(-4, 4), np.arange(-4, 4))
+    
+    if qset_type == 1: # Mark equivalent quasimomenta for final quasimomentum
+        for i in xx:
+            for j in yy:
+                x = i * E9c.G1G[0] + j * E9c.G2G[0] + q_verts[-1][0]
+                y = i * E9c.G1G[1] + j * E9c.G2G[1] + q_verts[-1][1]
+                ax_BZ.plot(x, y, 'or', markersize = 3)
+    
+    # Plot the quasimomentum path / area
+    if qset_type == 1:
+        kw_dict = {"edgecolor": 'r', "facecolor": 'r', "width": 0.02,
+                   "head_width": 0.15 , "head_length": 0.25, "overhang": 0.5, "length_includes_head": True}
+        kw_dict.update(qset_kwargs)
+        for i in range(len(q_verts) - 1):
+            x, y = q_verts[i]
+            dx, dy = (q_verts[i + 1] - q_verts[i])
+            ax_BZ.arrow(x, y, dx, dy, **kw_dict)
+    elif qset_type == 2:
+        # polypath = util.get_closed_polygon(q_verts)
+        # patchq = patches.PathPatch(polypath, facecolor = BZcolor[0], lw = 1, alpha = 0.4)
+        # ax_BZ.add_patch(patchq)
+        kw_dict = {"s": 1.5, "marker": '.', "color": 'r'}
+        kw_dict.update(qset_kwargs)
+        ax_BZ.scatter([pt[0] for pt in q_pts], [pt[1] for pt in q_pts], **kw_dict)
+    
     return ax_BZ
 
 def FindQAxis(num, qset):

@@ -59,6 +59,20 @@ class e9_lattice_exp():
 
 # a new class blochstate(): here
 
+
+def PlotBZ(BZcolor = E9c.BZcolor_PRL, fignum = 100):
+    """Convienent function for plotting BZ."""
+    fig = plt.figure(fignum)
+    fig.clf()
+    ax_BZ = fig.add_subplot(111)
+    PlotBZSubplot(ax_BZ, BZcolor = BZcolor)
+    if type(qset) == str: # see PlotBZSubplot
+        qstr = qset
+    else:
+        qstr = qset[0]
+    fig.suptitle('qset: ' + qstr)
+    return ax_BZ
+
 def FindEigenStuff(H, band, num = 5):
     """Obsolete weaker version of eigh that also checks hermiticity.
     
