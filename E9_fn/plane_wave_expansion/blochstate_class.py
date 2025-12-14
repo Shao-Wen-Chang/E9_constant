@@ -1,6 +1,6 @@
 # recommended import call: import E9_fn.plane_wave_expansion.blochstate_class as E9pw
 import numpy as np
-from scipy.linalg import eigh, expm
+from scipy.linalg import expm
 import copy
 import pickle
 import sys
@@ -9,13 +9,12 @@ from matplotlib.path import Path
 from matplotlib.colors import ListedColormap
 import matplotlib.patches as patches
 import seaborn as sns
+import logging
 
 sys.path.insert(1,
     "C:\\Users\\ken92\\Documents\\Studies\\E5\\simulation\\E9_simulations")
 import E9_fn.E9_constants as E9c
 from E9_fn import util
-
-# TODO: I want to replace blochstate with a class that describes the experiment instead
 
 #%% blochstate (the class)
 class blochstate(np.ndarray):
@@ -736,7 +735,20 @@ def find_H_components(num, Exp_lib, center = (0, 0)):
     be added in the Hamiltonian. In our experiment this doesn't exceed 2.3% of V1064, but this can be set to any value.
     Note that ABoffset should already take all the numerical prefactors into consideration. Physically, this means
     ABoffset = 0.011586 * V1064 / 9 * cos(theta), where theta is the angle between magnetic field and z axis.
+
+    This step takes < 100 ms for num = 6.
     """
+    V1064 = Exp_lib['V1064']
+    B1_rel_E_532, B3_rel_E_532 = np.sqrt(Exp_lib['B1_rel_int_532']), np.sqrt(Exp_lib['B3_rel_int_532'])
+    B1_rel_E_1064, B3_rel_E_1064 = np.sqrt(Exp_lib['B1_rel_int_1064']), np.sqrt(Exp_lib['B3_rel_int_1064'])
+    phi12, phi23 = Exp_lib['phi12'], Exp_lib['phi23']
+    ABoffset1064 = Exp_lib.get('ABoffset1064', False) # ABoffset will be evaluated only if it gives a non-zero value
+    if np.isclose(V1064, 0):
+        raise(NotImplementedError("I haven't added 532-only hamiltonian yet!"))
+    if (np.isclose(B1_rel_E_532, 0) and np.isclose(B1_rel_E_1064, 0)) \
+       or np.isclose(B3_rel_E_532, 0) and np.isclose(B3_rel_E_1064, 0):
+        raise(NotImplementedError("This is a 1-D (super) lattice, not implemented yet!"))
+    
     def GetPhi(j, l):
         """Handles 1064 superlattice phases that controls relative displacement."""
         if j == 0 and l == 1:
@@ -782,10 +794,6 @@ def find_H_components(num, Exp_lib, center = (0, 0)):
         point is a 2-element sequence (usually array); return Boolean as 0 or 1"""
         return int(tuple(point) in J)
     
-    B1_rel_E_532, B3_rel_E_532 = np.sqrt(Exp_lib['B1_rel_int_532']), np.sqrt(Exp_lib['B3_rel_int_532'])
-    B1_rel_E_1064, B3_rel_E_1064 = np.sqrt(Exp_lib['B1_rel_int_1064']), np.sqrt(Exp_lib['B3_rel_int_1064'])
-    phi12, phi23 = Exp_lib['phi12'], Exp_lib['phi23']
-    ABoffset1064 = Exp_lib.get('ABoffset1064', False) # ABoffset will be evaluated only if it gives a non-zero value
     size = 2 * num + 1
     Hq_mmat = np.zeros((size**2, size**2))
     Hq_nmat = np.zeros((size**2, size**2))
@@ -951,20 +959,6 @@ def GPEResidual(psi_and_mu, H_bare, indices, Exp_lib, g = E9c.U_GPE_Rb87):
     normalization = np.linalg.norm(abs(psi)) - 1
     return np.concatenate((H @ psi - mu * psi, np.array([normalization])))
 
-# def GPEResidual2(psi_and_k, mu, indices, Exp_lib, center = (0, 0), g = E9c.U_GPE_Rb87):
-#     """Calculate the "residual" of GPE, namely, (lhs) - (rhs) of GPE, and return as an array.
-    
-#     Here the last index of psi_and_k is the quasimomentum of the interested state, assumed to be sitting along Kp - Gp.
-#     This should be changed. This is the correct residual function to use when walking along E instead of k axis."""
-#     V532, V1064 = Exp_lib['V532'], Exp_lib['V1064']
-#     psi = psi_and_k[:-1]
-#     k_in = psi_and_k[-1]
-#     num = int((int(np.sqrt(len(psi))) - 1) / 2)
-#     H_bare = FindH(k_in * E9c.kp/E9c.k_sw, num, center, V532, V1064)
-#     H = AddInteraction(H_bare, psi, indices, Exp_lib)
-#     normalization = np.linalg.norm(abs(psi)) - 1
-#     return np.concatenate((H @ psi - mu * psi, np.array([normalization])))
-
 def CheckError(v1, v2, tolerance = 2.5e-4, fail = 1):
     """Check if two unit vectors v1 and v2 are the same within some tolerance."""
     error = 1 - abs(np.vdot(v1,v2)) ** 2
@@ -974,19 +968,6 @@ def CheckError(v1, v2, tolerance = 2.5e-4, fail = 1):
         return -1, error # Also a true value, but can be used as a sign of error
     else:
         return 0, error
-
-def FindEigenStuff(H, band, num = 5):
-    """Obsolete weaker version of eigh that also checks hermiticity.
-    
-    band is the range of bands interested in (for example, (0,3) means ground band to 4th band (3rd excited band))
-    *** Note that the 4th band is included, so the number of bands returned are (max - min + 1). ***
-    when there is only one band of interested, either integer input or (band, band) is accepted"""
-    if type(band) == int:
-        band = (band, band)
-    # Assume Hermitian Hamiltonian
-    if not util.IsHermitian(H):
-        print("warning: input to eigh is not hermitian. results are wrong")
-    return eigh(H, eigvals = band)
 
 def CheckSelfConv(H_bare, state_i, indices, Exp_lib):
     """Check if a state is self-consistent for GPE.
@@ -1051,37 +1032,3 @@ def Predictor(pstate, ppstate, step, model = 'taylor1'):
     else:
         print("undefined model type")
         raise
-
-#%% Probably not used anywhere, but included for historical reason
-class LinSupState:
-    """Linear superposition of different blochstates, possibly at different q or in different bands.
-    
-    state_list: a list of blochstates not necessarily linearly independent of one another
-    weight_list: a list of corresponding weights, complex in general
-    This class is not used very often, so I didn't bother to refine the code. For example, FindDensity is better
-    defined as a function that calls object.find_density for any object."""
-    def __init__(self, state_list, weight_list):
-        if len(state_list) != len(weight_list): raise BaseException("Lengths of state and weight lists don't match")
-        for s in state_list:
-            if type(s) != blochstate: raise BaseException("LinSupState only deal with blochstates")
-        self.states = state_list
-        self.weights = weight_list
-        self.qs = [s.q for s in state_list]
-        # Figure out normalization: if there are states with the same q the plane waves should be added together
-        # I am being lazy and decided to assume that all states have the same center and different q
-        norm_factor = 0        
-        for s, w in zip(state_list, weight_list):
-            norm_factor += np.linalg.norm(s)**2 * abs(w)**2
-        self.norm_factor = np.sqrt(norm_factor)
-        
-    def totext(self):
-        '''Returns a human readable string that focuses on blochstate labels, i.e. |q, n>.'''
-        substr = []
-        for s, w in zip(self.states, self.weights):
-            warg, wph = float(abs(w) / self.norm_factor), np.angle(w)
-            substr.append("{:.4} exp({:.2} *2pi){}".format(warg, wph / 2 / np.pi, s.totext()))
-        return " + ".join(substr)
-            
-    def findj(self, x, y):
-        '''Finds the current density.'''
-        raise BaseException("don't know how to implement yet") # probably not hard, just annoying...
