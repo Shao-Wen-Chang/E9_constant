@@ -2,14 +2,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-bool_save_fig = True
+bool_save_fig = False
 # Time axis
-t = np.linspace(0, 1, 1000)
-t_ramp_up = 0.55
-t_hold_end = 0.7
-t_shake_end = 0.9
-tticks = [0.0, t_ramp_up, t_hold_end, t_shake_end, 1.0]
-tticklabels = ['', '', '', '', '']
+t = np.linspace(0, 1, 1001)
+t_ramp_up = 0.5
+t_hold_end = 0.6
+t_shake_end = 0.8
+t_BM_end = 0.95
+tticks = [0.0, t_hold_end, t_shake_end]
+tticklabels = ['', '', '']
 
 # Colors
 c_int = "#005CEF"
@@ -28,6 +29,10 @@ mask_2 = (t >= t_ramp_up) & (t < t_shake_end)
 I[mask_2] = I_max
 
 # t_hold_end to 1.0: back to 0 (already zero by initialization)
+
+# Band mapping curve
+t_BM = np.linspace(t_shake_end, t_BM_end, 201)
+I_BM = I_max * np.exp(-(t_BM - t_shake_end) * 50)
 
 #%% Position curve (red, right y-axis)
 pos = np.full_like(t, 0.5)
@@ -49,6 +54,7 @@ fig, ax1 = plt.subplots(figsize=(5, 4))
 
 # Left axis: intensity
 ax1.plot(t, I, color=c_int, lw=2, label='Intensity')
+ax1.plot(t_BM, I_BM, color=c_int, lw=2, ls = "--")
 ax1.set_xlim(0, 1)
 ax1.set_ylim(0, 1)
 ax1.set_xlabel('Time')

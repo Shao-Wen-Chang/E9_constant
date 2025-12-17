@@ -4,6 +4,7 @@ import numpy as np
 from scipy.linalg import eigh
 import matplotlib.pyplot as plt
 from matplotlib.path import Path as plt_Path
+from matplotlib.patches import Wedge
 from pathlib import Path as fPath
 import gftool as gt
 from typing import Iterable
@@ -607,6 +608,74 @@ def get_color(var, var_list: np.ndarray, cmap = plt.cm.viridis, assignment = "in
     scaled_frac = cfn(scaled_frac)
 
     return cmap(scaled_frac)
+
+def draw_circle(ax, center, radius, index_convention = "xy", **kwargs):
+    """Draw a circle as a Line2D on the given Matplotlib Axes.
+
+    Args:
+        ax:     matplotlib.axes.Axes
+            Axes to draw on.
+        center: (float, float)
+            (x, y) center of the circle.
+        radius: float
+            Circle radius (must be > 0).
+        index_convention: str
+            "yx" for [y, x] (same as jkam), "xy" for [x, y] (typical for matplotlib functions)
+        **kwargs:
+            Passed through directly to ax.plot (e.g., color, lw, ls, label, etc.).
+
+    Returns:
+        matplotlib.lines.Line2D
+            The created line.
+    """
+    if radius <= 0:
+        raise ValueError("radius must be positive")
+    if index_convention == "yx":
+        center = center[::-1]
+    elif index_convention != "xy":
+        raise ValueError("index_convention should be 'yx' or 'xy'")
+
+    cx, cy = center
+    theta = np.linspace(0.0, 2.0 * np.pi, 256, endpoint = False)
+    theta = np.append(theta, theta[0])  # close the circle
+
+    x = cx + radius * np.cos(theta)
+    y = cy + radius * np.sin(theta)
+
+    (line,) = ax.plot(x, y, **kwargs)
+    return line
+
+def fill_annulus(ax, center, r_inner, r_outer, index_convention = "xy", **kwargs):
+    """Fill the annular region between two concentric circles.
+
+    Args:
+        ax:      matplotlib.axes.Axes
+            Axes to draw on.
+        center:  (float, float)
+            (x, y) center.
+        r_inner: float
+            Inner radius (> 0).
+        r_outer: float
+            Outer radius (> r_inner).
+        index_convention: str
+            "yx" for [y, x] (same as jkam), "xy" for [x, y] (typical for matplotlib functions)
+        **kwargs:
+            Passed to Wedge (e.g., facecolor, edgecolor, alpha, linewidth).
+
+    Returns:
+        matplotlib.patches.Wedge
+            The added patch.
+    """
+    if r_inner <= 0 or r_outer <= 0 or r_inner >= r_outer:
+        raise ValueError("Require 0 < r_inner < r_outer.")
+    if index_convention == "yx":
+        center = center[::-1]
+    elif index_convention != "xy":
+        raise ValueError("index_convention should be 'yx' or 'xy'")
+
+    ann = Wedge(center, r_outer, 0, 360, width = r_outer - r_inner, **kwargs)
+    ax.add_patch(ann)
+    return ann
 
 def fix_clabel_orientation(labels):
     """
