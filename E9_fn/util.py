@@ -162,6 +162,138 @@ def arr_insert_sorted(arr: np.ndarray, values):
     idxs = np.searchsorted(arr, values)
     return np.insert(arr, idxs, values)
 
+def parametric_slice_2D(
+    axis0,
+    axis1,
+    arr_data,
+    arr_param,
+    V0,
+    *,
+    single_valued="axis0",
+    fill_value=np.nan,
+    atol=1e-10,
+):
+    """
+    Extract a 1D slice of `arr_data` along the contour of `arr_param` defined by
+    arr_param(axis0, axis1) = V0, on a 2D rectangular grid.
+
+    You assume that along this contour either:
+      - axis0 is a single-valued function of axis1 (default), or
+      - axis1 is a single-valued function of axis0.
+
+    For the chosen orientation, the function scans along the independent axis
+    and, for each fixed value, solves for the dependent coordinate where
+    arr_param crosses V0, then evaluates arr_data there by linear interpolation.
+
+    Parameters
+    ----------
+    axis0 : 1D array, shape (N0,)
+        Grid values for the first axis (index 0 of arr_data, arr_param).
+    axis1 : 1D array, shape (N1,)
+        Grid values for the second axis (index 1 of arr_data, arr_param).
+    arr_data : 2D array, shape (N0, N1)
+        Field to be *sampled* along the contour:
+        arr_data[i, j] = g(axis0[i], axis1[j]).
+    arr_param : 2D array, shape (N0, N1)
+        Scalar field whose level set defines the contour:
+        arr_param[i, j] = f(axis0[i], axis1[j]).
+        The curve of interest is f = V0.
+    V0 : float
+        Level defining the contour: arr_param == V0.
+    single_valued : {"axis0", "axis1"}, default "axis0"
+        - "axis0": for each axis1[j], solve for axis0 such that
+                   arr_param(axis0, axis1[j]) = V0.
+        - "axis1": for each axis0[i], solve for axis1 such that
+                   arr_param(axis0[i], axis1) = V0.
+    fill_value : float, default np.nan
+        Value used when no crossing is found for a given slice.
+    atol : float
+        Tolerance for treating arr_param == V0 exactly on a grid point.
+
+    Returns
+    -------
+    coord_on_curve : 1D array
+        Coordinate of the dependent axis along the contour:
+        - If single_valued == "axis0": shape (N1,), values axis0(axis1[j]).
+        - If single_valued == "axis1": shape (N0,), values axis1(axis0[i]).
+        Entries may be fill_value where no solution is found.
+    data_on_curve : 1D array
+        arr_data evaluated on the contour at the same points as coord_on_curve.
+        Same shape and masking as coord_on_curve.
+    """
+    axis0 = np.asarray(axis0, dtype=float)
+    axis1 = np.asarray(axis1, dtype=float)
+    arr_data = np.asarray(arr_data, dtype=float)
+    arr_param = np.asarray(arr_param, dtype=float)
+
+    if arr_data.shape != arr_param.shape:
+        raise ValueError("arr_data and arr_param must have the same shape.")
+    if arr_data.shape != (axis0.size, axis1.size):
+        raise ValueError(
+            "arr_data shape must be (len(axis0), len(axis1)); "
+            f"got {arr_data.shape} vs ({axis0.size}, {axis1.size})."
+        )
+
+    if single_valued not in ("axis0", "axis1"):
+        raise ValueError("single_valued must be 'axis0' or 'axis1'.")
+
+    # Helper: given 1D x-grid, param(x), data(x), find x0 s.t. param(x0)=V0 and data(x0)
+    def _line_slice(x, param_1d, data_1d):
+        """
+        x, param_1d, data_1d all 1D arrays of same length.
+        Returns (x0, data0) or (fill_value, fill_value) if no crossing.
+        """
+        if not np.any(np.isfinite(param_1d)):
+            return fill_value, fill_value
+
+        diff = param_1d - V0
+
+        # Treat "near zero" as exact hits
+        near_zero = np.isfinite(diff) & (np.abs(diff) <= atol)
+        if np.any(near_zero):
+            i0 = np.argmax(near_zero)  # first hit
+            return x[i0], data_1d[i0]
+
+        idx = find_sign_change(diff)
+        if idx.size == 0:
+            return fill_value, fill_value
+
+        i = idx[0]
+        # Linear interpolation for x0 between x[i], x[i+1]
+        x0 = np.interp(V0, [param_1d[i], param_1d[i + 1]], [x[i], x[i + 1]])
+        # And interpolate data at that x0 using the same bracket
+        data0 = np.interp(x0, [x[i], x[i + 1]], [data_1d[i], data_1d[i + 1]])
+        return x0, data0
+
+    # Case 1: axis0 is a function of axis1
+    if single_valued == "axis0":
+        coord_on_curve = np.full(axis1.shape, fill_value, dtype=float)
+        data_on_curve = np.full(axis1.shape, fill_value, dtype=float)
+
+        for j in range(axis1.size):
+            # along axis0 at fixed axis1[j]
+            param_col = arr_param[:, j]
+            data_col = arr_data[:, j]
+            x0, d0 = _line_slice(axis0, param_col, data_col)
+            coord_on_curve[j] = x0
+            data_on_curve[j] = d0
+
+        return coord_on_curve, data_on_curve
+
+    # Case 2: axis1 is a function of axis0
+    coord_on_curve = np.full(axis0.shape, fill_value, dtype=float)
+    data_on_curve = np.full(axis0.shape, fill_value, dtype=float)
+
+    for i in range(axis0.size):
+        # along axis1 at fixed axis0[i]
+        param_row = arr_param[i, :]
+        data_row = arr_data[i, :]
+        y0, d0 = _line_slice(axis1, param_row, data_row)
+        coord_on_curve[i] = y0
+        data_on_curve[i] = d0
+
+    return coord_on_curve, data_on_curve
+
 #%% Linear algebra
 def dagger(mat, axis = None):
     """Return the conjugate transpose of the input matrix.
@@ -745,3 +877,106 @@ def get_closed_polygon(vert):
     '''Generate the plt_Path defined by a set of vertices that define a closed polygon.'''
     path_code = [plt_Path.MOVETO] + [plt_Path.LINETO for _ in vert[:-2]] + [plt_Path.CLOSEPOLY]
     return plt_Path(vert, path_code)
+
+def add_shades(ax, mask, axis_data, axis="x", **kwargs):
+    """
+    Add vertical or horizontal shaded bands.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+    mask : 1D array-like
+        - If boolean: shade where mask is True.
+        - If float: shade each bin with alpha ~ mask[i]
+          (values <= 0 are treated as no shade).
+    axis_data : 1D array-like of float
+        Coordinates along the axis corresponding to `mask`.
+        Must have the same length as `mask`.
+    axis : {"x", "y"}, default "x"
+        "x" -> vertical bands (varying in x)
+        "y" -> horizontal bands (varying in y)
+    **kwargs :
+        Passed to fill_between / fill_betweenx.
+        If mask is float and 'alpha' is given, effective alpha is
+        mask[i] * kwargs['alpha'].
+    """
+    mask_arr = np.asarray(mask)
+    coords = np.asarray(axis_data, dtype=float)
+
+    if coords.shape != mask_arr.shape:
+        raise ValueError("mask and axis_data must have the same shape")
+    if axis not in ("x", "y"):
+        raise ValueError("axis must be 'x' or 'y'")
+
+    n = len(coords)
+    if n == 0:
+        return
+
+    # Base alpha if user provided one; we'll scale it for float mask
+    base_alpha = kwargs.pop("alpha", 1.0)
+
+    # Boolean mask case: use a single fill_between call with axis transform
+    if np.issubdtype(mask_arr.dtype, np.bool_):
+        m = mask_arr.astype(bool)
+        if not np.any(m):
+            return
+
+        if axis == "x":
+            # x in data coords, y in axes fraction (0..1)
+            trans = ax.get_xaxis_transform()
+            ax.fill_between(
+                coords,
+                0, 1,
+                where=m,
+                transform=trans,
+                alpha=base_alpha,
+                **kwargs,
+            )
+        else:  # axis == "y"
+            trans = ax.get_yaxis_transform()
+            ax.fill_betweenx(
+                coords,
+                0, 1,
+                where=m,
+                transform=trans,
+                alpha=base_alpha,
+                **kwargs,
+            )
+        return
+
+    # Float mask case: per-bin alpha; build bin edges first
+    mask_float = np.asarray(mask_arr, dtype=float)
+
+    edges = np.empty(n + 1, dtype=float)
+    edges[1:-1] = 0.5 * (coords[:-1] + coords[1:])
+    edges[0] = coords[0] - (edges[1] - coords[0])
+    edges[-1] = coords[-1] + (coords[-1] - edges[-2])
+
+    if axis == "x":
+        trans = ax.get_xaxis_transform()
+        for i in range(n):
+            a = mask_float[i]
+            if not np.isfinite(a) or a <= 0:
+                continue
+            alpha_i = float(np.clip(base_alpha * a, 0.0, 1.0))
+            ax.fill_between(
+                [edges[i], edges[i + 1]],
+                0, 1,
+                transform=trans,
+                alpha=alpha_i,
+                **kwargs,
+            )
+    else:  # axis == "y"
+        trans = ax.get_yaxis_transform()
+        for i in range(n):
+            a = mask_float[i]
+            if not np.isfinite(a) or a <= 0:
+                continue
+            alpha_i = float(np.clip(base_alpha * a, 0.0, 1.0))
+            ax.fill_betweenx(
+                [edges[i], edges[i + 1]],
+                0, 1,
+                transform=trans,
+                alpha=alpha_i,
+                **kwargs,
+            )

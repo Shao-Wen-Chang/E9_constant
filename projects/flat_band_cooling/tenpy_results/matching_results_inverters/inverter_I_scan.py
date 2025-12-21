@@ -118,7 +118,7 @@ for n_s_tar in np.arange(0.3, 0.7 + 0.001, step = 0.02):
 
     # %%
     if bool_plot:
-        N_curve, s_s_curve = util_thm.slice_constant_V(N_range, S_range, V_offset_all, varsigma_all, 0.7)
+        N_curve, s_s_curve = util_thm.parametric_slice_2D(N_range, S_range, V_offset_all, varsigma_all, 0.7)
         plt.plot(N_curve, s_s_curve)
 
     # %% [markdown]

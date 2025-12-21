@@ -154,32 +154,29 @@ def invert_NS_mat_df(
 
     return betas, params_list
 
-def slice_constant_V(
-    N_vals,
-    S_vals,
-    V_all,
-    param_all,
+def parametric_slice_2D(
+    axis0,
+    axis1,
+    arr_data,
+    arr_param,
     V0,
     fill_value=np.nan,
     atol=1e-10,
 ):
     """
-    Given V(N, S) and param(N, S) on a rectangular grid, extract param along the
-    constant-V curve V(N, S) = V0, assuming N(S)|(V = V0) is single-valued.
-
-    Although the function has "V" in its name, one doesn't really need to use V_offset
-    for V_all.
+    Given arr_data(x, y) and param(x, y) on a rectangular grid, extract param along the
+    constant-V curve V(x, y) = V0, assuming N(S)|(V = V0) is single-valued.
 
     Parameters
     ----------
-    N_vals : 1D array, shape (N_N,)
-        Grid values for N (axis 0 of V_all, param_all).
-    S_vals : 1D array, shape (N_S,)
-        Grid values for S (axis 1 of V_all, param_all).
-    V_all : 2D array, shape (N_N, N_S)
-        V_all[i, j] = V(N_vals[i], S_vals[j]).
-    param_all : 2D array, shape (N_N, N_S)
-        param_all[i, j] = s_s(N_vals[i], S_vals[j]).
+    axis0 : 1D array, shape (N_N,)
+        Grid values for N (axis 0 of arr_data, arr_param).
+    axis1 : 1D array, shape (N_S,)
+        Grid values for S (axis 1 of arr_data, arr_param).
+    arr_data : 2D array, shape (N_N, N_S)
+        arr_data[i, j] = V(axis0[i], axis1[j]).
+    arr_param : 2D array, shape (N_N, N_S)
+        arr_param[i, j] = s_s(axis0[i], axis1[j]).
     V0 : float
         Target value of V defining the curve V = V0.
     fill_value : float (default: NaN)
@@ -194,26 +191,26 @@ def slice_constant_V(
     s_s_on_curve : 1D array, shape (N_S,)
         s_s(N(S), S) along the constant-V curve. Same masking as N_on_curve.
     """
-    N_vals = np.asarray(N_vals, dtype=float)
-    S_vals = np.asarray(S_vals, dtype=float)
-    V_all = np.asarray(V_all, dtype=float)
-    param_all = np.asarray(param_all, dtype=float)
+    axis0 = np.asarray(axis0, dtype=float)
+    axis1 = np.asarray(axis1, dtype=float)
+    arr_data = np.asarray(arr_data, dtype=float)
+    arr_param = np.asarray(arr_param, dtype=float)
 
-    if V_all.shape != param_all.shape:
-        raise ValueError("V_all and param_all must have the same shape.")
-    if V_all.shape != (N_vals.size, S_vals.size):
+    if arr_data.shape != arr_param.shape:
+        raise ValueError("arr_data and arr_param must have the same shape.")
+    if arr_data.shape != (axis0.size, axis1.size):
         raise ValueError(
-            "V_all shape must be (len(N_vals), len(S_vals)); "
-            f"got {V_all.shape} vs ({N_vals.size}, {S_vals.size})."
+            "arr_data shape must be (len(axis0), len(axis1)); "
+            f"got {arr_data.shape} vs ({axis0.size}, {axis1.size})."
         )
 
-    N_on_curve = np.full(S_vals.shape, fill_value, dtype=float)
-    s_s_on_curve = np.full(S_vals.shape, fill_value, dtype=float)
+    N_on_curve = np.full(axis1.shape, fill_value, dtype=float)
+    s_s_on_curve = np.full(axis1.shape, fill_value, dtype=float)
 
     # Loop over S; for each S_j, treat V(N, S_j) as a 1D function of N
-    for j in range(S_vals.size):
-        V_col = V_all[:, j]
-        s_col = param_all[:, j]
+    for j in range(axis1.size):
+        V_col = arr_data[:, j]
+        s_col = arr_param[:, j]
 
         # Skip columns with no finite data
         if not np.any(np.isfinite(V_col)):
@@ -225,7 +222,7 @@ def slice_constant_V(
         exact_idx = np.where(np.isfinite(diff) & (np.abs(diff) <= atol))[0]
         if exact_idx.size > 0:
             i0 = exact_idx[0]
-            N0 = N_vals[i0]
+            N0 = axis0[i0]
             s0 = s_col[i0]
             N_on_curve[j] = N0
             s_s_on_curve[j] = s0
@@ -233,7 +230,7 @@ def slice_constant_V(
 
         # 2) Look for a sign change of V - V0 between neighboring N points
         found = False
-        for i in range(N_vals.size - 1):
+        for i in range(axis0.size - 1):
             if not (np.isfinite(diff[i]) and np.isfinite(diff[i+1])):
                 continue
 
@@ -243,12 +240,12 @@ def slice_constant_V(
                 N0 = np.interp(
                     V0,
                     [V_col[i], V_col[i+1]],
-                    [N_vals[i], N_vals[i+1]],
+                    [axis0[i], axis0[i+1]],
                 )
                 # Interpolate s_s at that N0 using the same bracket
                 s0 = np.interp(
                     N0,
-                    [N_vals[i], N_vals[i+1]],
+                    [axis0[i], axis0[i+1]],
                     [s_col[i], s_col[i+1]],
                 )
                 N_on_curve[j] = N0
