@@ -179,7 +179,7 @@ def update_eos_csv(
     float_tol: float = 1e-8,
 ):
     """
-    Merge df_new into a CSV at csv_path.
+    Merge df_new into a CSV at csv_path. *This is currently buggy*
 
     param_cols:
         Columns that define the *input parameters* (including file_mtime).
