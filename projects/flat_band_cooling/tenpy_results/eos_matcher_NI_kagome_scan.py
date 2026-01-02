@@ -1,14 +1,20 @@
 # %%
+import sys
+from pathlib import Path
+E9path = Path("C:/", "Users", "ken92", "Documents", "Studies", "E5", "simulation", "E9_simulations")
+if str(E9path) not in sys.path:
+    sys.path.insert(1, str(E9path))
+from E9_fn import util
+
 import util_match
 import pickle
 import matplotlib.pyplot as plt
 import numpy as np
-from pathlib import Path
 import pandas as pd
 import os
 
 # %%
-bool_plot = False   # set to false if gathering matching data
+bool_plot = False   # set to false if just gathering matching data
 
 # %% [markdown]
 # # Reading data
@@ -16,186 +22,190 @@ bool_plot = False   # set to false if gathering matching data
 # 
 # Unfinished runs are detected by mismatches in the length of beta.
 # 
-# We are currently not planning to run simulation for kagome lattice because it is too expensive.
-# 
 # How I treat folder parameters:
-# * $\mu$, $V$, $t_p$ and $shift$ are things we expect to be different in a folder. All the other parameters should be the same; I include them in `folder_params_shared` and check for every folder.
+# * (sawtooth) $\mu$, $V$, $t_p$ and $shift$ / (kagome) $W$ are things we expect to be different in a folder. All the other parameters should be the same; I include them in `folder_params_shared` and check for every folder.
 #     * Among them, $\mu$ is additionally saved in `data_in_measurements["mu"]`. I check that this indeed matches the one specified in the folder name.
 #     * For $V$, $t_p$ and $shift$, I don't do the filtering until all the data are loaded.
 # * I assume $t = 1$.
+# * There is also a file with `dBeta' = -dBeta` that goes to negative temperatures. I remove the `beta = 0` row from this one and piece the two files together.
+# * Note that $s$ is the entropy per site, not per particle. I will use $\sigma_s$ (`sigma_s`) and $\sigma_r$ (`sigma_r`) for entropy per particle. $\sigma$ seems to be the right quantity to look at to evaluate cooling (or at least is what e.g. Greiner's people always look at).
 
 # %%
 # I had to keep the data files in the download folder, otherwise the folder names are too long
 data_folder = Path(r"C:\Users\ken92\Downloads\Shao-Wen Data")
-# Interacting
-geometry = "sawtooth" # "sawtooth", "kagome"
+
+# tenpy specs used to generate folder names
+geometry = "kagome" # "sawtooth", "kagome"
 L_subregion = 50
-chi_tenpy = 64
-V_model = 3.0
+mumin = -10.0
+mumax = 10.0
+dMu = 0.01
+dBeta = 0.1           # Use positive here; minus sign added by hand below
 
 # geometry specific parameters
+ymax_ST = None
 tp_ST = 1.41421356237
 shift_ST = -2.0
-
-scan_name = f"ST_SL_I_L{L_subregion}_t1_tpsqrt2_shf{int(shift_ST)}_V{V_model}_chi{chi_tenpy}.tar"
-
-# %%
-N_sites = 2 * L_subregion
-geom_spec_str = f"V{V_model}_tp{tp_ST}_shift{shift_ST}"
-# For checking folder parameter consistency
-tnpspc = {
-    "geometry": geometry,
-    "L": L_subregion,
-    "chi": chi_tenpy,
-}
+W_kagome = 4    # width of the kagome strip, only used if geometry = "kagome"
 
 # %% [markdown]
-# Interacting and non-interacting data is stored differently and require different unpacking methods.
+# Some geometry dependent variables.
 
 # %%
-folder_params_shared = None
-records_EoS = []
-scan_folder = Path(data_folder, scan_name)
-assert scan_folder.exists()
+file_prefix = ""        # File name for Sajant's data
+geom_spec_str = ""      # For plotting etc
+N_sites = 0             # Number of sites in each region
+E_min, E_max = 0., 0.   # Lowest / highest band energies
+filter_params = dict()  # Same name as eos_matcher for interacting system
 
-subfolder_list = [f for f in scan_folder.iterdir() if f.is_dir()]
-print(f"found {len(subfolder_list)} folders")
-
-first_betas = None
-for i_f, sf_path in enumerate(subfolder_list):
-    # Load data and store them as panda data rows
-    filepath = Path(sf_path, "measurements.pkl")
-    assert filepath.is_file()
-    with open(filepath, "rb") as f:
-        file_content = pickle.load(f)
-
-    try:
-        folder_params = util_match.parse_folder_name(sf_path)
-        
-        # Check mu consistency between folder name and file
-        mu = file_content['mu']
-        if not np.isclose(mu, folder_params['mu']):
-            raise(ValueError(f"mu_folder = {folder_params['mu']} doesn't agree with mu_file = {mu}"))
-        else:
-            folder_params.pop("mu")
-        
-        # Check shared folder parameters
-        V = folder_params.pop("V")
-        shift = folder_params.pop("shift")
-        tp = folder_params.pop("tp")
-        if folder_params_shared is None:
-            folder_params_shared = folder_params.copy()
-            for k, v in tnpspc.items():
-                if folder_params_shared[k] != v:
-                    raise(ValueError(f"mismatch in tenpy parameter {k}: specified {v}, but {folder_params_shared[k]} from folder"))
-        else:
-            if folder_params != folder_params_shared:
-                print(folder_params)
-                print(folder_params_shared)
-                raise(ValueError("mismatch in folder parameters"))
-
-        # Save data
-        for i_b, beta in enumerate(file_content['betas']):
-            S2, n_avg, energy, eps, ov, max_chi, trace, runtime = file_content['data'][i_b, :]
-            records_EoS.append({
-                "mu": file_content['mu'],
-                "beta": beta,
-                "S2": S2,
-                "n_avg": n_avg,
-                "energy": energy,
-                "eps": eps,
-                "ov": ov,
-                "max_chi": max_chi,
-                "trace": trace,
-                "runtime": runtime,
-                "file_mtime": os.path.getmtime(filepath),
-                "V": V,
-                "shift": shift,
-                "tp": tp
-            })
-    except ValueError as e:
-        print(filepath)
-        raise(e)
-
-    # Check beta length and print warnings if they don't look right
-    if first_betas is None:   # assuming that the first subfolder has the right length of data
-        first_betas = file_content['betas']
-        continue
-    else:
-        len_good = (len(file_content['betas']) == len(first_betas))      # length is good
-        if len_good: # content is also good
-            if np.allclose(file_content['betas'], first_betas):
-                continue
-    print(f"beta doesn't agree for {filepath}")
-    print(f"getting {file_content['betas']}")
-
-df_all_data = pd.DataFrame.from_records(records_EoS)
-
-# %% [markdown]
-# ## Filter parameters using Dataframe
-# Currently I only consider joined systems with the same interaction strength everywhere.
-# 
-# ### Specify filter parameters
+if geometry == "sawtooth":
+    file_prefix = (f"{geometry}_spinless_NI_L{L_subregion}_t1.0_tp{tp_ST}_shift{shift_ST}"
+                    f"_ymax{ymax_ST}_mumin{mumin}_mumax{mumax}_dMu{dMu}")
+    geom_spec_str = f"tp{tp_ST}_shift{shift_ST}"
+    N_sites = 2 * L_subregion
+    E_flat_ST = 2. + shift_ST   # energy of the flat band with shift (assuming ymax is None)
+    E_min = min(E_flat_ST, -4.)
+    E_max = max(E_flat_ST, 0.)
+    filter_params = {
+        "tp": tp_ST,
+        "shift": shift_ST,
+        "ymax": None,
+    }
+elif geometry == "kagome":
+    file_prefix = (f"{geometry}_spinless_NI_L{L_subregion}_W{W_kagome}_t1.0_"
+                    f"_mumin{mumin}_mumax{mumax}_dMu{dMu}")
+    geom_spec_str = f"W{W_kagome}"
+    N_sites = 3 * W_kagome * L_subregion
+    E_min = -4.
+    E_max = 2.
+    filter_params = {
+        "W": W_kagome,
+    }
 
 # %%
-filter_params = {"V": V_model, "shift": shift_ST, "tp": tp_ST}
+# positive beta
+scan_name = file_prefix + f"_dBeta{dBeta}_Nsteps1000.pkl"
+# scan_name = file_prefix + f"_dBeta{dBeta}_Nsteps200.pkl"
+filepath = Path(data_folder, scan_name)
+assert filepath.is_file()
+with open(filepath, "rb") as f:
+    file_content = pickle.load(f)
 
-# %%
-df_filtered = df_all_data.query(f"(V == {V_model}) & (shift == {shift_ST})")
-idx_list = ["mu", "beta"]
-df_filtered = df_filtered.set_index(idx_list).sort_index()
-
-# df_filtered
+# negative beta
+scan_name_neg = file_prefix + f"_dBeta{-dBeta}_Nsteps200.pkl"
+filepath_neg = Path(data_folder, scan_name_neg)
+assert filepath_neg.is_file()
+with open(filepath_neg, "rb") as f:
+    file_content_neg = pickle.load(f)
 
 # %% [markdown]
 # ## Plots
-# Even for finite interaction strengths, we still see a trace of the flat band in the $S_{2, avg}$ plot. For example, for the $V = 1$, shift $= 2$ single layer sawtooth, we see an enhancement in entropy around $\mu = 0.5$. I would have naively guessed that this should happen at $\mu = 0.25$ instead by looking at the completely localized states (CLS):
-# * The wave function of CLS lives on two neighboring teeth, and has values of $1 / \sqrt(2)$ on the shared A site, and $1 / 2$ on the two B sites.
-#     * i.e. there's half a particle on the A site and a quarter of a particle each on the B sites
-# * Each of the link then gets an energy of $1/2 \cdot 1/4 \cdot V = 1/8$.
-# * There are two links, so the shift in energy for each CLS is $1/8 \cdot 2 = 1/4$.
+# The sharp feature in $S_2$ plot is the flat band.
+# * Sawtooth: there's another weaker feature at around $\mu = -4$, which should be the band minimum.
+# * Kagome: there's a strong qualitative dependence on $W$ in each plot, since it determines the number of sites in each unit cell.
 
 # %%
-mu_vals  = df_filtered.index.get_level_values("mu").unique().to_numpy()
-beta_vals = df_filtered.index.get_level_values("beta").unique().to_numpy()
-n_grid = df_filtered["n_avg"].unstack("beta").loc[mu_vals, beta_vals].to_numpy()    # particle per site
-s2_grid = df_filtered["S2"].unstack("beta").loc[mu_vals, beta_vals].to_numpy()       # Renyi 2-entropy per particle
-e_grid = df_filtered["energy"].unstack("beta").loc[mu_vals, beta_vals].to_numpy()   # energy per particle
-eps_grid = df_filtered["eps"].unstack("beta").loc[mu_vals, beta_vals].to_numpy()    # sum of all discarded Schmidt values squared
-ov_grid = df_filtered["ov"].unstack("beta").loc[mu_vals, beta_vals].to_numpy()      # lower bound for the overlap
+# index is xxx_vals[i_mu, i_beta]
+mu_vals = file_content["mus"]
+beta_vals_pos = file_content["betas"]
+sVN_grid_pos = file_content["data"][:,:,0].T  # Von Neumann entropy per site
+s2_grid_pos = file_content["data"][:,:,1].T   # Renyi 2-entropy per site
+n_grid_pos = file_content["data"][:,:,2].T    # particle per site
+e_grid_pos = file_content["data"][:,:,3].T    # energy per site
+
+assert np.allclose(mu_vals, file_content_neg["mus"])
+beta_vals_neg = file_content_neg["betas"]
+sVN_grid_neg = file_content_neg["data"][:,:,0].T  # Von Neumann entropy per site
+s2_grid_neg = file_content_neg["data"][:,:,1].T   # Renyi 2-entropy per site
+n_grid_neg = file_content_neg["data"][:,:,2].T    # particle per site
+e_grid_neg = file_content_neg["data"][:,:,3].T    # energy per site
+
+# %%
+# sort in increasing beta
+beta_vals = np.concatenate([beta_vals_neg[:0:-1], beta_vals_pos])
+sVN_grid = np.concatenate([sVN_grid_neg[:,:0:-1], sVN_grid_pos], axis = 1)  # Von Neumann entropy per site
+s2_grid = np.concatenate([s2_grid_neg[:,:0:-1], s2_grid_pos], axis = 1)   # Renyi 2-entropy per site
+n_grid = np.concatenate([n_grid_neg[:,:0:-1], n_grid_pos], axis = 1)    # particle per site
+e_grid = np.concatenate([e_grid_neg[:,:0:-1], e_grid_pos], axis = 1)    # energy per site
+
+N_betas = len(beta_vals)
+N_mus = len(mu_vals)
+
+# %%
+print(n_grid.shape)
+print(mu_vals.shape)
+print(beta_vals.shape)
 
 # %%
 if bool_plot:
     fig_ns, axes_ns = plt.subplots(2, 2, figsize = (8, 7))
-    for ax, vals, str_label, clim in zip(axes_ns.flatten(),
-                        [n_grid, s2_grid, e_grid, 1 - ov_grid],
-                        ["n_avg", "S2_avg", "E", "max infidelity"],
-                        [None, (0., 0.4), None, (0, 0.005)],):
+    for ax, vals, str_label, clim, levels in zip(axes_ns.flatten(),
+                        [n_grid, s2_grid, e_grid, sVN_grid],
+                        ["n_avg", "S2_avg", "E", "sVN_svg"],
+                        [None, None, None, None],
+                        [[1e-4, 1e-2, 0.1, 0.3, 0.99],
+                        [1e-4, 1e-2, 0.1, 0.3],
+                        [-1, -0.99, -0.5, -0.1],
+                        [1e-4, 1e-2, 0.1, 0.3]]):
         img = ax.pcolormesh(beta_vals, mu_vals, vals, clim = clim)
         ax.set_box_aspect(1)
         ax.set_title(str_label)
         ax.set_xlabel(r"$\beta$")
         ax.set_ylabel(r"$\mu$")
-        cntr = ax.contour(beta_vals, mu_vals, vals, colors = "white", linestyles = "solid", levels = 8)
-        ax.clabel(cntr, inline = True)
+        # cntr = ax.contour(beta_vals, mu_vals, vals, colors = "white", linestyles = "solid", levels = levels)
+        # ax.clabel(cntr, inline = True)
         fig_ns.colorbar(img, ax = ax)
     fig_ns.suptitle(f"{geometry} lattice, {geom_spec_str}")
     fig_ns.tight_layout()
 
 # %% [markdown]
+# Zoom in to lower $\beta$ (higher $T$).
+
+# %%
+mask_beta_zoom = np.logical_and(np.greater_equal(beta_vals, -5), np.less_equal(beta_vals, 5))
+if bool_plot:
+    fig_ns_zoom, axes_ns_zoom = plt.subplots(2, 2, figsize = (8, 7))
+    for ax, vals, str_label, clim, levels in zip(axes_ns_zoom.flatten(),
+                        [n_grid[:,mask_beta_zoom], s2_grid[:,mask_beta_zoom], e_grid[:,mask_beta_zoom], sVN_grid[:,mask_beta_zoom]],
+                        ["n_avg", "S2_avg", "E", "sVN_svg"],
+                        [None, (0, 0.5), None, None],
+                        [[1e-4, 1e-2, 0.1, 0.3, 0.6, 0.99],
+                        [1e-4, 1e-2, 0.05, 0.1, 0.3],
+                        [-1, -0.99, -0.5, -0.1],
+                        [1e-4, 1e-2, 0.1, 0.3]]):
+        img = ax.pcolormesh(beta_vals[mask_beta_zoom], mu_vals, vals, clim = clim)
+        ax.set_box_aspect(1)
+        ax.set_title(str_label)
+        ax.set_xlabel(r"$\beta$")
+        ax.set_ylabel(r"$\mu$")
+        # cntr = ax.contour(beta_vals[mask_beta_zoom], mu_vals, vals, colors = "white", linestyles = "solid", levels = levels)
+        # ax.clabel(cntr, inline = True)
+        fig_ns_zoom.colorbar(img, ax = ax)
+    fig_ns_zoom.suptitle(f"{geometry} lattice, {geom_spec_str}")
+    fig_ns_zoom.tight_layout()
+
+# %% [markdown]
+# Look at the value of one parameter (e.g. $s$) holding something else (e.g. $n$) fixed.
+
+# %%
+# beta_curve, s2_curve = util.parametric_slice_2D(mu_vals, beta_vals, s2_grid, n_grid, 0.4,
+#                                                 single_valued = "axis1")
+# plt.plot(mu_vals, s2_curve)
+
+# %% [markdown]
 # # Actual calculations
 # Goal: given our equations of state $n(\mu, \beta)$ and $s_2(\mu, \beta)$, achieve some filling factor $n_s$ in the system for different $(N_{tot}, S_{tot})$
-# (This also fixes $N_r = N_{tot} - 2 n_s L$, or equivalently $n_r = 2n - n_s$)
+# (This also fixes $N_r = N_{tot} - n_s N_{site}$, or equivalently $n_r = 2n - n_s$)
 # 1. Find $\mu_{s, r} = \mu(\beta) |_{n(\mu, \beta) = n_{s, r}}$ by inverting $n(\mu, \beta)$. I can do this for all $\beta$.
-# 2. Find $s_2(\mu_{s, r}, \beta)$. As I vary $\beta$ I should get a smooth change in $S_2 = 2 L (s_2(\mu_s) + s_2(\mu_r))$, so the scan in $S_{tot}$ comes for free.
+# 2. Find $s_2(\mu_{s, r}, \beta)$. As I vary $\beta$ I should get a smooth change in $S_2 = N_{site} (s_2(\mu_s) + s_2(\mu_r))$, so the scan in $S_{tot}$ comes for free.
 # 3. Do this for different $N_{tot}$. Now I've in principle done a scan in the $(N, S)$ space.
 # 
-# (Take $L_s = L_r = L$ for now, where $L$ is the number of unit cells, so there are $2L$ sites in each subregion)
+# (Take $L_s = L_r = L$ for now, where $L$ is the number of unit cells)
 # 
 # Here we get $(n_s; N_{tot}, \beta) \rightarrow (\mu_s, \mu_r, S_{tot})$, where I additionally define
 # * $V_{offset} = \mu_r - \mu_s$ is the offset potential required to achieve $n_s$.
 # * $\mu \equiv \mu_r$ --- this one is somewhat arbitrary. Effectively, I'm assuming that $V_{offset}$ is a potential that only increases the potential energy in the system region, while leaving the reservoir region intact. This is the case for our experimental setup, since our DMD light is blue-detuned.
-# * $n = N_{tot} / 4L$
+# * $n = N_{tot} / 2 N_{site}$
 # 
 # I write a semicolon for $n_s$ because it is not really a thermodynamic variable in the usual sense, but not including that gives one the wrong impression that the relation is underdetermined. (i.e. I want to have the same number of values on both side)
 # 
@@ -206,10 +216,9 @@ if bool_plot:
 # ### Scan $N_{tot}$ (jump here to change $n_s$)
 
 # %%
-# idx_beta_scan = (beta_vals >= 2.)       # Otherwise the contours will be concentrated at small beta where things are boring
-idx_beta_scan = (beta_vals >= -1.)      # All beta, use this for the .csv file
+# idx_beta_scan = np.logical_and(beta_vals >= -20., beta_vals <= 20.)
+idx_beta_scan = (beta_vals >= -100.)      # All beta, use this for the .csv file
 beta_scan = beta_vals[idx_beta_scan]
-
 for n_s_tar in np.arange(0.05, 0.95 + 0.001, step = 0.02):
     N_tot_arr = np.arange((n_s_tar + 0.) * N_sites, (n_s_tar + 1) * N_sites + 1, dtype=int)
 
@@ -231,7 +240,7 @@ for n_s_tar in np.arange(0.05, 0.95 + 0.001, step = 0.02):
     for k, N_tot in enumerate(N_tot_arr):
         # global filling n and reservoir filling n_r
         n_global = N_tot / N_sites / 2.
-        n_r = 2.0 * n_global - n_s_tar   # equivalently: N_tot/2L - n_s
+        n_r = 2.0 * n_global - n_s_tar
         n_r_arr[k] = n_r
 
         # 1) invert n(mu, beta) to get mu_s(beta) and mu_r(beta)
@@ -265,9 +274,9 @@ for n_s_tar in np.arange(0.05, 0.95 + 0.001, step = 0.02):
     # %% [markdown]
     # We are interested in knowing when we can realize $\sigma_r > \sigma_s$. I'll define a dimensionless figure of merit
     # 
-    # $\varsigma \equiv \sigma_s / s - 1 = (\sigma_s - \sigma_r) / (\sigma_s + \sigma_r)$ (assume $L_r = L_s$)
+    # $\varsigma \equiv \sigma_s / \sigma - 1$
     # 
-    # that measures the decrease in entropy, measured in entropy per particle if there were no offset. $\varsigma < 0$ indicates cooling effect.
+    # that measures the decrease in entropy, measured in entropy per particle if there were no offset. $\varsigma < 0$ indicates cooling effect, and $\varsigma = -1$ means zero entropy for system particles.
 
     # %%
     varsigma_all = sigma2_s_all / sigma2_all - 1
@@ -297,10 +306,10 @@ for n_s_tar in np.arange(0.05, 0.95 + 0.001, step = 0.02):
         axes_eos_cb = axes_eos_all[:,1::2]
         alpha_cooling_max = 0.
         for ax, ax_cb, vals, cmap, str_label, clim in zip(axes_eos.flatten(), axes_eos_cb.flatten(),
-                            [s2_s_all, s2_r_all, S2_tot_all, mu_glob_all, dmu_all, varsigma_all],
-                            ["viridis", "viridis", "viridis", "viridis", "viridis", "coolwarm"],
-                            [r"$s_s$", r"$s_r$", r"$S_{tot}$", r"$\mu$", r"$V_{offset}$", r"$\varsigma$"],
-                            [None, None, None, None, None, (-1, 4)]):
+                [s2_s_all, s2_r_all, S2_tot_all, mu_glob_all, dmu_all, varsigma_all],
+                ["viridis", "viridis", "viridis", "viridis", "viridis", "coolwarm"],
+                [r"$s_s$", r"$s_r$", r"$S_{tot}$", r"$\mu$", r"$V_{offset}$", r"$\varsigma$"],
+                [None, None, None, (E_min - 2, E_max + 2), (E_min - 2, E_max + 2), (-1, 4)]):
             img = ax.pcolormesh(beta_scan, N_tot_arr, vals, clim = clim, cmap = cmap)
             ax.set_box_aspect(1)
             ax.set_title(str_label)
@@ -308,7 +317,7 @@ for n_s_tar in np.arange(0.05, 0.95 + 0.001, step = 0.02):
             ax.set_ylabel(r"$N_{tot}$")
             ryax = ax.secondary_yaxis('right', functions = (lambda x: (x - N_s_tar) / (N_sites), lambda x: x * N_sites + N_s_tar))
             ryax.set_ylabel(r"$n_r$")
-            # cntr = ax.contour(beta_scan, N_tot_arr, vals, colors = "white", linestyles = "solid", levels = 10)
+            # cntr = ax.contour(beta_scan, N_tot_arr, vals, colors = "white", linestyles = "solid", levels = 7)
             # ax.clabel(cntr, inline = True)
             fig_eos.colorbar(img, cax = ax_cb, fraction = 0.5, location = 'right')
             if str_label != r"$\varsigma$" and not np.isclose(alpha_cooling_max, 0.):
@@ -323,15 +332,12 @@ for n_s_tar in np.arange(0.05, 0.95 + 0.001, step = 0.02):
     # ### Building the matching results Dataframe
 
     # %%
-    # raise(Exception("Imma stop here"))  # comment this out to actually save data
-
-    # %%
     records_matching = []
     for i_beta, beta in enumerate(beta_scan):
         for i_Ntot, Ntot in enumerate(N_tot_arr):
             records_matching.append({
                 "beta": beta,
-                "Ntot": Ntot,
+                "Ntot": int(Ntot),
                 "n_s": np.round(n_s_tar, 4),
                 "n_r": n_r_arr[i_Ntot],
                 "mu_s": mu_s_all[i_Ntot, i_beta],
@@ -365,26 +371,29 @@ for n_s_tar in np.arange(0.05, 0.95 + 0.001, step = 0.02):
     # If all the input parameters are the same except for the file modification time, the original entry is replaced if `bool_overwrite_older_mtime = True`, or a new row is added if it is `False`.
 
     # %%
+    # raise(Exception("Imma stop here"))  # comment this out to actually save data
+
+    # %% [markdown]
+    # Check the number of rows existed in .csv if this is something I've run before.
+    # * This is not working properly right now - always detect differences even if running the same thing twice. I'm just writing new files for now
+
+    # %%
     input_param_cols = [k for k in filter_params.keys()] + [
         "beta",
         "Ntot",
         "n_s",
     ]
 
-    # %% [markdown]
-    # Check the number of rows existed in .csv if this is something I've run before.
-
     # %%
     matching_results_folder = Path(r"C:\Users\ken92\Downloads\Shao-Wen Data\matching_results",
-                                scan_name.removesuffix(".tar"))
+                                f"{geometry}_{geom_spec_str}_spinless_NI_L{L_subregion}")
     matching_results_folder.mkdir(exist_ok = True)
     csv_name = f"ns{np.round(n_s_tar, 4)}.csv"
     csv_path = Path(matching_results_folder, csv_name)
 
-    df_matching_rslt.to_csv(csv_path, index = False)
-    # util_match.update_eos_csv(
-    #     df_new = df_matching_rslt,
-    #     csv_path = csv_path,
-    #     param_cols = input_param_cols,
-    #     bool_overwrite_conflict = True,
-    # )
+    util_match.update_eos_csv(
+        df_new = df_matching_rslt,
+        csv_path = csv_path,
+        param_cols = input_param_cols,
+        bool_overwrite_conflict = True,
+    )
