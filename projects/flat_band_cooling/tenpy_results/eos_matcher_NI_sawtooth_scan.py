@@ -219,7 +219,7 @@ if bool_plot:
 # idx_beta_scan = np.logical_and(beta_vals >= -20., beta_vals <= 20.)
 idx_beta_scan = (beta_vals >= -100.)      # All beta, use this for the .csv file
 beta_scan = beta_vals[idx_beta_scan]
-for n_s_tar in np.arange(0.05, 0.95 + 0.001, step = 0.02):
+for n_s_tar in np.arange(0.05, 0.95 + 0.001, step = 0.01):
     N_tot_arr = np.arange((n_s_tar + 0.) * N_sites, (n_s_tar + 1) * N_sites + 1, dtype=int)
 
     # %%
@@ -264,7 +264,7 @@ for n_s_tar in np.arange(0.05, 0.95 + 0.001, step = 0.02):
     mu_glob_all = mu_r_all
     sigma2_s_all = s2_s_all / n_s_tar # entropy per particle
     sigma2_r_all = s2_r_all / n_r_arr[:, np.newaxis]
-    sigma2_all = S2_tot_all / 2 / N_sites
+    sigma2_all = S2_tot_all / N_tot_arr[:, np.newaxis]
 
     # %%
     for label, data in [("mu_s", mu_s_all), ("mu_r", mu_r_all), ("s2_s", s2_s_all), ("s2_r", s2_r_all)]:
