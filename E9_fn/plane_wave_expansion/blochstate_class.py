@@ -171,34 +171,22 @@ class blochstate(np.ndarray):
         """finds momentum space distribution (basically just returns a blochstate of <phi|phi>)"""
         return abs(self)**2
         
-    def findvx(self):
-        """finds the group velocity in x direction (normalized s.t. kp = 1)
-        
-        Should combine with findvy when I care enough.
-        """
+    def find_group_velocity(self):
+        """Finds the group velocity (normalized s.t. kp = 1)"""
         p = self.population()
-        dg1 = p.center[0]
-        dg2 = p.center[1]
-        g1x = E9c.g1[0]
-        g2x = E9c.g2[0]
+        dg1, dg2 = p.center
+        g1x, g1y = E9c.g1
+        g2x, g2y = E9c.g2
         # a "velocity mask", independent of population
         mg = np.mgrid[(-p.num + dg1):(p.num + dg1 + 1), (-p.num + dg2):(p.num + dg2 + 1)]
         vxmask = mg[0] * g1x + mg[1] * g2x
+        vymask = mg[0] * g1y + mg[1] * g2y
         # First move the center element (given by self.center) of the population to the middle of the state array, then reshape it
         # to a square. Finally multiply element-wise by the velocity mask, and sum all entries
         # (see my onenote for a schematic derivation...)
-        return self.q[0] + (float((np.roll(p, 2 * self.num * (self.num - dg1 + 1) - (dg1 + dg2)).reshape(self.ksize, self.ksize) * vxmask).sum()) / E9c.k_sw)
-        
-    def findvy(self):
-        """finds the group velocity in y direction (normalized s.t. kp = 1)"""
-        p = self.population()
-        dg1 = p.center[0]
-        dg2 = p.center[1]
-        g1y = E9c.g1[1]
-        g2y = E9c.g2[1]
-        mg = np.mgrid[(-p.num + dg1):(p.num + dg1 + 1), (-p.num + dg2):(p.num + dg2 + 1)]
-        vymask = mg[0] * g1y + mg[1] * g2y
-        return self.q[1] + (float((np.roll(p, 2 * self.num * (self.num - dg1 + 1) - (dg1 + dg2)).reshape(self.ksize, self.ksize) * vymask).sum()) / E9c.k_sw)
+        vx = self.q[0] + (float((np.roll(p, 2 * self.num * (self.num - dg1 + 1) - (dg1 + dg2)).reshape(self.ksize, self.ksize) * vxmask).sum()) / E9c.k_sw)
+        vy = self.q[1] + (float((np.roll(p, 2 * self.num * (self.num - dg1 + 1) - (dg1 + dg2)).reshape(self.ksize, self.ksize) * vymask).sum()) / E9c.k_sw)
+        return np.array([vx, vy])
     
     def findj(self, x, y):
         """Find the current density.
@@ -466,13 +454,14 @@ def RealPlot(psilist, x = np.arange(-1.5, 1.5, 0.025), y = np.arange(-1.5, 1.5, 
     fig.colorbar(cms, ax = fig.add_subplot(num_row, ncols, 2 * ncols))
     return fig
         
-def ToFSubplot(ax, vec, center = (0, 0), maxmn = 3):
+def ToFSubplot(vec, ax = None, center = (0, 0), maxmn = 3):
     """"Plot ToF images in a given axes.
     
     (versions after 211107) I use two different color tables: if all entries are real, I use black and blue for
     different parities, and red to indicate an actually small element that's somehow displayed. If there are any
     imaginary numbers, then I use some cyclic color palette.
     """
+    if ax is None: _, ax = plt.subplots(1, 1)
     size = int(np.sqrt(len(vec)))
     num = int((size - 1) / 2)
     maxmn = min(maxmn, num)
@@ -510,7 +499,7 @@ def ToFSubplot(ax, vec, center = (0, 0), maxmn = 3):
         ax.scatter(q[0], q[1], s = 10, c = "red", marker = "x", zorder = 3)
     sca = ax.scatter(x, y, s = weight, c = colors, cmap = cmp, zorder = 1)
     ax.set_aspect('equal')
-    return sca
+    return ax
 
 def ToFPlot(psilist, nrows = 2, maxmn = None):
     """Get ToF plot for all states in psilist, plotted in that order.
@@ -528,8 +517,9 @@ def ToFPlot(psilist, nrows = 2, maxmn = None):
             maxmn = psi.num
         elif nomaxmn:
             maxmn = 3
-        sca = ToFSubplot(ax, psi, maxmn = maxmn)
-    fig.colorbar(sca, ax = fig.add_subplot(nrows, ncols, nrows * ncols))
+        ToFSubplot(psi, ax, maxmn = maxmn)    
+    # fig.colorbar(sca, ax = fig.add_subplot(nrows, ncols, nrows * ncols))    # seems really useless
+    return fig
 
 # check if I want to keep this
 def PlotEnergyFunctional(ax, datalist, marker = '-', label = '', color = 'r', index_list = None):
@@ -592,18 +582,21 @@ def plot_qset(ax_BZ: plt.axes = None, qset = '', qset_kwargs: dict = None):
     
     By default the quasimomentum plotted is normalized by K.
     Args:
-        qset: there are two different possible kinds of inputs
-                  i) list[str]: if q-points are defined along some path. e.g. 'Kp/K, Gp/K, Mp/K, Kp/K'
+        qset: there are three different possible kinds of inputs
+                  i) an array of (qx, qy): a single q-point.
+                 ii) list[str]: if q-points are defined along some path. e.g. 'Kp/K, Gp/K, Mp/K, Kp/K'
                      In this case, a series of arrows indicate the quasimomentum path.
-                 ii) a tuple of (string, points) where points is an array obtained from FindqArea(eval(qvert))
+                iii) a tuple of (string, points) where points is an array obtained from FindqArea(eval(qvert))
                      Here the area of interest is shaded, and each point is marked in the BZ.
               This input assumes that the evaluated elements are normalized by K.
         qset_kwargs: keyword arguments passed to scatter() or arrow()."""
     if ax_BZ is None: fig, ax_BZ = plt.subplots(1, 1, 1)
     qset_kwargs = dict() if qset_kwargs is None else qset_kwargs
     # Determine what input type was given
-    if qset == '':
+    if type(qset) == np.ndarray:
         qset_type = 0
+        qstr = str(qset)
+        q_verts = [qset]
     elif type(qset) == str:
         qset_type = 1
         qstr = qset
@@ -615,7 +608,7 @@ def plot_qset(ax_BZ: plt.axes = None, qset = '', qset_kwargs: dict = None):
     
     xx, yy = np.meshgrid(np.arange(-4, 4), np.arange(-4, 4))
     
-    if qset_type == 1: # Mark equivalent quasimomenta for final quasimomentum
+    if qset_type in [0, 1]: # Mark equivalent quasimomenta for final quasimomentum
         for i in xx:
             for j in yy:
                 x = i * E9c.G1G[0] + j * E9c.G2G[0] + q_verts[-1][0]

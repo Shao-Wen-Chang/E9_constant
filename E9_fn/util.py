@@ -2,6 +2,7 @@ import E9_fn.E9_constants as E9c
 import logging
 import numpy as np
 from scipy.linalg import eigh
+from scipy.special import wofz
 import matplotlib.pyplot as plt
 from matplotlib.path import Path as plt_Path
 from matplotlib.patches import Wedge
@@ -602,6 +603,35 @@ def dirac_delta(x, x0 = 0, hw = 1e-6):
     else:
         return rect_fn(x, x0 = x0 - hw, x1 = x0 + hw) / (2 * hw)
 
+def Lorentzian_1D(x, gamma = 1, mu = 0, normalization = "norm1"):
+    """
+    The Lorentzian (Cauchy) function.
+    
+    Parameters
+    ----------
+    x : array_like
+        Input values.
+    gamma : float, optional
+        Scale parameter (half-width at half-maximum). Default is 1.
+    mu : float, optional
+        Location parameter (center). Default is 0.
+    normalization : str, optional
+        Normalization mode:
+        - "norm1": Normalized to integrate to 1 (default)
+        - "max1": Normalized to have maximum value of 1
+    
+    Returns
+    -------
+    array_like
+        Lorentzian function values.
+    """
+    if normalization == "norm1":
+        return (1 / np.pi) * gamma / ((x - mu)**2 + gamma**2)
+    elif normalization == "max1":
+        return gamma**2 / ((x - mu)**2 + gamma**2)
+    else:
+        raise ValueError("'normalization' should be 'norm1' or 'max1'.")
+
 def Gaussian_1D(x, s = 1, mu = 0, normalization = "norm1"):
     """The Gaussian function, default to the normal distribution (i.e. integrates to 1)."""
     if normalization == "norm1":
@@ -610,6 +640,47 @@ def Gaussian_1D(x, s = 1, mu = 0, normalization = "norm1"):
         return np.exp(-(1/2) * (x - mu)**2 / s**2)
     else:
         raise(ValueError("'normalization' should be 'norm1' or 'max1'."))
+
+def Voigt_1D(x, s = 1, gamma = 1, mu = 0, normalization = "norm1"):
+    """
+    The Voigt profile (convolution of Gaussian and Lorentzian).
+    
+    Parameters
+    ----------
+    x : array_like
+        Input values.
+    s : float, optional
+        Gaussian standard deviation. Default is 1.
+    gamma : float, optional
+        Lorentzian half-width at half-maximum (HWHM). Default is 1.
+    mu : float, optional
+        Location parameter (center). Default is 0.
+    normalization : str, optional
+        Normalization mode:
+        - "norm1": Normalized to integrate to 1 (default)
+        - "max1": Normalized to have maximum value of 1
+    
+    Returns
+    -------
+    array_like
+        Voigt profile values.
+    
+    This is evaluated using the real part of the Faddeeva function.
+    """
+    # Shift x by center
+    z = ((x - mu) + 1j * gamma) / (s * np.sqrt(2))
+    
+    if normalization == "norm1":
+        # Faddeeva function normalized to integrate to 1
+        return np.real(wofz(z)) / (s * np.sqrt(2 * np.pi))
+    elif normalization == "max1":
+        # Normalized to have maximum value of 1
+        # Maximum occurs at x = mu
+        z_max = (1j * gamma) / (s * np.sqrt(2))
+        max_value = np.real(wofz(z_max)) / (s * np.sqrt(2 * np.pi))
+        return np.real(wofz(z)) / (s * np.sqrt(2 * np.pi)) / max_value
+    else:
+        raise ValueError("'normalization' should be 'norm1' or 'max1'.")
 
 def gaussian_1D_integral(s):
     """The integral of a gaussian with width s and amplitude 1."""
@@ -661,6 +732,7 @@ def step_fn(x, x0: float = 0):
 
 #%% Helper plotting functions
 #%% Plot related
+### general stuff
 def set_custom_plot_style(activate: bool = True, overwrite: dict = {}):
     """Use a set of rcParams that I prefer.
     
@@ -741,6 +813,113 @@ def get_color(var, var_list: np.ndarray, cmap = plt.cm.viridis, assignment = "in
 
     return cmap(scaled_frac)
 
+def fix_clabel_orientation(labels):
+    """
+    Ensure contour labels are always upright (never upside-down).
+
+    Parameters
+    ----------
+    labels : list of matplotlib.text.Text
+        The list returned by ax.clabel().
+    """
+    for lbl in labels:
+        angle = lbl.get_rotation()
+        # Wrap angle to [-90, 90] so text is never upside down
+        if angle > 90:
+            lbl.set_rotation(angle - 180)
+        elif angle < -90:
+            lbl.set_rotation(angle + 180)
+
+# I want to remove this function
+def make_simple_axes(ax = None, fignum = None, fig_kwarg = {}):
+    """Make a figure with one single Axes if ax is None, and return (figure, axes).
+    
+    My favorite thing to have in the beginning of a plotting function."""
+    if ax is None:
+        f = plt.figure(num = fignum, **fig_kwarg)
+        f.clf()
+        ax = f.add_axes(111)
+        return (f, ax)
+    else:
+        return (ax.get_figure(), ax)
+
+def get_closed_polygon(vert):
+    '''Generate the plt_Path defined by a set of vertices that defines a closed polygon.'''
+    path_code = [plt_Path.MOVETO] + [plt_Path.LINETO for _ in vert[:-2]] + [plt_Path.CLOSEPOLY]
+    return plt_Path(vert, path_code)
+
+### Adding artists to axes
+def plot_rectangle(ax, center = None, half_widths = None, top = None, bottom = None, 
+                   left = None, right = None, **kwargs):
+    """
+    Plot a rectangle on a given matplotlib axes.
+    
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        The axes object on which to plot the rectangle.
+    center : tuple of float, optional
+        The (x, y) coordinates of the rectangle's center.
+        Must be provided with half_widths.
+    half_widths : tuple of float, optional
+        The (half_width, half_height) of the rectangle.
+        Must be provided with center.
+    top : float, optional
+        The y-coordinate of the top edge.
+        Must be provided with bottom, left, and right.
+    bottom : float, optional
+        The y-coordinate of the bottom edge.
+        Must be provided with top, left, and right.
+    left : float, optional
+        The x-coordinate of the left edge.
+        Must be provided with top, bottom, and right.
+    right : float, optional
+        The x-coordinate of the right edge.
+        Must be provided with top, bottom, and left.
+    **kwargs : dict
+        Additional keyword arguments passed to ax.plot() for styling
+        (e.g., color, linewidth, linestyle, etc.).
+    
+    Returns
+    -------
+    lines : list of Line2D
+        The line objects created by the plot.
+    
+    Raises
+    ------
+    ValueError
+        If neither method is properly specified or if both methods are specified.
+    """
+    # Check which method is being used
+    method1 = center is not None and half_widths is not None
+    method2 = all(v is not None for v in [top, bottom, left, right])
+    
+    if method1 and method2:
+        raise ValueError("Cannot specify both methods simultaneously. "
+                        "Use either (center, half_widths) or (top, bottom, left, right).")
+    
+    if not method1 and not method2:
+        raise ValueError("Must specify either (center, half_widths) or "
+                        "(top, bottom, left, right).")
+    
+    # Calculate the rectangle corners based on the method used
+    if method1:
+        cx, cy = center
+        hw, hh = half_widths
+        left = cx - hw
+        right = cx + hw
+        bottom = cy - hh
+        top = cy + hh
+    
+    # Define the rectangle's corners in order to close the shape
+    x_coords = [left, right, right, left, left]
+    y_coords = [bottom, bottom, top, top, bottom]
+    
+    # Plot the rectangle
+    lines = ax.plot(x_coords, y_coords, **kwargs)
+    
+    return lines
+
 def draw_circle(ax, center, radius, index_convention = "xy", **kwargs):
     """Draw a circle as a Line2D on the given Matplotlib Axes.
 
@@ -808,36 +987,6 @@ def fill_annulus(ax, center, r_inner, r_outer, index_convention = "xy", **kwargs
     ann = Wedge(center, r_outer, 0, 360, width = r_outer - r_inner, **kwargs)
     ax.add_patch(ann)
     return ann
-
-def fix_clabel_orientation(labels):
-    """
-    Ensure contour labels are always upright (never upside-down).
-
-    Parameters
-    ----------
-    labels : list of matplotlib.text.Text
-        The list returned by ax.clabel().
-    """
-    for lbl in labels:
-        angle = lbl.get_rotation()
-        # Wrap angle to [-90, 90] so text is never upside down
-        if angle > 90:
-            lbl.set_rotation(angle - 180)
-        elif angle < -90:
-            lbl.set_rotation(angle + 180)
-
-# I want to remove this function
-def make_simple_axes(ax = None, fignum = None, fig_kwarg = {}):
-    """Make a figure with one single Axes if ax is None, and return (figure, axes).
-    
-    My favorite thing to have in the beginning of a plotting function."""
-    if ax is None:
-        f = plt.figure(num = fignum, **fig_kwarg)
-        f.clf()
-        ax = f.add_axes(111)
-        return (f, ax)
-    else:
-        return (ax.get_figure(), ax)
         
 def plot_delta_fn(ax,
                   x0: float = 0,
@@ -872,11 +1021,6 @@ def plot_delta_fn(ax,
     arr = ax.arrow(xi, yi, dx, dy, head_width = 0.5, head_length = 0.1, **kwargs)
     ax.text(tx, ty, text)
     return arr
-
-def get_closed_polygon(vert):
-    '''Generate the plt_Path defined by a set of vertices that define a closed polygon.'''
-    path_code = [plt_Path.MOVETO] + [plt_Path.LINETO for _ in vert[:-2]] + [plt_Path.CLOSEPOLY]
-    return plt_Path(vert, path_code)
 
 def add_shades(ax, mask, axis_data, axis="x", **kwargs):
     """

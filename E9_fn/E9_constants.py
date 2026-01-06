@@ -163,9 +163,9 @@ K3 = k_lw * k3k
     # g's: reciprocal lattice vectors
 g_sw = k_sw * np.sqrt(3)
 g_lw = k_lw * np.sqrt(3)
-g1 = k2 - k3
-g2 = k3 - k1
-g3 = k1 - k2
+g1 = k2 - k3    #    /
+g2 = k3 - k1    # <--   (and g1, g3 also points outwards)
+g3 = k1 - k2    #    \
 G1 = K2 - K3
 G2 = K3 - K1
 G3 = K1 - K2
@@ -236,6 +236,7 @@ E_r532_K40   = p_r532**2 / 2 / m_K40    # 532 photon recoil energy
 
 #%% Natural units for lattice calculations
 # m_atom = hbar = l_sw = 1
+# I might want to change this definition at some point due to complications below
 # note that energy defined with the frequency unit I'm using is 2*pi times larger than usual
 # (E/hbar instead of E/h)
 m_lat_unit_Rb87 = m_Rb87
@@ -246,7 +247,7 @@ t_lat_unit_Rb87 = 1 / f_lat_unit_Rb87
 all_lat_unit_Rb87 = {
     "m_unit": m_lat_unit_Rb87,
     "l_unit": l_lat_unit_Rb87,
-    "E_unit": E_lat_unit_Rb87,
+    "E_unit": E_lat_unit_Rb87,  # E_r532 = 2 * pi**2, so E_unit = E_r532 / (2 * pi**2)
     "f_unit": f_lat_unit_Rb87,
     "t_unit": t_lat_unit_Rb87
 }
