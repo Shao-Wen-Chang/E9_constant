@@ -6,6 +6,7 @@ import pickle
 import sys
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
+from matplotlib.patches import FancyArrowPatch
 from matplotlib.colors import ListedColormap
 import matplotlib.patches as patches
 import seaborn as sns
@@ -564,14 +565,21 @@ def PlotBZSubplot(ax_BZ: plt.axes = None, BZcolor = E9c.BZcolor_PRL):
     
     # Small stuff
     arrow_color = '#FF5500'
-    ax_BZ.arrow(-2 * (E9c.G1G[0] + E9c.G2G[0]), (-2 * E9c.G1G[1] - 3 * E9c.G2G[1])
-                , E9c.kB12[0] / E9c.k_lw, E9c.kB12[1] / E9c.k_lw, edgecolor = arrow_color
-                , facecolor = arrow_color, width = 0.02, head_width = 0.15 , head_length = 0.25
-                , overhang = 0.5 , length_includes_head = True)
-    ax_BZ.arrow(-2 * (E9c.G1G[0] + E9c.G2G[0]), (-2 * E9c.G1G[1] - 3 * E9c.G2G[1])
-                , E9c.kB23[0] / E9c.k_lw, E9c.kB23[1] / E9c.k_lw, edgecolor = arrow_color
-                , facecolor = arrow_color, width = 0.02, head_width = 0.15 , head_length = 0.25
-                , overhang = 0.5 , length_includes_head = True)
+    for vec in [E9c.kB12, E9c.kB23]:
+        arrow = FancyArrowPatch(
+            (-2 * (E9c.G1G[0] + E9c.G2G[0]), -2 * E9c.G1G[1] - 3 * E9c.G2G[1]),
+            (-2 * (E9c.G1G[0] + E9c.G2G[0]) + vec[0] / E9c.k_lw,
+            -2 * E9c.G1G[1] - 3 * E9c.G2G[1] + vec[1] / E9c.k_lw),
+            edgecolor = arrow_color,
+            facecolor = arrow_color,
+            linewidth = 2,
+            arrowstyle = '-|>,head_width=0.06,head_length=0.15',
+            mutation_scale = 50,
+            shrinkA = 0,
+            shrinkB = 0
+        )
+        ax_BZ.add_patch(arrow)
+
     ax_BZ.set_xlim(-4, 4)
     ax_BZ.set_ylim(-3, 3)
     ax_BZ.set_aspect('equal')
@@ -658,6 +666,65 @@ def FindqSets(num, points):
         qlist = np.vstack((qlist, FindqSet(GiveNum(i), points[i], points[i+1])[1:]))
     return qlist
 
+def fix_gauge_2d_grid(eigenvectors, q_list, n_q_init = 0, neighbor_dist = 0.3):
+    """
+    Fix gauge for 2D Brillouin zone grid using local neighbor relationships.
+    
+    Instead of requiring a global path ordering, use actual spatial neighbors
+    in k-space to determine gauge transformations.
+    
+    Args:
+        eigenvectors: shape (n_q, N_pw, n_bands)
+        q_list: shape (n_q, 2) in arbitrary order
+        neighbor_dist: distance threshold for neighbors (in units of |G|)
+                       e.g., 0.3 * ||G|| for honeycomb lattice
+        n_q_init: The initial index in q_list where the gauge choice spreads out from.
+    
+    Returns:
+        eigenvectors_fixed: gauge-fixed eigenvectors
+    """
+    n_q, N_pw, n_bands = eigenvectors.shape
+    evecs_fixed = eigenvectors.copy()
+    
+    # Build neighbor lists
+    neighbors = [[] for _ in range(n_q)]
+    for i in range(n_q):
+        for j in range(i + 1, n_q):
+            dist = np.linalg.norm(q_list[i] - q_list[j])
+            if dist < neighbor_dist:
+                neighbors[i].append(j)
+                neighbors[j].append(i)
+    
+    # Fix gauge using spreading algorithm (BFS-like)
+    for band in range(n_bands):
+        # Set arbitrary phase for starting point
+        # (largest component positive and real)
+
+        largest_idx = np.argmax(np.abs(evecs_fixed[n_q_init, :, band]))
+        phase = np.angle(evecs_fixed[n_q_init, largest_idx, band])
+        evecs_fixed[n_q_init, :, band] *= np.exp(-1j * phase)
+        # Spread to neighbors via BFS
+        processed = [False] * n_q
+        queue = [n_q_init]
+        processed[n_q_init] = True
+        
+        while queue:
+            current = queue.pop(0)
+            current_state = evecs_fixed[current, :, band]
+            
+            for neighbor in neighbors[current]:
+                if not processed[neighbor]:
+                    # Fix phase to maximize overlap with current state
+                    neighbor_state = evecs_fixed[neighbor, :, band]
+                    overlap = np.vdot(current_state, neighbor_state)
+                    phase = np.angle(overlap)
+                    evecs_fixed[neighbor, :, band] *= np.exp(-1j * phase)
+                    
+                    queue.append(neighbor)
+                    processed[neighbor] = True
+    
+    return evecs_fixed
+
 def FindqArea(qvert, dqx = 0.015, dqy = 0.015):
     '''Gives points within an area defined by a set of vertices.
     
@@ -687,31 +754,6 @@ def FindLatticeAcc(q, inFreq = False):
     else: C = 1
     e12, e23 = E9c.kB12 / np.linalg.norm(E9c.kB12), E9c.kB23 / np.linalg.norm(E9c.kB23)
     return C * np.linalg.inv(np.transpose([e12, e23])) @ q
-
-def find_H(q, Exp_lib, Hq_mmat, Hq_nmat, H_532, H_1064):
-    """Find the Hamiltonian for a given q."""
-    l_unit = Exp_lib["units_dict"]["l_unit"]
-    V532, V1064 = Exp_lib['V532'], Exp_lib['V1064']
-    K = E9c.k_lw * l_unit
-    Tq = K**2 / 2. * np.linalg.norm(np.outer(E9c.g1g, Hq_mmat.diagonal()) + np.outer(E9c.g2g, Hq_nmat.diagonal()) + q[:, np.newaxis], axis = 0)**2
-    return np.diag(Tq) + V1064 * H_1064 + V532 * H_532
-
-def find_del_H(q, Exp_lib, Hq_mmat, Hq_nmat, direction = 'x'):
-    """Find the change in Hamiltonian in some direction for a given q."""
-    l_unit = Exp_lib["units_dict"]["l_unit"]
-    K = E9c.k_lw * l_unit
-    if direction == 'x':
-        dq = np.array([1e-3, 0])
-    elif direction == 'y':
-        dq = np.array([0, 1e-3])
-    else:
-        raise ValueError("Direction should be 'x' or 'y'.")
-    Tq = K**2 / 2. * (
-        2 * np.linalg.norm(np.outer(E9c.g1g, Hq_mmat.diagonal()) + np.outer(E9c.g2g, Hq_nmat.diagonal()) + q[:, np.newaxis], axis = 0)**2
-        - np.linalg.norm(np.outer(E9c.g1g, Hq_mmat.diagonal()) + np.outer(E9c.g2g, Hq_nmat.diagonal()) + (q + dq)[:, np.newaxis], axis = 0)**2
-        - np.linalg.norm(np.outer(E9c.g1g, Hq_mmat.diagonal()) + np.outer(E9c.g2g, Hq_nmat.diagonal()) + (q - dq)[:, np.newaxis], axis = 0)**2
-        ) / (np.linalg.norm(dq) * l_unit)
-    return np.diag(Tq)
 
 def find_H_components(num, Exp_lib, center = (0, 0)):
     """Generates 'components' that make up non-interacting Hamiltonian.
@@ -817,6 +859,55 @@ def find_H_components(num, Exp_lib, center = (0, 0)):
                         H_1064[ind0, ind1] += rV * (ABoffset1064 * (-1j) * np.exp(1j * phi) * InJ((mm - m, nn - n), E9c.J2set1064))
                     H_532[ind0, ind1] += rV * ((2/3.) * is_0th_order - (1 / 9.) * InJ((mm - m, nn - n), E9c.Jset532))
     return Hq_mmat, Hq_nmat, H_532, H_1064
+
+def find_H(q, Exp_lib, Hq_mmat, Hq_nmat, H_532, H_1064):
+    """Find the Hamiltonian for a given q."""
+    l_unit = Exp_lib["units_dict"]["l_unit"]
+    V532, V1064 = Exp_lib['V532'], Exp_lib['V1064']
+    K = E9c.k_lw * l_unit
+    Tq = K**2 / 2. * np.linalg.norm(np.outer(E9c.g1g, Hq_mmat.diagonal()) + np.outer(E9c.g2g, Hq_nmat.diagonal()) + q[:, np.newaxis], axis = 0)**2
+    return np.diag(Tq) + V1064 * H_1064 + V532 * H_532
+
+def find_del_H(q, Exp_lib, Hq_mmat, Hq_nmat, direction = 'x', delta = 1e-5):
+    """Find the change in Hamiltonian in some direction for a given q."""
+    l_unit = Exp_lib["units_dict"]["l_unit"]
+    K = E9c.k_lw * l_unit
+    if direction == 'x':
+        dq = np.array([delta, 0])
+    elif direction == 'y':
+        dq = np.array([0, delta])
+    else:
+        raise ValueError("Direction should be 'x' or 'y'.")
+    Tq = K**2 / 2. * (np.linalg.norm(np.outer(E9c.g1g, Hq_mmat.diagonal()) + np.outer(E9c.g2g, Hq_nmat.diagonal()) + (q + dq/2)[:, np.newaxis], axis = 0)**2
+        - np.linalg.norm(np.outer(E9c.g1g, Hq_mmat.diagonal()) + np.outer(E9c.g2g, Hq_nmat.diagonal()) + (q - dq/2)[:, np.newaxis], axis = 0)**2
+        ) / np.linalg.norm(dq)
+    return np.diag(Tq)
+
+def find_inter_Berry_conn(q, psi1, psi2, E12, Exp_lib, Hq_mmat, Hq_nmat):
+    delx_H, dely_H = find_del_H(q, Exp_lib, Hq_mmat, Hq_nmat, direction = 'x'), find_del_H(q, Exp_lib, Hq_mmat, Hq_nmat, direction = 'y')
+    return np.einsum('a,abc,b->c', np.conj(psi2), np.stack([delx_H, dely_H], axis = 2), psi1) / E12
+
+# def find_q_geo_tensor(n_q, n_band, Exp_lib, q_list, E_list, psi_list, Hq_mmat, Hq_nmat, component = 'xx'):
+def find_q_geo_tensor(n_q, n_band, Exp_lib, q_list, E_list, psi_list, Hq_mmat, Hq_nmat, component = 'xx'):
+    """Find the quantum geometric tensor for a given Bloch state psi.
+    
+    I'll want to rewrite this so that it does the calculation for the whole band, not just at n_q.
+    """
+    q = q_list[n_q]
+    psin = psi_list[n_q, :, n_band]
+    En = E_list[n_q, n_band]
+    dH1 = find_del_H(q, Exp_lib, Hq_mmat, Hq_nmat, direction = component[0])
+    dH2 = find_del_H(q, Exp_lib, Hq_mmat, Hq_nmat, direction = component[1])
+    qgt = 0j
+    for m_band in range(E_list.shape[1]):
+        if m_band == n_band:
+            continue
+        psim = psi_list[n_q, :, m_band]
+        Em = E_list[n_q, m_band]
+        qgt += psim.conj() @ dH1 @ psin * psin.conj() @ dH2 @ psim / (Em - En)**2
+    if not util.IsHermitian(qgt):
+        logging.warning(f"Quantum geometric tensor for n_band {n_band}, n_q {n_q} is not Hermitian")
+    return qgt
 
 def FindInteractionIndices(num, center = (0, 0)):
     """Find (m, n) indices involved in nonlinear eigenstate calculation.
