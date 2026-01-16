@@ -139,6 +139,43 @@ def find_sign_change(arr):
     node_finder = arr[:-1] * arr[1:]
     return np.where(node_finder < 0)[0]
 
+def find_local_minima(arr: np.ndarray, wrap: bool = False) -> np.ndarray:
+    """
+    Find indices of strict local minima of a 1D array.
+
+    For wrap = False:
+        A strict local minimum at index i satisfies
+            arr[i - 1] > arr[i] < arr[i + 1]
+        with i in [1, len(arr) - 2].
+
+    For wrap = True (periodic boundary conditions):
+        Neighbors of arr[i] are arr[(i - 1) % n] and arr[(i + 1) % n],
+        so every index can, in principle, be a local minimum.
+
+    Returns an array of indices.
+    """
+    if arr.ndim != 1:
+        raise Exception("find_local_minima only works for 1D arrays")
+
+    n = arr.size
+    if n == 0:
+        return np.array([], dtype = int)
+
+    if not wrap:
+        if n < 3:
+            return np.array([], dtype = int)
+        d_arr = np.diff(arr)
+        signs = np.sign(d_arr)
+        sign_change = signs[:-1] * signs[1:] < 0
+        minima_indices = np.where(sign_change & (signs[:-1] < 0))[0] + 1
+        return minima_indices
+
+    # wrap = True: use periodic neighbors
+    left  = np.roll(arr, 1)
+    right = np.roll(arr, -1)
+    mask = (left > arr) & (arr < right)
+    return np.where(mask)[0]
+
 def arr_insert_sorted(arr: np.ndarray, values):
     """Insert one or more values into a sorted 1D NumPy array while keeping it sorted.
     Duplicate values already in arr will be skipped.
@@ -521,76 +558,6 @@ def gaussian_2D(xy,
     
     return amp / 2 / np.pi / sx / sy * np.exp(-(1 / 2) * ((rx / sx)**2 + (ry / sy)**2))
 
-
-def wigner_6j_safe(j1, j2, j3, j4, j5, j6):
-    """Pitfall-free version of Wigner 6j symbol."""
-    # Check that the inputs are half-integers - note that inputs such as 9/2 or 4.5 are not necessarily converted
-    # to half integers. See e.g. https://github.com/sympy/sympy/issues/26219
-    original_js = (j1, j2, j3, j4, j5, j6)
-    new_js = [Rational(j).limit_denominator(3) for j in original_js]
-    for nj, oj in zip(new_js, original_js):
-        if abs(float(nj) * 2 - oj * 2) > 1e-7:
-            raise ValueError("invalid j in input: j = {}".format(oj))
-    
-    return wigner_6j(*new_js)
-
-# particle statistics
-def part_stat(E, tau, mu, xi, replace_inf = "Don't"):
-    """Fermi (xi = +1) or Bose (xi = -1) statistics function.
-    
-    Useful for coding. bose_stat and fermi_stat are the two possible cases for
-    part_stat, and are derived from part_stat for readability where it helps.
-    Be careful about units!
-        E: energy of the orbital
-        tau: fundamental temperature, \tau = k_B * T
-        mu: chemical potential, if considered
-        xi: 1 for fermions, -1 for bosons
-        replace_inf: the value used to replace any inf. If "Don't" (default),
-                     then raise an error."""
-    if xi != 1 and xi != -1:
-        logging.error("xi = {}".format(xi))
-        raise Exception("xi must be 1 or -1 in part_stat")
-    
-    output = 1/(np.exp((E - mu) / tau) + xi)
-    if np.isinf(output).any():
-        if replace_inf == "Don't":
-            logging.error("inf encountered in part_stat")
-            raise Exception("no replacement value given")
-        else:
-            output[np.isinf(output)] = replace_inf
-            logging.info("inf encountered in part_stat; replaced with {}".format(replace_inf))
-    return output
-
-def bose_stat(E, tau, mu = 0.):
-    """The Bose statistics function."""
-    return part_stat(E, tau, mu, xi = -1)
-
-def fermi_stat(E, tau, mu = 0):
-    """The Fermi statistics function."""
-    return part_stat(E, tau, mu, xi = 1)
-
-# Density of states (lowest energy is 0 by convention)
-def kagome_DoS(E, hbw: float = 1., fhbw: float = 0.):
-    """The density of state of kagome lattice, possibly including a 'flat-ish' band.
-    
-    The dispersive part integrates to 2/3. If fhbw != 0, then there is also a "flat band"
-    that integrates to 1/3.
-    I redefined the zero to be at the bottom of the band structure.
-    Args:
-        hbw:    half bandwidth ( = tight-binding t x 3).
-        fhbw:   half bandwidth of the flat band, typically a small finite number
-                (if zero, the flat band is omitted, and the function only integrates to 2/3.)
-    See gftool.lattice.kagome.dos for more detail. Some notes of the original dos:
-        - This function integrates to 2/3 since the flat band is not included.
-        - It returns 0 at the VHS of the second band.
-    """
-    return gt.lattice.kagome.dos(E - hbw * (2 / 3), half_bandwidth = hbw) + (1/3) * dirac_delta(E, x0 = 2 * hbw, hw = fhbw)
-
-# General stuff
-def is_int(num):
-    """Check if num is an integer or not."""
-    return np.isclose(num % 1, 0)
-
 def dirac_delta(x, x0 = 0, hw = 1e-6):
     """An approximation of the Dirac delta function with norm 1.
     
@@ -681,6 +648,75 @@ def Voigt_1D(x, s = 1, gamma = 1, mu = 0, normalization = "norm1"):
         return np.real(wofz(z)) / (s * np.sqrt(2 * np.pi)) / max_value
     else:
         raise ValueError("'normalization' should be 'norm1' or 'max1'.")
+
+def wigner_6j_safe(j1, j2, j3, j4, j5, j6):
+    """Pitfall-free version of Wigner 6j symbol."""
+    # Check that the inputs are half-integers - note that inputs such as 9/2 or 4.5 are not necessarily converted
+    # to half integers. See e.g. https://github.com/sympy/sympy/issues/26219
+    original_js = (j1, j2, j3, j4, j5, j6)
+    new_js = [Rational(j).limit_denominator(3) for j in original_js]
+    for nj, oj in zip(new_js, original_js):
+        if abs(float(nj) * 2 - oj * 2) > 1e-7:
+            raise ValueError("invalid j in input: j = {}".format(oj))
+    
+    return wigner_6j(*new_js)
+
+# particle statistics
+def part_stat(E, tau, mu, xi, replace_inf = "Don't"):
+    """Fermi (xi = +1) or Bose (xi = -1) statistics function.
+    
+    Useful for coding. bose_stat and fermi_stat are the two possible cases for
+    part_stat, and are derived from part_stat for readability where it helps.
+    Be careful about units!
+        E: energy of the orbital
+        tau: fundamental temperature, \tau = k_B * T
+        mu: chemical potential, if considered
+        xi: 1 for fermions, -1 for bosons
+        replace_inf: the value used to replace any inf. If "Don't" (default),
+                     then raise an error."""
+    if xi != 1 and xi != -1:
+        logging.error("xi = {}".format(xi))
+        raise Exception("xi must be 1 or -1 in part_stat")
+    
+    output = 1/(np.exp((E - mu) / tau) + xi)
+    if np.isinf(output).any():
+        if replace_inf == "Don't":
+            logging.error("inf encountered in part_stat")
+            raise Exception("no replacement value given")
+        else:
+            output[np.isinf(output)] = replace_inf
+            logging.info("inf encountered in part_stat; replaced with {}".format(replace_inf))
+    return output
+
+def bose_stat(E, tau, mu = 0.):
+    """The Bose statistics function."""
+    return part_stat(E, tau, mu, xi = -1)
+
+def fermi_stat(E, tau, mu = 0):
+    """The Fermi statistics function."""
+    return part_stat(E, tau, mu, xi = 1)
+
+# Density of states (lowest energy is 0 by convention)
+def kagome_DoS(E, hbw: float = 1., fhbw: float = 0.):
+    """The density of state of kagome lattice, possibly including a 'flat-ish' band.
+    
+    The dispersive part integrates to 2/3. If fhbw != 0, then there is also a "flat band"
+    that integrates to 1/3.
+    I redefined the zero to be at the bottom of the band structure.
+    Args:
+        hbw:    half bandwidth ( = tight-binding t x 3).
+        fhbw:   half bandwidth of the flat band, typically a small finite number
+                (if zero, the flat band is omitted, and the function only integrates to 2/3.)
+    See gftool.lattice.kagome.dos for more detail. Some notes of the original dos:
+        - This function integrates to 2/3 since the flat band is not included.
+        - It returns 0 at the VHS of the second band.
+    """
+    return gt.lattice.kagome.dos(E - hbw * (2 / 3), half_bandwidth = hbw) + (1/3) * dirac_delta(E, x0 = 2 * hbw, hw = fhbw)
+
+# General stuff
+def is_int(num):
+    """Check if num is an integer or not."""
+    return np.isclose(num % 1, 0)
 
 def gaussian_1D_integral(s):
     """The integral of a gaussian with width s and amplitude 1."""
@@ -1021,6 +1057,35 @@ def plot_delta_fn(ax,
     arr = ax.arrow(xi, yi, dx, dy, head_width = 0.5, head_length = 0.1, **kwargs)
     ax.text(tx, ty, text)
     return arr
+
+def fill_between_ygradient(
+    ax,
+    x,
+    y1,
+    y2,
+    color1 = np.array([1, 0, 0, 1]),
+    color2 = np.array([1, 0, 0, 0]),
+    n_strips: int = 50,
+):
+    """
+    Fill between y1 and y2 with a vertical alpha / color gradient.
+    """
+    x = np.asarray(x)
+    y1 = np.asarray(y1)
+    y2 = np.asarray(y2)
+    color1 = np.asarray(color1)
+    color2 = np.asarray(color2)
+
+    for k in range(n_strips):
+        rb = k / n_strips
+        rt = (k + 1) / n_strips
+        rc = k / (n_strips - 1)
+
+        band_bottom = y1 + rb * (y2 - y1)
+        band_top    = y1 + rt * (y2 - y1)
+        color = color1 + rc * (color2 - color1)
+
+        ax.fill_between(x, band_bottom, band_top, facecolor = color, edgecolor = "none")
 
 def add_shades(ax, mask, axis_data, axis="x", **kwargs):
     """

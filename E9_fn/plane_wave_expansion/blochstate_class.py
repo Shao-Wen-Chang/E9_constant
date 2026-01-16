@@ -11,6 +11,7 @@ from matplotlib.colors import ListedColormap
 import matplotlib.patches as patches
 import seaborn as sns
 import logging
+from collections.abc import Collection
 
 sys.path.insert(1,
     "C:\\Users\\ken92\\Documents\\Studies\\E5\\simulation\\E9_simulations")
@@ -535,7 +536,7 @@ def PlotEnergyFunctional(ax, datalist, marker = '-', label = '', color = 'r', in
     xq = [psi.q[1] for psi in datalist]
     ax.plot(xq, energies, marker, label = label, color = color)
 
-def PlotBZSubplot(ax_BZ: plt.axes = None, BZcolor = E9c.BZcolor_PRL):
+def PlotBZSubplot(ax_BZ: plt.axes = None, BZcolor = E9c.BZcolor_PRL, add_q_pts = True):
     """Plot the Brillouin zone of lattice.
     
     By default the quasimomentum plotted is normalized by K.
@@ -556,13 +557,6 @@ def PlotBZSubplot(ax_BZ: plt.axes = None, BZcolor = E9c.BZcolor_PRL):
     ax_BZ.add_patch(patch2)
     ax_BZ.add_patch(patch1)
     
-    # Add some points in the reciprocal lattice
-    for i in xx:
-        for j in yy:
-            x = i * E9c.G1G[0] + j * E9c.G2G[0]
-            y = i * E9c.G1G[1] + j * E9c.G2G[1]
-            ax_BZ.plot(x, y, 'ok')
-    
     # Small stuff
     arrow_color = '#FF5500'
     for vec in [E9c.kB12, E9c.kB23]:
@@ -580,43 +574,64 @@ def PlotBZSubplot(ax_BZ: plt.axes = None, BZcolor = E9c.BZcolor_PRL):
         )
         ax_BZ.add_patch(arrow)
 
-    ax_BZ.set_xlim(-4, 4)
-    ax_BZ.set_ylim(-3, 3)
+    # Add some points in the reciprocal lattice
+    if add_q_pts:
+        for i in xx:
+            for j in yy:
+                x = i * E9c.G1G[0] + j * E9c.G2G[0]
+                y = i * E9c.G1G[1] + j * E9c.G2G[1]
+                ax_BZ.plot(x, y, 'ok')
+        ax_BZ.set_xlim(-4, 4)
+        ax_BZ.set_ylim(-3, 3)
+    
     ax_BZ.set_aspect('equal')
     return ax_BZ
 
-def plot_qset(ax_BZ: plt.axes = None, qset = '', qset_kwargs: dict = None):
+def plot_qset(ax_BZ: plt.axes = None, qset = '', qset_type: str = "vertices",
+              qset_kwargs: dict = None):
     """Plot the quasimomentum path / area.
     
     By default the quasimomentum plotted is normalized by K.
     Args:
-        qset: there are three different possible kinds of inputs
-                  i) an array of (qx, qy): a single q-point.
-                 ii) list[str]: if q-points are defined along some path. e.g. 'Kp/K, Gp/K, Mp/K, Kp/K'
-                     In this case, a series of arrows indicate the quasimomentum path.
-                iii) a tuple of (string, points) where points is an array obtained from FindqArea(eval(qvert))
-                     Here the area of interest is shaded, and each point is marked in the BZ.
-              This input assumes that the evaluated elements are normalized by K.
-        qset_kwargs: keyword arguments passed to scatter() or arrow()."""
+        qset:           Quasimomentum specifier, see qset_type.
+        qset_type:      specifies what kind of input does qset specify.
+            'point':    qset = np.ndarray(qx, qy)
+                A single q-point.
+            'vertices': qset = list[str]
+                The path that defines the qset, e.g. 'Kp/K, Gp/K, Mp/K, Kp/K'
+                In this case, a series of arrows indicate the quasimomentum path.
+            'circle':   qset: np.ndarray and qset.shape = (n_pt, 2)
+                See plot_qset_circle_arrow().
+            'explicit'  qset = (string, points: np.ndarray)
+                Where points.shape = (n_pt, 2) is a list of q-points (e.g. from FindqArea(eval(qvert)))
+                Here each point is marked in the BZ.
+        qset_kwargs:    keyword arguments passed to scatter() or arrow().
+                        To be updated to better accomodate different cases.
+    """
     if ax_BZ is None: fig, ax_BZ = plt.subplots(1, 1, 1)
     qset_kwargs = dict() if qset_kwargs is None else qset_kwargs
     # Determine what input type was given
-    if type(qset) == np.ndarray:
-        qset_type = 0
+    if qset_type == "point":
+        qset = np.atleast_1d(qset)
+        assert qset.ndim == 1
         qstr = str(qset)
         q_verts = [qset]
-    elif type(qset) == str:
-        qset_type = 1
+    elif qset_type == "vertices":
+        assert type(qset) == str
         qstr = qset
         q_verts = eval(qstr)
-    elif type(qset) == tuple:
-        qset_type = 2
+    elif qset_type == "circle":
+        assert type(qset) == np.ndarray
+        plot_qset_circle_arrow(ax_BZ, qset)
+        return
+    elif qset_type == "explicit":
+        assert type(qset) == tuple
         qstr, q_pts = qset
         q_verts = eval(qstr)
     
     xx, yy = np.meshgrid(np.arange(-4, 4), np.arange(-4, 4))
     
-    if qset_type in [0, 1]: # Mark equivalent quasimomenta for final quasimomentum
+    if qset_type in ["point", "vertices"]: # Mark equivalent quasimomenta for final quasimomentum
         for i in xx:
             for j in yy:
                 x = i * E9c.G1G[0] + j * E9c.G2G[0] + q_verts[-1][0]
@@ -624,7 +639,7 @@ def plot_qset(ax_BZ: plt.axes = None, qset = '', qset_kwargs: dict = None):
                 ax_BZ.plot(x, y, 'or', markersize = 3)
     
     # Plot the quasimomentum path / area
-    if qset_type == 1:
+    if qset_type == "vertices":
         kw_dict = {"edgecolor": 'r', "facecolor": 'r', "width": 0.02,
                    "head_width": 0.15 , "head_length": 0.25, "overhang": 0.5, "length_includes_head": True}
         kw_dict.update(qset_kwargs)
@@ -632,7 +647,7 @@ def plot_qset(ax_BZ: plt.axes = None, qset = '', qset_kwargs: dict = None):
             x, y = q_verts[i]
             dx, dy = (q_verts[i + 1] - q_verts[i])
             ax_BZ.arrow(x, y, dx, dy, **kw_dict)
-    elif qset_type == 2:
+    elif qset_type == "explicit":
         # polypath = util.get_closed_polygon(q_verts)
         # patchq = patches.PathPatch(polypath, facecolor = BZcolor[0], lw = 1, alpha = 0.4)
         # ax_BZ.add_patch(patchq)
@@ -642,43 +657,151 @@ def plot_qset(ax_BZ: plt.axes = None, qset = '', qset_kwargs: dict = None):
     
     return ax_BZ
 
-def FindQAxis(num, qset):
-    """Return the q-axis we use to plot e.g. dispersion in the usual convention."""
-    q_last = np.linalg.norm(qset[0])
-    qaxis = np.array([q_last])
-    for i in range(len(qset[1:])):
-        q_abs = np.linalg.norm(qset[i+1] - qset[i])
-        qaxis = np.concatenate((qaxis, np.linspace(q_last, q_last + q_abs, num[i])[1:])) # cut the first point according to my convention
-        q_last += q_abs
-    return qaxis
+def plot_qset_circle_arrow(ax_BZ,
+                           qset: np.ndarray,
+                           line_kwargs: dict | None = None,
+                           arrow_kwargs: dict | None = None):
+    """
+    Plot a circular q-set as a closed polyline and add a single arrow head
+    at the end of the path.
+
+    Args:
+        ax_BZ: matplotlib Axes to draw on.
+        qset: array of shape (pt_num, 2), e.g. from find_qset_circle().
+        line_kwargs: kwargs for ax_BZ.plot (circle line).
+        arrow_kwargs: kwargs for FancyArrowPatch (arrow head).
+    """
+    if line_kwargs is None:
+        line_kwargs = {}
+    if arrow_kwargs is None:
+        arrow_kwargs = {}
+
+    # Defaults
+    default_line = dict(color='r', linewidth=1.5)
+    default_line.update(line_kwargs)
+
+    default_arrow = dict(
+        edgecolor = 'r',
+        facecolor = 'r',
+        linewidth = 0.0,
+        arrowstyle = '-|>,head_width=0.08,head_length=0.16',
+        mutation_scale = 50,
+        shrinkA = 0.0,
+        shrinkB = 0.0,
+    )
+    default_arrow.update(arrow_kwargs)
+
+    # 1) Draw the full circle path as a polyline
+    ax_BZ.plot(qset[:, 0], qset[:, 1], **default_line)
+
+    # 2) Put a single arrow head at the end, pointing along the last segment
+    p_end = qset[-1, :]
+    p_prev = qset[-2, :]
+
+    arrow = FancyArrowPatch(
+        posA=(p_prev[0], p_prev[1]),
+        posB=(p_end[0], p_end[1]),
+        **default_arrow
+    )
+    ax_BZ.add_patch(arrow)
+
+    return ax_BZ
 
 def FindqSet(num, p1, p2):
     """Gives intermediate points between two points."""
     return np.array([p1 * (1-i) + p2 *i for i in np.linspace(0, 1, num = num)])
 
-def FindqSets(num, points):
-    """Gives intermediate points for a tuple of points."""
-    def GiveNum(i):
-        if type(num) == int: return num
-        else: return num[i]
-    qlist = FindqSet(GiveNum(0), points[0], points[1])
-    for i in range(1, len(points) - 1):
-        qlist = np.vstack((qlist, FindqSet(GiveNum(i), points[i], points[i+1])[1:]))
-    return qlist
+def find_qset_piecewise_linear(vertices: list[np.ndarray], pt_num = None):
+    """Gives intermediate points from a tuple of points, and also the q-axis used for plot.
+    
+    Args:
+        vertices:   A list of q-space vertices for the piecewise linear trajectory.
+        pt_num:     Number of points in between each vertex. Can take on one of the values below:
+            None:       Use default (100 points).
+            int:        Use pt_num for each segment.
+            list-like:  Specify for each segment separately.
+    
+    return:
+        qlist:      An array of q-points; the i-th point is given by qlist[i, :].
+        qaxis:      The q-axis used in e.g. band structure plots.
+    """
+    if isinstance(pt_num, Collection) and (len(vertices) - len(pt_num) != 1):
+        raise(ValueError("pt_num must be one element less than vertices."))
+    if pt_num is None:   # default number of points per interval
+        pt_num = np.ones(len(vertices) - 1, dtype = int) * 100
+    elif not isinstance(pt_num, Collection):
+        pt_num = np.ones(len(vertices) - 1, dtype = int) * int(pt_num)
+    
+    qlist = FindqSet(pt_num[0], vertices[0], vertices[1])
+    for i in range(1, len(vertices) - 1):
+        qlist = np.vstack((qlist, FindqSet(pt_num[i], vertices[i], vertices[i+1])[1:]))
+    
+    dqlist_vec = qlist.copy()
+    dqlist_vec[1:, :] -= qlist[:-1, :]
+    dqlist_amp = np.linalg.norm(dqlist_vec, axis = 1)
+    qaxis = np.cumsum(dqlist_amp)
+    return qlist, qaxis
 
-def fix_gauge_2d_grid(eigenvectors, q_list, n_q_init = 0, neighbor_dist = 0.3):
+def find_qset_circle(q_center: np.ndarray,
+                     qr: float,
+                     theta_init: float = 0.,
+                     pt_num: int = 100) -> np.ndarray:
+    """
+    Generate a set of quasimomenta sampled uniformly on a circle.
+
+    Args:
+        q_center:   2-element array-like, the center in q-space [qx, qy].
+        qr:         Radius of the circle in q-space (same units as q_center).
+        theta_init: Initial angle on the circle.
+        pt_num:     Number of points sampled along the circle.
+
+    Returns:
+        qset: Array of shape (pt_num, 2), where qset[i, :] is the i-th
+              quasimomentum point on the circle at distance qr from q_center.
+    """
+    q_center = np.asarray(q_center, dtype=float).reshape(2,)
+    theta = np.linspace(0.0, 2.0 * np.pi, num=pt_num, endpoint=False)
+
+    qx = q_center[0] + qr * np.cos(theta + theta_init)
+    qy = q_center[1] + qr * np.sin(theta + theta_init)
+
+    qset = np.column_stack((qx, qy))
+    return qset, 2 * np.pi * qr * np.linspace(0, 1, pt_num)
+
+def fix_gauge_parallel_transport_1d(eigenvectors):
+    """
+    Fix gauge by maximizing overlap between neighboring k-points.
+
+    Makes ⟨ψ(k_i)|ψ(k_{i+1})⟩ real and positive. This seems to work better than fix_gauge_2d_grid() when
+    the question is one dimentional.
+    """
+    n_q, N_pw, n_bands = eigenvectors.shape
+    evecs_fixed = eigenvectors.copy()
+    
+    for band in range(n_bands):
+        for i in range(1, n_q):
+            # Maximize overlap with previous state
+            overlap = np.vdot(evecs_fixed[i-1, :, band], evecs_fixed[i, :, band])
+            phase = np.angle(overlap)
+            evecs_fixed[i, :, band] *= np.exp(-1j * phase)
+    
+    return evecs_fixed
+
+def fix_gauge_2d_grid(eigenvectors, q_list, n_q_init=0, 
+                      neighbor_dist=0.3, G_vecs=None):
     """
     Fix gauge for 2D Brillouin zone grid using local neighbor relationships.
     
-    Instead of requiring a global path ordering, use actual spatial neighbors
-    in k-space to determine gauge transformations.
+    Accounts for periodicity: neighbors related by reciprocal lattice vectors
+    are recognized as equivalent.
     
     Args:
         eigenvectors: shape (n_q, N_pw, n_bands)
         q_list: shape (n_q, 2) in arbitrary order
-        neighbor_dist: distance threshold for neighbors (in units of |G|)
-                       e.g., 0.3 * ||G|| for honeycomb lattice
-        n_q_init: The initial index in q_list where the gauge choice spreads out from.
+        n_q_init: starting index for gauge spreading
+        neighbor_dist: distance threshold for neighbors
+        G_vecs: list of reciprocal lattice vectors, e.g. [E9c.g1g, E9c.g2g]
+                If None, no periodicity correction applied.
     
     Returns:
         eigenvectors_fixed: gauge-fixed eigenvectors
@@ -686,11 +809,12 @@ def fix_gauge_2d_grid(eigenvectors, q_list, n_q_init = 0, neighbor_dist = 0.3):
     n_q, N_pw, n_bands = eigenvectors.shape
     evecs_fixed = eigenvectors.copy()
     
-    # Build neighbor lists
+    # Build neighbor lists with periodicity
     neighbors = [[] for _ in range(n_q)]
     for i in range(n_q):
         for j in range(i + 1, n_q):
-            dist = np.linalg.norm(q_list[i] - q_list[j])
+            # Minimum distance considering periodic wrapping
+            dist = min_distance_periodic(q_list[i], q_list[j], G_vecs)
             if dist < neighbor_dist:
                 neighbors[i].append(j)
                 neighbors[j].append(i)
@@ -698,11 +822,10 @@ def fix_gauge_2d_grid(eigenvectors, q_list, n_q_init = 0, neighbor_dist = 0.3):
     # Fix gauge using spreading algorithm (BFS-like)
     for band in range(n_bands):
         # Set arbitrary phase for starting point
-        # (largest component positive and real)
-
         largest_idx = np.argmax(np.abs(evecs_fixed[n_q_init, :, band]))
         phase = np.angle(evecs_fixed[n_q_init, largest_idx, band])
         evecs_fixed[n_q_init, :, band] *= np.exp(-1j * phase)
+        
         # Spread to neighbors via BFS
         processed = [False] * n_q
         queue = [n_q_init]
@@ -714,7 +837,6 @@ def fix_gauge_2d_grid(eigenvectors, q_list, n_q_init = 0, neighbor_dist = 0.3):
             
             for neighbor in neighbors[current]:
                 if not processed[neighbor]:
-                    # Fix phase to maximize overlap with current state
                     neighbor_state = evecs_fixed[neighbor, :, band]
                     overlap = np.vdot(current_state, neighbor_state)
                     phase = np.angle(overlap)
@@ -724,6 +846,121 @@ def fix_gauge_2d_grid(eigenvectors, q_list, n_q_init = 0, neighbor_dist = 0.3):
                     processed[neighbor] = True
     
     return evecs_fixed
+
+def min_distance_periodic(q1, q2, G_vecs, threshold_wrap: float = 0.95):
+    """
+    Minimum distance between q1 and q2 considering periodic wrapping.
+    
+    Finds the shortest distance by trying all integer combinations of
+    reciprocal lattice vectors up to ±1.
+    
+    Args:
+        q1, q2:         shape (2,) quasimomenta
+        G_vecs:         list of reciprocal lattice vectors, e.g. [g1, g2]
+                        If None, use plain Euclidean distance.
+        threshold_wrap: Fraction of |G| beyond which periodic wrapping is checked.
+    
+    Returns:
+        min_dist:       minimum distance accounting for periodicity
+    """
+    if G_vecs is None:
+        return np.linalg.norm(q1 - q2)
+    
+    G_vecs = [np.asarray(g) for g in G_vecs]
+    G_norm = min([np.linalg.norm(g) for g in G_vecs])    
+    min_dist = np.linalg.norm(q1 - q2)  # baseline (no wrap)
+    
+    # Try wrapping by integer combinations of G_vecs
+    # For 2D lattice, try a_1 * G_vecs[0] + a_2 * G_vecs[1]
+    if min_dist > threshold_wrap * G_norm:
+        for a1 in [-1, 0, 1]:
+            for a2 in [-1, 0, 1]:
+                if a1 == 0 and a2 == 0:
+                    continue
+                offset = a1 * G_vecs[0] + a2 * G_vecs[1]
+                dist = np.linalg.norm(q1 - (q2 + offset))
+                min_dist = min(min_dist, dist)
+    
+    return min_dist
+
+def find_connection_sign_flips(q_list, A_connection, G_vecs,
+                               neighbor_dist: float = 0.1,
+                               tol: float = 0.5,
+                               A_min: float = 1e-8,
+                               threshold_wrap: float = 0.95,
+                               is_complex_phase: bool = False):
+    """
+    Detect sign flips in Berry connection (or eigenvector phase jumps).
+    
+    Works for both:
+    1. Berry connection vectors: A_connection shape (n_q, 2)
+    2. Eigenvector phases (complex): A_connection shape (n_q, N_pw)
+       or real phases: shape (n_q,) or (n_q, 1)
+    
+    Args:
+        q_list:             array of shape (n_q, 2), the q-points
+        A_connection:       array of shape (n_q, 2) for vectors, or
+                            (n_q,) or (n_q, N_pw) for phases
+        G_vecs:             list of reciprocal lattice vectors
+        tol:                angle tolerance in radians. Flag if angle > π - tol or < -π + tol
+        A_min:              Minimum magnitude threshold for Berry connection vectors.
+        threshold_wrap:     Fraction of |G| beyond which periodic wrapping is checked.
+        is_complex_phase:   if True, treat A_connection as eigenvector phases and look for π jumps
+                            (eigenvector sign flips)
+    
+    Returns:
+        flip_indices: list of indices i where a flip is detected
+        flip_angles: corresponding phase/direction differences
+    """
+    n_q = len(q_list)
+    flip_indices = []
+    flip_angles = []
+    
+    # Build neighbor lists with periodicity
+    neighbors = [[] for _ in range(n_q)]
+    for i in range(n_q):
+        for j in range(i + 1, n_q):
+            dist = min_distance_periodic(q_list[i], q_list[j], G_vecs, threshold_wrap = threshold_wrap)
+            if dist < neighbor_dist:
+                neighbors[i].append(j)
+                neighbors[j].append(i)
+    
+    # Check phase/direction discontinuities
+    for i in range(n_q):
+        for j in neighbors[i]:
+            if is_complex_phase:
+                # A_connection is eigenvector phase (scalar per q-point)
+                # Extract phase at q_i and q_j
+                phase_i = A_connection[i]
+                phase_j = A_connection[j]
+                
+                # Phase difference
+                phase_diff = np.angle(np.exp(1j * (phase_i - phase_j)))
+                
+                # Flag if jump is close to ±π (eigenvector sign flip)
+                if np.abs(np.abs(phase_diff) - np.pi) < tol:
+                    flip_indices.append(i)
+                    flip_angles.append(phase_diff)
+                    break
+            else:
+                # A_connection is a 2D vector (Berry connection)
+                A_i = A_connection[i]
+                A_j = A_connection[j]
+                
+                A_i_mag = np.linalg.norm(A_i)
+                A_j_mag = np.linalg.norm(A_j)
+                
+                if A_i_mag > A_min and A_j_mag > A_min:
+                    cos_angle = np.dot(A_i, A_j) / (A_i_mag * A_j_mag)
+                    cos_angle = np.clip(cos_angle, -1.0, 1.0)
+                    angle = np.arccos(cos_angle)
+                    
+                    if angle > np.pi - tol:
+                        flip_indices.append(i)
+                        flip_angles.append(angle)
+                        break
+    
+    return flip_indices, flip_angles
 
 def FindqArea(qvert, dqx = 0.015, dqy = 0.015):
     '''Gives points within an area defined by a set of vertices.
