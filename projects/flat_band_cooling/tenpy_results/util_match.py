@@ -62,6 +62,7 @@ def invert_n_to_mu(mu_vals, beta_vals, n_grid, n_target, fill_value = np.nan):
     Parameters
     ----------
     mu_vals : 1D array, shape (N_mu,)
+        Assumed to be increasing.
     beta_vals : 1D array, shape (N_beta,)
     n_grid : 2D array, shape (N_mu, N_beta)
         n_grid[i, j] = n(mu_vals[i], beta_vals[j])

@@ -2,17 +2,13 @@
 # `f_` is the intended order to go through the notebooks if I forgot what I did in the future.
 
 # %%
-import sys
-from pathlib import Path
-E9path = Path("C:/", "Users", "ken92", "Documents", "Studies", "E5", "simulation", "E9_simulations")
-if str(E9path) not in sys.path:
-    sys.path.insert(1, str(E9path))
-from E9_fn import util
-
 import util_thm
+import pickle
 import matplotlib.pyplot as plt
 import numpy as np
+from pathlib import Path
 import pandas as pd
+import os
 
 # %%
 bool_plot = False   # set to false if gathering invert data
@@ -34,53 +30,33 @@ bool_plot = False   # set to false if gathering invert data
 # Let's first start with the full $N - S_{tot}$ space scan for a fixed set of model parameters.
 
 # %%
-# tenpy specs used to generate folder names
-geometry = "kagome"   # "sawtooth", "kagome"
-L_subregion = 50
-
-# geometry specific parameters
-tp_ST = 1.41421356237
-shift_ST = -2.0
-W_kagome = 4            # width of the kagome strip, only used if geometry = "kagome"
-
-for n_s_tar in np.arange(0.05, 0.95 + 0.001, step = 0.02):
-    n_s_tar = np.round(n_s_tar, 4)
-    # %% [markdown]
-    # Some geometry dependent variables.
-
+tnpspc = {  # tenpy specs used to generate folder names
+    "geometry": "sawtooth",
+    "spin": "spinless",      # "spinful", "spinless"
+    "interacting": "NI",             # "I", "NI"
+    "L": 25,
+}
+model_params = {
+    "shift": -2,
+    "tp": 1.41421356237,
+}
+for n_s_tar in np.arange(0.3, 0.7 + 0.001, step = 0.02):
     # %%
-    geom_spec_str = ""      # For plotting etc
-    N_sites = 0             # Number of sites in each region
-    E_min, E_max = 0., 0.   # Lowest / highest band energies
-
-    if geometry == "sawtooth":
-        geom_spec_str = f"tp{tp_ST}_shift{shift_ST}"
-        N_sites = 2 * L_subregion
-        E_flat_ST = 2. + shift_ST   # energy of the flat band with shift (assuming ymax is None)
-        E_min = min(E_flat_ST, -4.)
-        E_max = max(E_flat_ST, 0.)
-    elif geometry == "kagome":
-        geom_spec_str = f"W{W_kagome}"
-        N_sites = 3 * W_kagome * L_subregion
-        E_min = -4.
-        E_max = 2.
-
-    folder_name = f"{geometry}_{geom_spec_str}_spinless_NI_L{L_subregion}"
-
-    # %%
-    csv_name = f"ns{n_s_tar}.csv"
-    csv_path = Path(r"C:\Users\ken92\Downloads\Shao-Wen Data\matching_results",
+    folder_name = f"{tnpspc['geometry']}_{tnpspc['spin']}_{tnpspc['interacting']}_L{tnpspc['L']}"
+    csv_name = f"tp{model_params['tp']}_shift{model_params['shift']}_ns{np.round(n_s_tar, 4)}.csv"
+    csv_path = Path(r"C:\Users\ken92\Documents\Studies\E5\simulation\E9_simulations\projects\flat_band_cooling\tenpy_results\matching_results",
                     folder_name, csv_name)
     df_match = pd.read_csv(csv_path)
 
     # df_match
 
     # %%
-    N_s = int(n_s_tar * N_sites)
+    L_subregion = tnpspc['L']
+    N_s = n_s_tar * 2 * L_subregion
     beta_vals = df_match["beta"].to_numpy(dtype=float)
-    mask_max_beta = np.isclose(beta_vals, 100)
-    s2_tot_max_beta = df_match[mask_max_beta]["S2_tot"].to_numpy(dtype=float)
-    Ntot_max_beta = df_match[mask_max_beta]["Ntot"].to_numpy(dtype=float)
+    mask_beta = np.isclose(beta_vals, 100)
+    s2_tot_max_beta = df_match[mask_beta]["S2_tot"].to_numpy(dtype=float)
+    Ntot_max_beta = df_match[mask_beta]["Ntot"].to_numpy(dtype=float)
 
     # %% [markdown]
     # ## The "pathological" behavior of flat band
@@ -91,12 +67,9 @@ for n_s_tar in np.arange(0.05, 0.95 + 0.001, step = 0.02):
     # and is independent of the temperature.
 
     # %%
-    def S_flat(L, n_r, geometry):
-        if geometry == "sawtooth":
-            n_f = 2 * np.maximum(0., n_r - 0.5)     # minimum density in the flat band
-        elif geometry == "kagome":
-            n_f = 3 * np.maximum(0., n_r - 2/3)
-        return -L * ((1 - n_f) * np.log(1 - n_f) + n_f * np.log(n_f))
+    def S_flat(L, n_r):
+        n_f = 2 * np.maximum(0., n_r - 0.5)     # minimum density in the flat band
+        return -L * ((1 - n_f) * np.log(1 - n_f) + n_f * np.log(n_f)) #/ 1.5 # this almost reproduces the blue dash
 
     # %% [markdown]
     # ## Interpolation
@@ -104,34 +77,30 @@ for n_s_tar in np.arange(0.05, 0.95 + 0.001, step = 0.02):
     # 
     # For $\varsigma$, instead of interpolating $\varsigma$ directly, one should interpolate $s_s$ and $s_r$, and then find $\varsigma$ using its definition.
     # 
-    # $\varsigma \equiv \sigma_s / \sigma - 1$
+    # $\varsigma \equiv s_s / s - 1 = (s_s - s_r) / (s_s + s_r)$ (assume $L_r = L_s$)
     # 
     # Although there is very little difference between them.
 
     # %%
-    N_range = np.arange(N_s, N_s + N_sites)
-    # S_range chosen empirically to cover all the parameter space with solutions
-    if geometry == "sawtooth":
-        S_range = np.linspace(4.0, 36.0, 161) * (L_subregion / 25)
-    elif geometry == "kagome":
-        S_range = np.linspace(1.0, 95.0, 95) * (L_subregion / 25) * W_kagome
+    N_range = np.arange(N_s + 0. * L_subregion, N_s + 2 * L_subregion)
+    S_range = np.linspace(4.0, 36.0, 161) * (L_subregion / 25)
 
     # %%
     N_N_pts = len(N_range)
     N_S_pts = len(S_range)
-    n_r_range = (N_range - N_s) / N_sites
+    n_r_range = (N_range - N_s) / (2 * L_subregion)
 
     # %% [markdown]
     # ### Plots
-    # When we also consider $\beta < 0$, we must choose a branch to perform inversion. I first choose the $\beta > 0$ branch, for which I get `np.nan` where I don't have solutions (including where I expect $\beta < 0$), and then patch the $\beta < 0$ to it.
+    # When we also consider $\beta < 0$, we must choose a branch to perform inversion. I first choose the $\beta > 0$ branch, for which I get `np.nan` where I don't have solutions (including where I expect $\beta < 0$), and then path the $\beta < 0$ to it.
 
     # %%
-    beta_pos,   [mu_glob_pos, V_offset_pos, s2_s_pos, s2_r_pos, sigma2_s_pos, sigma2_r_pos, sigma2_pos
+    beta_pos,   [mu_glob_pos, V_offset_pos, s2_s_pos, s2_r_pos, sigma2_s_pos, sigma2_r_pos
         ] = util_thm.invert_NS_mat_df(df_match, N_range, S_range,
-                ["mu_glob", "V_offset", "s2_s", "s2_r", "sigma2_s", "sigma2_r", "sigma2"], beta_min = 0.)
-    beta_neg,   [mu_glob_neg, V_offset_neg, s2_s_neg, s2_r_neg, sigma2_s_neg, sigma2_r_neg, sigma2_neg
+                ["mu_glob", "V_offset", "s2_s", "s2_r", "sigma2_s", "sigma2_r"], beta_min = 0.)
+    beta_neg,   [mu_glob_neg, V_offset_neg, s2_s_neg, s2_r_neg, sigma2_s_neg, sigma2_r_neg
         ] = util_thm.invert_NS_mat_df(df_match, N_range, S_range,
-                ["mu_glob", "V_offset", "s2_s", "s2_r", "sigma2_s", "sigma2_r", "sigma2"], beta_max = 0.)
+                ["mu_glob", "V_offset", "s2_s", "s2_r", "sigma2_s", "sigma2_r"], beta_max = 0.)
 
     # %%
     beta_all = np.where(np.isnan(beta_pos), beta_neg, beta_pos)
@@ -141,8 +110,7 @@ for n_s_tar in np.arange(0.05, 0.95 + 0.001, step = 0.02):
     s2_r_all = np.where(np.isnan(s2_r_pos), s2_r_neg, s2_r_pos)
     sigma2_s_all = np.where(np.isnan(sigma2_s_pos), sigma2_s_neg, sigma2_s_pos)
     sigma2_r_all = np.where(np.isnan(sigma2_r_pos), sigma2_r_neg, sigma2_r_pos)
-    sigma2_all = np.where(np.isnan(sigma2_pos), sigma2_neg, sigma2_pos)
-    varsigma_all = sigma2_s_all / sigma2_all - 1
+    varsigma_all = (sigma2_s_all - sigma2_r_all) / (sigma2_s_all + sigma2_r_all)
 
     # %% [markdown]
     # A few things to notice: (looking at $n_s = 0.5$)
@@ -165,24 +133,24 @@ for n_s_tar in np.arange(0.05, 0.95 + 0.001, step = 0.02):
                 [beta_all, mu_glob_all, V_offset_all, s2_s_all, s2_r_all, varsigma_all],
                 ["twilight", "viridis", "viridis", "viridis", "viridis", "coolwarm"],
                 [r"$\beta$", r"$\mu$", r"$V_{offset}$", r"$s_s$", r"$s_r$", r"$\varsigma$"],
-                [(-20, 20), (E_min - 2, E_max + 2), (E_min - 2, E_max + 2), None, None, (-1, 1)]):
+                [(-20, 20), None, None, None, None, (-1, 1)]):
             img = ax.pcolormesh(S_range, N_range, params_mat, clim = clim, cmap = cmap)
             ax.set_box_aspect(1)
             ax.set_title(str_label)
             ax.set_xlabel(r"$S_{tot}$")
             ax.set_ylabel(r"$N_{tot}$")
-            ryax = ax.secondary_yaxis('right', functions = (lambda x: (x - N_s) / N_sites, lambda x: x * N_sites + N_s))
+            ryax = ax.secondary_yaxis('right', functions = (lambda x: (x - N_s) / (2 * L_subregion), lambda x: x * 2 * L_subregion + N_s))
             ryax.set_ylabel(r"$n_r$")
-            # cntr = ax.contour(S_range, N_range, params_mat, colors = "white", linestyles = "solid", levels = 10)
-            # ax.clabel(cntr, inline = True)
+            cntr = ax.contour(S_range, N_range, params_mat, colors = "white", linestyles = "solid", levels = 10)
+            ax.clabel(cntr, inline = True)
             fig_fixS.colorbar(img, cax = ax_cb, fraction = 0.5, location = 'right')
 
-            ax.plot(S_range, np.full_like(S_range, 0.75 * N_sites + N_s), "--k")
+            ax.plot(S_range, np.full_like(S_range, 0.75 * 2 * L_subregion + N_s), "--k")
 
             # Plot some limitations set by either physical argument or EoS available
-            ax.plot(S_flat(L_subregion, n_r_range, geometry), N_range, color = "red", ls = "--")   # minimum S_tot set by flat band
+            ax.plot(S_flat(tnpspc['L'], n_r_range), N_range, color = "red", ls = "--")   # minimum S_tot set by flat band
             ax.plot(s2_tot_max_beta, Ntot_max_beta, color = "blue", ls = "--")  # EoS available
-        fig_fixS.suptitle(rf"{geometry} lattice, {geom_spec_str}; $n_s$ = {n_s_tar} ($N_s =${N_s})")
+        fig_fixS.suptitle(rf"Using {folder_name}; $n_s$ = {n_s_tar} ($N_s =${N_s})")
         fig_fixS.tight_layout(w_pad = 0.1)
 
     # %% [markdown]
@@ -190,8 +158,7 @@ for n_s_tar in np.arange(0.05, 0.95 + 0.001, step = 0.02):
 
     # %%
     if bool_plot:
-        N_curve, s_s_curve = util.parametric_slice_2D(N_range, S_range, V_offset_all, s2_s_all, 0.25,
-                                                    single_valued = "axis0")
+        N_curve, s_s_curve = util_thm.parametric_slice_2D(N_range, S_range, V_offset_all, s2_s_all, 0.25)
         plt.plot(N_curve, s_s_curve)
 
     # %% [markdown]
@@ -220,13 +187,12 @@ for n_s_tar in np.arange(0.05, 0.95 + 0.001, step = 0.02):
                 "s2_r": s2_r_all[i_Ntot, i_S],
                 "sigma2_s": sigma2_s_all[i_Ntot, i_S],
                 "sigma2_r": sigma2_r_all[i_Ntot, i_S],
-                "sigma2": sigma2_all[i_Ntot, i_S],
                 "varsigma": varsigma_all[i_Ntot, i_S],
             })
     df_invert_S_rslt = pd.DataFrame.from_records(records_invert_S)
 
     # %%
-    invert_S_results_folder = Path(r"C:\Users\ken92\Downloads\Shao-Wen Data\invert_S_results",
+    invert_S_results_folder = Path(r"C:\Users\ken92\Documents\Studies\E5\simulation\E9_simulations\projects\flat_band_cooling\tenpy_results\invert_S_results",
                     folder_name)
     invert_S_results_folder.mkdir(exist_ok = True)
     csv_path = Path(invert_S_results_folder, csv_name)

@@ -4,6 +4,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import logging
 
 def invert_NS_to_beta_param_df(
     df,
@@ -89,8 +90,7 @@ def invert_NS_to_beta_param_df(
         # not strictly monotonic -> the "inverse" is multi-valued;
         # you can decide to warn or handle more carefully here.
         # For now we still do a simple interp, but be aware it's ambiguous.
-        # print("Warning: S(beta) not monotonic on this branch; inversion ambiguous.")
-        pass
+        logging.warning("Warning: S(beta) not monotonic on this branch; inversion ambiguous.")
 
     # 4) invert S(beta) -> beta(S)
     # np.interp requires S to be increasing; flip if needed
