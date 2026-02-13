@@ -179,7 +179,10 @@ e_pol2 = np.array([1, 0])
 e_pol3 = np.array([-1/2, np.sqrt(3)/2])
     # a's: real space lattice vectors
 a_sw_tri = lambda_sw * (2 / 3)
-a_lw_hex = lambda_lw * (2 / 3)# / np.sqrt(3)) old, probably wrong
+a_lw_hex = lambda_lw * (2 / 3 / np.sqrt(3)) # NOT lambda_lw * (2 / 3)
+    # length of lattice vectors (i.e. displacement between unit cells)
+l_cell_sw = lambda_sw * (2 / 3)
+l_cell_lw = lambda_lw * (2 / 3)
 a_vert = lambda_vert / 2
 a1 = a_sw_tri * np.array([0, 1])
 a2 = a_sw_tri * np.array([-np.sqrt(3)/2, 1/2])
@@ -210,6 +213,7 @@ BZ1_vertices = [pt11, pt12, pt13, pt14, pt15, pt16, pt11]
 BZ2_vertices = [pt21, pt11, pt22, pt12, pt23, pt13, pt24, pt14, pt25, pt15, pt26, pt16, pt21]
 BZ3_vertices = [pt21, pt22, pt23, pt24, pt25, pt26, pt21]
 BZ4_vertices = [pt41, pt42, pt43, pt44, pt45, pt46, pt41]
+all_BZ_vertices = [BZ1_vertices, BZ2_vertices, BZ3_vertices, BZ4_vertices]
     # Lattice acceleration related; for convention that is rotated 60 deg from the lab (s.t. I can choose the Kp
 # on y axis), kB12 = K2, kB23 = -K1
 kB12 = K3
@@ -268,9 +272,11 @@ all_lat_unit_K40 = {
 #%% Utility constants (plots etc.)
 # BZ color schemes
 # [qarea, BZ1, BZ2, BZ3, BZ4, ...]
-BZcolor_PRL = ['red', '#B3FFB3', '#B3FFFF', '#FFB3B3', '#B3B3FF']
-BZcolor_white = ['white', 'white', 'white', 'white', 'white']
-BZcolor_trans = ['none', 'none', 'none', 'none', 'none']
+BZcolor_PRL = ['red', '#B3FFB3', '#B3FFFF', '#FFB3B3', '#B3B3FF', "#E7BF75"]
+BZcolor_science = ['red', '#b4daa1', '#b9e4ed', '#f7aaad', '#aeabd5', "#efa36a", "#d291c0"]
+BZcolor_white = ['white', 'white', 'white', 'white', 'white', 'white', 'white']
+BZcolor_black = ['black', 'black', 'black', 'black', 'black', 'black', 'black']
+BZcolor_trans = ['none', 'none', 'none', 'none', 'none', 'none']
 
 #%% Utility functions
 def LinearFn(a, b, x):

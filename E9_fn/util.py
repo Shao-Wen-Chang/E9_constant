@@ -956,8 +956,12 @@ def plot_rectangle(ax, center = None, half_widths = None, top = None, bottom = N
     
     return lines
 
-def draw_circle(ax, center, radius, index_convention = "xy", **kwargs):
-    """Draw a circle as a Line2D on the given Matplotlib Axes.
+def draw_circle(ax, center, radius,
+                theta_range = (0, 2 * np.pi),
+                close_circle: bool = True,
+                index_convention: str = "xy",
+                **kwargs):
+    """Draw a circle or an arc as a Line2D on the given Matplotlib Axes.
 
     Args:
         ax:     matplotlib.axes.Axes
@@ -966,7 +970,11 @@ def draw_circle(ax, center, radius, index_convention = "xy", **kwargs):
             (x, y) center of the circle.
         radius: float
             Circle radius (must be > 0).
-        index_convention: str
+        theta_range: (float, float)
+            Range of the angle to plot. Default to a full circle.
+        close_circle:       bool
+            Fully close the circle or not.
+        index_convention:   str
             "yx" for [y, x] (same as jkam), "xy" for [x, y] (typical for matplotlib functions)
         **kwargs:
             Passed through directly to ax.plot (e.g., color, lw, ls, label, etc.).
@@ -983,8 +991,8 @@ def draw_circle(ax, center, radius, index_convention = "xy", **kwargs):
         raise ValueError("index_convention should be 'yx' or 'xy'")
 
     cx, cy = center
-    theta = np.linspace(0.0, 2.0 * np.pi, 256, endpoint = False)
-    theta = np.append(theta, theta[0])  # close the circle
+    theta = np.linspace(theta_range[0], theta_range[1], 256, endpoint = False)
+    if close_circle: theta = np.append(theta, theta[0])
 
     x = cx + radius * np.cos(theta)
     y = cy + radius * np.sin(theta)
@@ -1057,6 +1065,12 @@ def plot_delta_fn(ax,
     arr = ax.arrow(xi, yi, dx, dy, head_width = 0.5, head_length = 0.1, **kwargs)
     ax.text(tx, ty, text)
     return arr
+
+def plot_in_ax_break_sign_change(ax, x, y, idx_sgn_change, *args, **kwargs):
+    """Break the line at where there is a sign change (or sudden jumps due to branch choices etc.)"""
+    xx = np.insert(x, idx_sgn_change + 1, np.nan)
+    yy = np.insert(y, idx_sgn_change + 1, np.nan)
+    ax.plot(xx, yy, *args, **kwargs)
 
 def fill_between_ygradient(
     ax,

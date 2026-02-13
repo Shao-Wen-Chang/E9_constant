@@ -90,8 +90,8 @@ def find_q_geo_tensor(n_q, n_band, Exp_lib, q_list, E_list, psi_list, Hq_mmat, H
     q = q_list[n_q]
     psin = psi_list[n_q, :, n_band]
     En = E_list[n_q, n_band]
-    dH1 = bsc.find_del_H(q, Exp_lib, Hq_mmat, Hq_nmat, direction = component[0])
-    dH2 = bsc.find_del_H(q, Exp_lib, Hq_mmat, Hq_nmat, direction = component[1])
+    dH1 = bsc.find_del_q_of_H(q, Exp_lib, Hq_mmat, Hq_nmat, direction = component[0])
+    dH2 = bsc.find_del_q_of_H(q, Exp_lib, Hq_mmat, Hq_nmat, direction = component[1])
     qgt = 0j
     for m_band in range(E_list.shape[1]):
         if m_band == n_band:

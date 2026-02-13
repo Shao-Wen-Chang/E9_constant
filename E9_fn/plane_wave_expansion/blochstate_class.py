@@ -536,7 +536,11 @@ def PlotEnergyFunctional(ax, datalist, marker = '-', label = '', color = 'r', in
     xq = [psi.q[1] for psi in datalist]
     ax.plot(xq, energies, marker, label = label, color = color)
 
-def PlotBZSubplot(ax_BZ: plt.axes = None, BZcolor = E9c.BZcolor_PRL, add_q_pts = True):
+def PlotBZSubplot(ax_BZ: plt.axes = None,
+                  N_BZ = 4, BZcolor = E9c.BZcolor_PRL,
+                  add_q_pts = True, s_q_pt = 4,
+                  label_sym_pts = False, fontsize = 24,
+                  plot_k_vecs = False):
     """Plot the Brillouin zone of lattice.
     
     By default the quasimomentum plotted is normalized by K.
@@ -544,35 +548,31 @@ def PlotBZSubplot(ax_BZ: plt.axes = None, BZcolor = E9c.BZcolor_PRL, add_q_pts =
     if ax_BZ is None: fig, ax_BZ = plt.subplots(1, 1)
     # Define Path objects for BZ
     xx, yy = np.meshgrid(np.arange(-4, 4), np.arange(-4, 4))
-    path1 = util.get_closed_polygon(E9c.BZ1_vertices)
-    path2 = util.get_closed_polygon(E9c.BZ2_vertices)
-    path3 = util.get_closed_polygon(E9c.BZ3_vertices)
-    path4 = util.get_closed_polygon(E9c.BZ4_vertices)
-    patch1 = patches.PathPatch(path1, facecolor = BZcolor[1], lw=2, alpha = 1)
-    patch2 = patches.PathPatch(path2, facecolor = BZcolor[2], lw=2, alpha = 1)
-    patch3 = patches.PathPatch(path3, facecolor = BZcolor[3], lw=2, alpha = 1)
-    patch4 = patches.PathPatch(path4, facecolor = BZcolor[4], lw=2, alpha = 1)
-    ax_BZ.add_patch(patch4)
-    ax_BZ.add_patch(patch3)
-    ax_BZ.add_patch(patch2)
-    ax_BZ.add_patch(patch1)
+    N_BZ_vertices = len(E9c.all_BZ_vertices)
+    for _i, BZ_vertices in enumerate(reversed(E9c.all_BZ_vertices)):
+        i = N_BZ_vertices - _i - 1
+        if i < N_BZ:
+            path = util.get_closed_polygon(BZ_vertices)
+            patch = patches.PathPatch(path, facecolor = BZcolor[i + 1], lw = 2, alpha = 1)
+            ax_BZ.add_patch(patch)
     
-    # Small stuff
-    arrow_color = '#FF5500'
-    for vec in [E9c.kB12, E9c.kB23]:
-        arrow = FancyArrowPatch(
-            (-2 * (E9c.G1G[0] + E9c.G2G[0]), -2 * E9c.G1G[1] - 3 * E9c.G2G[1]),
-            (-2 * (E9c.G1G[0] + E9c.G2G[0]) + vec[0] / E9c.k_lw,
-            -2 * E9c.G1G[1] - 3 * E9c.G2G[1] + vec[1] / E9c.k_lw),
-            edgecolor = arrow_color,
-            facecolor = arrow_color,
-            linewidth = 2,
-            arrowstyle = '-|>,head_width=0.06,head_length=0.15',
-            mutation_scale = 50,
-            shrinkA = 0,
-            shrinkB = 0
-        )
-        ax_BZ.add_patch(arrow)
+    ##### Optional stuff #####
+    # k vectors of lattice beams
+    if plot_k_vecs:
+        for vec in [E9c.kB12, E9c.kB23]:
+            arrow = FancyArrowPatch(
+                (-2 * (E9c.G1G[0] + E9c.G2G[0]), -2 * E9c.G1G[1] - 3 * E9c.G2G[1]),
+                (-2 * (E9c.G1G[0] + E9c.G2G[0]) + vec[0] / E9c.k_lw,
+                -2 * E9c.G1G[1] - 3 * E9c.G2G[1] + vec[1] / E9c.k_lw),
+                edgecolor = '#FF5500',
+                facecolor = '#FF5500',
+                linewidth = 2,
+                arrowstyle = '-|>,head_width=0.06,head_length=0.15',
+                mutation_scale = 50,
+                shrinkA = 0,
+                shrinkB = 0
+            )
+            ax_BZ.add_patch(arrow)
 
     # Add some points in the reciprocal lattice
     if add_q_pts:
@@ -580,9 +580,18 @@ def PlotBZSubplot(ax_BZ: plt.axes = None, BZcolor = E9c.BZcolor_PRL, add_q_pts =
             for j in yy:
                 x = i * E9c.G1G[0] + j * E9c.G2G[0]
                 y = i * E9c.G1G[1] + j * E9c.G2G[1]
-                ax_BZ.plot(x, y, 'ok')
+                ax_BZ.scatter(x, y, s_q_pt, marker = "o", color = "black")
         ax_BZ.set_xlim(-4, 4)
         ax_BZ.set_ylim(-3, 3)
+    
+    # High symmetry points
+    if label_sym_pts:
+        ax_BZ.scatter(0, 0, s_q_pt, facecolor = "black")
+        ax_BZ.text(0, -0.1, r"$\mathbf{\Gamma}$", fontsize = fontsize, verticalalignment = "top", horizontalalignment = "center")
+        ax_BZ.scatter(np.sqrt(3) / 2, 0, s_q_pt, facecolor = "black")
+        ax_BZ.text(np.sqrt(3) / 2 + 0.04, 0, r"$\mathbf{M}$", fontsize = fontsize, verticalalignment = "center")
+        ax_BZ.scatter(np.sqrt(3) / 2, 1/2, s_q_pt, facecolor = "black")
+        ax_BZ.text(np.sqrt(3) / 2 + 0.04, 1 / 2 + 0.02, r"$\mathbf{K}$", fontsize = fontsize, verticalalignment = "baseline")
     
     ax_BZ.set_aspect('equal')
     return ax_BZ
@@ -622,7 +631,7 @@ def plot_qset(ax_BZ: plt.axes = None, qset = '', qset_type: str = "vertices",
         q_verts = eval(qstr)
     elif qset_type == "circle":
         assert type(qset) == np.ndarray
-        plot_qset_circle_arrow(ax_BZ, qset)
+        plot_qset_circle_arrow(ax_BZ, qset, **qset_kwargs)
         return
     elif qset_type == "explicit":
         assert type(qset) == tuple
@@ -692,7 +701,9 @@ def plot_qset_circle_arrow(ax_BZ,
     default_arrow.update(arrow_kwargs)
 
     # 1) Draw the full circle path as a polyline
-    ax_BZ.plot(qset[:, 0], qset[:, 1], **default_line)
+    # (The last 3% of the points are not plotted so that the arrow is not sitting on a line)
+    idx97 = int(qset.shape[0] * 0.97)
+    ax_BZ.plot(qset[:idx97, 0], qset[:idx97, 1], **default_line)
 
     # 2) Put a single arrow head at the end, pointing along the last segment
     p_end = qset[-1, :]
@@ -768,17 +779,20 @@ def find_qset_circle(q_center: np.ndarray,
     qset = np.column_stack((qx, qy))
     return qset, 2 * np.pi * qr * np.linspace(0, 1, pt_num)
 
-def fix_gauge_parallel_transport_1d(eigenvectors):
+def fix_gauge_parallel_transport_1d(eigenvectors, flip_gauge_for_bands: list = None):
     """
     Fix gauge by maximizing overlap between neighboring k-points.
 
     Makes ⟨ψ(k_i)|ψ(k_{i+1})⟩ real and positive. This seems to work better than fix_gauge_2d_grid() when
     the question is one dimentional.
     """
+    flip_gauge_for_bands = [] if flip_gauge_for_bands is None else flip_gauge_for_bands
     n_q, N_pw, n_bands = eigenvectors.shape
     evecs_fixed = eigenvectors.copy()
     
     for band in range(n_bands):
+        if band in flip_gauge_for_bands:
+            evecs_fixed[0, :, band] = - evecs_fixed[0, :, band]
         for i in range(1, n_q):
             # Maximize overlap with previous state
             overlap = np.vdot(evecs_fixed[i-1, :, band], evecs_fixed[i, :, band])
@@ -1098,31 +1112,52 @@ def find_H_components(num, Exp_lib, center = (0, 0)):
     return Hq_mmat, Hq_nmat, H_532, H_1064
 
 def find_H(q, Exp_lib, Hq_mmat, Hq_nmat, H_532, H_1064):
-    """Find the Hamiltonian for a given q."""
+    """Find the Hamiltonian for a given q.
+    
+    Args:
+        q:      DIMENSIONLESS quasimomentum (, normalized by K - similar to g1g and g2g)
+    """
     l_unit = Exp_lib["units_dict"]["l_unit"]
     V532, V1064 = Exp_lib['V532'], Exp_lib['V1064']
     K = E9c.k_lw * l_unit
     Tq = K**2 / 2. * np.linalg.norm(np.outer(E9c.g1g, Hq_mmat.diagonal()) + np.outer(E9c.g2g, Hq_nmat.diagonal()) + q[:, np.newaxis], axis = 0)**2
     return np.diag(Tq) + V1064 * H_1064 + V532 * H_532
 
-def find_del_H(q, Exp_lib, Hq_mmat, Hq_nmat, direction = 'x', delta = 1e-5):
-    """Find the change in Hamiltonian in some direction for a given q."""
+def find_del_q_of_H(q, Exp_lib, Hq_mmat, Hq_nmat, direction = 'x'):
+    """Find the derivative of the kinetic energy Hamiltonian.
+    
+    The potential energy term is independent of q and drops from the final expression.
+    Note that my q is NOT quasimomentum - it is quasimomentum / K, similar to g1g and g2g.
+    """
     l_unit = Exp_lib["units_dict"]["l_unit"]
     K = E9c.k_lw * l_unit
+    
+    # Construct k-vectors
+    k_vectors = np.outer(E9c.g1g, Hq_mmat.diagonal()) + np.outer(E9c.g2g, Hq_nmat.diagonal()) + q[:, np.newaxis]
+    
     if direction == 'x':
-        dq = np.array([delta, 0])
+        dir_vec = np.array([1, 0])
     elif direction == 'y':
-        dq = np.array([0, delta])
+        dir_vec = np.array([0, 1])
     else:
         raise ValueError("Direction should be 'x' or 'y'.")
-    Tq = K**2 / 2. * (np.linalg.norm(np.outer(E9c.g1g, Hq_mmat.diagonal()) + np.outer(E9c.g2g, Hq_nmat.diagonal()) + (q + dq/2)[:, np.newaxis], axis = 0)**2
-        - np.linalg.norm(np.outer(E9c.g1g, Hq_mmat.diagonal()) + np.outer(E9c.g2g, Hq_nmat.diagonal()) + (q - dq/2)[:, np.newaxis], axis = 0)**2
-        ) / np.linalg.norm(dq)
-    return np.diag(Tq)
+    
+    # dT/dq_α = K² * (k · ∂_α k) = K * k_α for kinetic energy T = |k|²/2
+    dT_dq = K**2 * np.dot(k_vectors.T, dir_vec)  # Shape (N_pw,)
+    
+    return np.diag(dT_dq)
 
 def find_inter_Berry_conn(q, psi1, psi2, E12, Exp_lib, Hq_mmat, Hq_nmat):
-    delx_H, dely_H = find_del_H(q, Exp_lib, Hq_mmat, Hq_nmat, direction = 'x'), find_del_H(q, Exp_lib, Hq_mmat, Hq_nmat, direction = 'y')
-    return np.einsum('a,abc,b->c', np.conj(psi2), np.stack([delx_H, dely_H], axis = 2), psi1) / E12
+    l_unit = Exp_lib["units_dict"]["l_unit"]
+    K = E9c.k_lw * l_unit  # = π for your current unit choice
+
+    # The factor of 1 / K is because I actually want the del_quasimomentum_of_H, and q
+    # is dimensionless
+    delx_H = find_del_q_of_H(q, Exp_lib, Hq_mmat, Hq_nmat, direction='x') / K
+    dely_H = find_del_q_of_H(q, Exp_lib, Hq_mmat, Hq_nmat, direction='y') / K
+
+    return np.einsum('a,abc,b->c', np.conj(psi2),
+                     np.stack([delx_H, dely_H], axis=2), psi1) / E12
 
 # def find_q_geo_tensor(n_q, n_band, Exp_lib, q_list, E_list, psi_list, Hq_mmat, Hq_nmat, component = 'xx'):
 def find_q_geo_tensor(n_q, n_band, Exp_lib, q_list, E_list, psi_list, Hq_mmat, Hq_nmat, component = 'xx'):
@@ -1133,8 +1168,8 @@ def find_q_geo_tensor(n_q, n_band, Exp_lib, q_list, E_list, psi_list, Hq_mmat, H
     q = q_list[n_q]
     psin = psi_list[n_q, :, n_band]
     En = E_list[n_q, n_band]
-    dH1 = find_del_H(q, Exp_lib, Hq_mmat, Hq_nmat, direction = component[0])
-    dH2 = find_del_H(q, Exp_lib, Hq_mmat, Hq_nmat, direction = component[1])
+    dH1 = find_del_q_of_H(q, Exp_lib, Hq_mmat, Hq_nmat, direction = component[0])
+    dH2 = find_del_q_of_H(q, Exp_lib, Hq_mmat, Hq_nmat, direction = component[1])
     qgt = 0j
     for m_band in range(E_list.shape[1]):
         if m_band == n_band:
