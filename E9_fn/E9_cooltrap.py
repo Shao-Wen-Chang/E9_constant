@@ -92,6 +92,12 @@ def n_peak_har(N, wbar, T, m):
     """
     return N / np.pi**(3/2) / r0_thermal_har(wbar, T, m)**3
 
+def n_peak_har_TF(N, wbar, m, a_s):
+    U0 = 4 * np.pi * E9c.hbar**2 * a_s / m
+    abar = np.sqrt(E9c.hbar / m / wbar)
+    mu = 15**(2/5) / 2 * (N * a_s / abar)**(2/5) * E9c.hbar * wbar
+    return mu / U0
+
 def PSD_har(N, wbar, T, m):
     return n_peak_har(N, wbar, T, m) * util.lambda_de_broglie(m, T)**3
 

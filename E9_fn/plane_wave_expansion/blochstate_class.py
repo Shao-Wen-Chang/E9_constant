@@ -314,7 +314,7 @@ def SaveStateListAsCsv(filepath, slist, eol_str = '\n'):
             file.write(eol_str)
 
 #%% More "physics related" functions
-def FindDensity(psi, xx = np.arange(-1.5, 1.5, 0.025), yy = np.arange(-1.5, 1.5, 0.025)):
+def find_density(psi, xx = np.arange(-6., 6., 0.1), yy = np.arange(-6., 6., 0.1)):
     """Returns the real space density distribution and wave fn phases of the given blochstate.
     
     Density is normalized such that the maximum element is 1, while there is no fixed convention for phase."""
@@ -325,7 +325,7 @@ def FindDensity(psi, xx = np.arange(-1.5, 1.5, 0.025), yy = np.arange(-1.5, 1.5,
         for index in range(len(psi_in)):
             m, n = psi_in.index2mn(index)
             q = psi_in.q
-            k_mn = m * G1 + n * G2 + q
+            k_mn = m * E9c.G1G + n * E9c.G2G + q
             psi_in_r += psi_in[index] * np.exp(1j * (k_mn[0] * mg[0] + k_mn[1] * mg[1] ))
         return psi_in_r
     
@@ -404,7 +404,7 @@ def RealSubPlot(ax, psi, x, y, lev = 8, plotrange = False):
     ax1, ax2 = ax
     if type(psi) == blochstate: ax1.set_title("(q,N) = ([{:.4},{:.4}],{})\nE = {:.4}".format(psi.q[0], psi.q[1], psi.N, psi.E))
     
-    density, phase = FindDensity(psi, x, y)
+    density, phase = find_density(psi, x, y)
     if plotrange: # Change color level scaling
         rmin, rmax = plotrange
         cnt = ax1.contourf(x, y, density, lev, vmin = rmin, vmax = rmax)
@@ -436,11 +436,11 @@ def jSubPlot(ax, psi, xin, yin, sampling_rate):
     ax.set_xlim(xin[0], xin[-1])
     ax.set_ylim(yin[0], yin[-1])
 
-def RealPlot(psilist, x = np.arange(-1.5, 1.5, 0.025), y = np.arange(-1.5, 1.5, 0.025), lev = 8, plotrange = False, plotj = False):
+def RealPlot(psilist, x = np.arange(-6., 6., 0.1), y = np.arange(-6., 6., 0.1), lev = 8, plotrange = False, plotj = False):
     """Plot the real space distribution of blochstates in psilist."""
     if type(psilist) != list: psilist = [psilist]
     ncols = len(psilist) + 1
-    fig = plt.figure(4, figsize=(5,5))
+    fig = plt.figure(figsize=(5,5))
     fig.clf()
     for i, psi in enumerate(psilist):
         if plotj:
@@ -456,7 +456,8 @@ def RealPlot(psilist, x = np.arange(-1.5, 1.5, 0.025), y = np.arange(-1.5, 1.5, 
     fig.colorbar(cms, ax = fig.add_subplot(num_row, ncols, 2 * ncols))
     return fig
         
-def ToFSubplot(vec, ax = None, center = (0, 0), maxmn = 3):
+def ToFSubplot(vec, ax = None, center = (0, 0), maxmn = 3,
+               mark_origin = True, mark_q = True, mark_vg = True):
     """"Plot ToF images in a given axes.
     
     (versions after 211107) I use two different color tables: if all entries are real, I use black and blue for
@@ -467,7 +468,10 @@ def ToFSubplot(vec, ax = None, center = (0, 0), maxmn = 3):
     size = int(np.sqrt(len(vec)))
     num = int((size - 1) / 2)
     maxmn = min(maxmn, num)
-    if type(vec) == blochstate: center = vec.center
+    if type(vec) == blochstate:
+        center = vec.center
+        q = vec.q * E9c.k_lw
+        vg = vec.find_group_velocity() * E9c.k_lw
     vec_is_complex = bool(np.any(abs(np.imag(vec))) > 1e-5)
     dg1 = center[0]
     dg2 = center[1]
@@ -487,7 +491,7 @@ def ToFSubplot(vec, ax = None, center = (0, 0), maxmn = 3):
     for m in range(-maxmn + dg1, maxmn + dg1 + 1):
         for n in range(-maxmn + dg2, maxmn + dg2 + 1):
             index = m * size + n
-            (x[i], y[i]) = E9c.G1 * m + E9c.G2 * n
+            (x[i], y[i]) = E9c.G1 * m + E9c.G2 * n + q
             weight[i] = abs(vec[index]) ** 2 * 800 # remember to square the wavefn (basically we measure |<psi|e^ikx>|^2)
             if np.allclose(abs(vec[index]), 0):
                 colors[i] = np.pi/2
@@ -495,10 +499,14 @@ def ToFSubplot(vec, ax = None, center = (0, 0), maxmn = 3):
                 colors[i] = np.angle(vec[index])
             i += 1
     
+    # Label a few special points
     if type(vec) == blochstate:
         ax.set_title("(q,N) = ([{:.4},{:.4}],{}), E = {:.4}".format(vec.q[0], vec.q[1], vec.N, vec.E))
-        q = vec.q * E9c.k_lw
-        ax.scatter(q[0], q[1], s = 10, c = "red", marker = "x", zorder = 3)
+        # if mark_origin: ax.scatter(0, 0, s = 40, c = "gray", marker = "o", zorder = 3, label = "origin")
+        if mark_origin: ax.scatter(0, 0, s = 30, c = "black", marker = "x", zorder = 3, label = "origin")
+        if mark_q:      ax.scatter(q[0], q[1], s = 40, c = "red", marker = "+", zorder = 4, label = r"$\vec{q}$")
+        # if mark_vg:     ax.scatter(vg[0], vg[1], s = 30, c = "green", marker = "x", zorder = 5, label = r"$\vec{v}_g$")
+        if mark_vg:     ax.scatter(vg[0], vg[1], s = 30, c = "red", marker = "x", zorder = 5, label = r"$\vec{v}_g$")
     sca = ax.scatter(x, y, s = weight, c = colors, cmap = cmp, zorder = 1)
     ax.set_aspect('equal')
     return ax
@@ -537,15 +545,16 @@ def PlotEnergyFunctional(ax, datalist, marker = '-', label = '', color = 'r', in
     ax.plot(xq, energies, marker, label = label, color = color)
 
 def PlotBZSubplot(ax_BZ: plt.axes = None,
-                  N_BZ = 4, BZcolor = E9c.BZcolor_PRL,
-                  add_q_pts = True, s_q_pt = 4,
-                  label_sym_pts = False, fontsize = 24,
+                  N_BZ = 4, BZcolor = E9c.BZcolor_PRL, BZ_kwargs: dict = None,
+                  add_q_pts = True, s_q_pt = 16,
+                  label_sym_pts = False, fontsize = 18,
                   plot_k_vecs = False):
     """Plot the Brillouin zone of lattice.
     
     By default the quasimomentum plotted is normalized by K.
     """
     if ax_BZ is None: fig, ax_BZ = plt.subplots(1, 1)
+    BZ_kwargs = dict() if BZ_kwargs is None else BZ_kwargs
     # Define Path objects for BZ
     xx, yy = np.meshgrid(np.arange(-4, 4), np.arange(-4, 4))
     N_BZ_vertices = len(E9c.all_BZ_vertices)
@@ -553,7 +562,11 @@ def PlotBZSubplot(ax_BZ: plt.axes = None,
         i = N_BZ_vertices - _i - 1
         if i < N_BZ:
             path = util.get_closed_polygon(BZ_vertices)
-            patch = patches.PathPatch(path, facecolor = BZcolor[i + 1], lw = 2, alpha = 1)
+            BZ_dict = {"facecolor": BZcolor[i + 1],
+                       "lw": 2,
+                       "alpha": 1}
+            BZ_dict.update(BZ_kwargs)
+            patch = patches.PathPatch(path, **BZ_dict)
             ax_BZ.add_patch(patch)
     
     ##### Optional stuff #####
