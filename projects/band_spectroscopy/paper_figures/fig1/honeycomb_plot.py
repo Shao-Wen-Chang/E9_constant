@@ -1,17 +1,17 @@
 import sys
-from pathlib import Path
 import scienceplots
+import matplotlib.pyplot as plt
 
 plt.style.use(['nature'])
 
 # User defined modules
+from pathlib import Path
 E9path = Path("C:/", "Users", "ken92", "Documents", "Studies", "E5", "simulation", "E9_simulations")
 if str(E9path) not in sys.path:
     sys.path.insert(1, str(E9path))
 import E9_fn.E9_constants as E9c
 
 import numpy as np
-import matplotlib.pyplot as plt
 from matplotlib.patches import FancyArrowPatch
 from pathlib import Path
 
@@ -136,10 +136,13 @@ for p1, p2 in zip(arrow_ends, arrow_tips):
         shrinkB = 0
     )
     ax1.add_patch(arrow)
+ax1.text(*arrow_ends[2] + np.array([-0.18, 0.2]) * E9c.k_lw, r"$\vec{k}_1$", color = "red", fontsize = plt_sizes["delta_fontsize"])
+ax1.text(*arrow_ends[0] + np.array([-0.2, 0.2]) * E9c.k_lw, r"$\vec{k}_2$", color = "red", fontsize = plt_sizes["delta_fontsize"])
+ax1.text(*arrow_ends[1] + np.array([-0.45, -0.4]) * E9c.k_lw, r"$\vec{k}_3$", color = "red", fontsize = plt_sizes["delta_fontsize"])
 ax1.text(*arrow_ends[2] + np.array([-0.08, -0.35]) * E9c.k_lw, r"$\delta_1(t)$", fontsize = plt_sizes["delta_fontsize"])
 ax1.text(*arrow_ends[0] + np.array([-0.63, -0.35]) * E9c.k_lw, r"$\delta_2(t)$", fontsize = plt_sizes["delta_fontsize"])
 
 fig1apath = Path(r"C:\Users\ken92\Documents\Studies\E5\simulation\E9_simulations\projects\band_spectroscopy\paper_figures\fig1",
-                 f"fig1c_{str_journal}.svg")
-fig.savefig(fig1apath, format = "svg", facecolor = "none")
+                 f"fig1c_{str_journal}.pdf")
+fig.savefig(fig1apath, format = "pdf", facecolor = "none", dpi = 300, bbox_inches = 'tight')
 # %%
