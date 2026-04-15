@@ -1,13 +1,19 @@
 # Recommended import call: import fermi_kagome_scan_reservoir as fksr
 import sys
+from pathlib import Path
+E9path = Path("C:/", "Users", "ken92", "Documents", "Studies", "E5", "simulation", "E9_simulations")
+fbcpath = Path(r"C:\Users\ken92\Documents\Studies\E5\simulation\E9_simulations\projects\flat_band_cooling")
+if str(E9path) not in sys.path:
+    sys.path.insert(1, str(E9path))
+if str(fbcpath) not in sys.path:
+    sys.path.insert(1, str(fbcpath))
+
+import equilibrium_finder as eqfind
 import logging
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import colormaps
 # User defined modules
-import equilibrium_finder as eqfind
-sys.path.insert(1,
-    "C:\\Users\\ken92\\Documents\\Studies\\E5\\simulation\\E9_simulations")
 from E9_fn import util
 import E9_fn.E9_models as E9M
 import E9_fn.thermodynamics as thmdy
@@ -32,7 +38,7 @@ V = 3 * 500**2      # size of the experiment (imagine a kagome lattice with n*n 
 bandwidth = 6       # bandwidth (of band structure; 6 for tight-binding kagome lattice)
 
 # System
-sys_name = "system"
+sys_name = "calc_offset_scan"
 r_s = 0.1           # ratio of the system size
 fhbw = 0.0         # half band width of the flat band used in DoS, if not added as degenerate states
 E_range_s = (0, bandwidth + fhbw)  # energies considered in calculation
@@ -51,7 +57,7 @@ mu = 4.              # chemical potential
 mu_scan = np.arange(38, 43) / 10.
 
 # Utility variables
-calculation_mode = "simple"
+calculation_mode = "offset_scan"
 colormap_traces = "Blues"       # Currently using matplotlib built-in colormaps
 nu_tar = 5/12       # Target filling factor
 

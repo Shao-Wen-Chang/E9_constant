@@ -6,7 +6,8 @@ from pathlib import Path
 
 # User defined modules
 E9path = Path("C:/", "Users", "ken92", "Documents", "Studies", "E5", "simulation", "E9_simulations")
-sys.path.insert(1, E9path)
+if str(E9path) not in sys.path:
+    sys.path.insert(1, str(E9path))
 from E9_fn import util
 import E9_fn.E9_models as E9M
 # fermions in a predefined lattice (+ offset) potential

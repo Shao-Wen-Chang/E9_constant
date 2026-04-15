@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from scipy.linalg import eigh
+from collections.abc import Iterable
 
 import sys
 sys.path.insert(1,
@@ -153,7 +154,8 @@ class tbmodel_2D:
         # logging.debug("ind = {}: i = {}, j = {}, k = {}".format(ind, i, j, k))
         return (i + b0) * self.lat_vec[0] + (j + b1) * self.lat_vec[1]
     
-    def plot_H(self, ax = None, H = None, t_farthest = 1):
+    def plot_H(self, ax = None, H = None, t_farthest = 1,
+               sublat_colors = None, sublat_kwargs: dict = None):
         """Plot the lattice in the specified axes using the Hamiltonian.
         
         One can add stuff to the Hamiltonian after it is initialized, and use this fuction to plot
@@ -167,7 +169,15 @@ class tbmodel_2D:
         """
         if ax is None: _fig, ax = util.make_simple_axes()
         if H is None: H = self.H
-        sublat_colors = ["#1f77b4", "#7fbf7f", "#ff5b2b", "#ffcc3f", "#b97c5a", "#b75bd4"]
+
+        # Sublattice plot configs
+        if sublat_colors is None:
+            sublat_colors = ["#1f77b4", "#7fbf7f", "#ff5b2b", "#ffcc3f", "#b97c5a", "#b75bd4"]
+        elif not isinstance(sublat_colors, Iterable):
+            sublat_colors = [sublat_colors for _ in range(6)]
+        if sublat_kwargs is None: sublat_kwargs = dict()
+        sublat_plt_dict = {"s": 15}
+        sublat_plt_dict.update(sublat_kwargs)
         
         # Find the maximum offset and bond strengths (for plotting purposes)
         Hd = H.diagonal().real
@@ -191,7 +201,9 @@ class tbmodel_2D:
                 if ri1 == ri2: # this element (if non-zero) is an on-site offset
                     i, j, k = self.get_natural_index(ri1)
                     pos = self.get_lat_pos((i, j, k))
-                    ax.scatter(pos[0], pos[1], color = sublat_colors[k], s = 15, alpha = get_offset_alpha(H[ri1, ri2]))
+                    # ax.scatter(pos[0], pos[1], color = sublat_colors[k], s = 15, alpha = get_offset_alpha(H[ri1, ri2]))
+                    ax.scatter(pos[0], pos[1], color = sublat_colors[k], alpha = get_offset_alpha(H[ri1, ri2]),
+                               **sublat_plt_dict)
                 else:
                     if H[ri1, ri2] != 0: # There is some hopping between the two sites
                         pos1, pos2 = self.get_lat_pos(ri1), self.get_lat_pos(ri2)

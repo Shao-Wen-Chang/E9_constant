@@ -692,7 +692,7 @@ def bose_stat(E, tau, mu = 0.):
     """The Bose statistics function."""
     return part_stat(E, tau, mu, xi = -1)
 
-def fermi_stat(E, tau, mu = 0):
+def fermi_stat(E, tau, mu = 0.):
     """The Fermi statistics function."""
     return part_stat(E, tau, mu, xi = 1)
 
