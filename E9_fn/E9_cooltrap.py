@@ -281,6 +281,12 @@ def fermi_radius(m, w, N, xi, a_s = 0.):
         mu0 = mu_BEC_har(m, w, a_s, N) # chemical potential at T = 0
     return np.sqrt(2 * mu0 / (m * w**2))
 
+def fermi_radius_Rb(w, N):
+    return fermi_radius(E9c.m_Rb87, w, N, -1, E9c.a_bg_Rb87)
+
+def fermi_radius_K40(w, N):
+    return fermi_radius(E9c.m_K40, w, N, 1)
+
 def density_profile_fermi(m, wx, wy, wz, N, pos_arr, z = 0):
     """Given a harmonic trapping potential with specified trapping frequencies, for each point in pos_arr (where the origin
     is set at trap center), return the number density at zero temperature.

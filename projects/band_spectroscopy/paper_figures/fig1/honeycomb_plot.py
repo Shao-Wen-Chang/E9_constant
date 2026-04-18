@@ -139,8 +139,8 @@ for p1, p2 in zip(arrow_ends, arrow_tips):
 ax1.text(*arrow_ends[2] + np.array([-0.18, 0.2]) * E9c.k_lw, r"$\vec{k}_1$", color = "red", fontsize = plt_sizes["delta_fontsize"])
 ax1.text(*arrow_ends[0] + np.array([-0.2, 0.2]) * E9c.k_lw, r"$\vec{k}_2$", color = "red", fontsize = plt_sizes["delta_fontsize"])
 ax1.text(*arrow_ends[1] + np.array([-0.45, -0.4]) * E9c.k_lw, r"$\vec{k}_3$", color = "red", fontsize = plt_sizes["delta_fontsize"])
-ax1.text(*arrow_ends[2] + np.array([-0.08, -0.35]) * E9c.k_lw, r"$\delta_1(t)$", fontsize = plt_sizes["delta_fontsize"])
-ax1.text(*arrow_ends[0] + np.array([-0.63, -0.35]) * E9c.k_lw, r"$\delta_2(t)$", fontsize = plt_sizes["delta_fontsize"])
+ax1.text(*arrow_ends[2] + np.array([-0.08, -0.35]) * E9c.k_lw, r"$\delta_1(t)$", color = "red", fontsize = plt_sizes["delta_fontsize"])
+ax1.text(*arrow_ends[0] + np.array([-0.63, -0.35]) * E9c.k_lw, r"$\delta_2(t)$", color = "red", fontsize = plt_sizes["delta_fontsize"])
 
 fig1apath = Path(r"C:\Users\ken92\Documents\Studies\E5\simulation\E9_simulations\projects\band_spectroscopy\paper_figures\fig1",
                  f"fig1c_{str_journal}.pdf")

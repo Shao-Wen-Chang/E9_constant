@@ -6,6 +6,7 @@ from scipy.special import wofz
 import matplotlib.pyplot as plt
 from matplotlib.path import Path as plt_Path
 from matplotlib.patches import Wedge
+import matplotlib.transforms as transforms
 from pathlib import Path as fPath
 import gftool as gt
 from typing import Iterable
@@ -957,9 +958,10 @@ def plot_rectangle(ax, center = None, half_widths = None, top = None, bottom = N
     return lines
 
 def draw_circle(ax, center, radius,
-                theta_range = (0, 2 * np.pi),
+                theta_range=(0, 2 * np.pi),
                 close_circle: bool = True,
                 index_convention: str = "xy",
+                coor_type: str = "data",
                 **kwargs):
     """Draw a circle or an arc as a Line2D on the given Matplotlib Axes.
 
@@ -969,13 +971,18 @@ def draw_circle(ax, center, radius,
         center: (float, float)
             (x, y) center of the circle.
         radius: float
-            Circle radius (must be > 0).
+            Circle radius (must be > 0). If coor_type is "data", this is in data units. 
+            If coor_type is "display", this is in pixels.
         theta_range: (float, float)
             Range of the angle to plot. Default to a full circle.
         close_circle:       bool
             Fully close the circle or not.
         index_convention:   str
             "yx" for [y, x] (same as jkam), "xy" for [x, y] (typical for matplotlib functions)
+        coor_type: str
+            "data" to draw in data coordinates (will distort if aspect ratio != 1).
+            "display" to draw in display coordinates (always a perfect circle on screen, 
+            radius is in pixels, but position is anchored to data coordinates).
         **kwargs:
             Passed through directly to ax.plot (e.g., color, lw, ls, label, etc.).
 
@@ -985,19 +992,39 @@ def draw_circle(ax, center, radius,
     """
     if radius <= 0:
         raise ValueError("radius must be positive")
+    
     if index_convention == "yx":
         center = center[::-1]
     elif index_convention != "xy":
         raise ValueError("index_convention should be 'yx' or 'xy'")
+        
+    if coor_type not in ["data", "display"]:
+        raise ValueError("coor_type must be 'data' or 'display'")
 
     cx, cy = center
-    theta = np.linspace(theta_range[0], theta_range[1], 256, endpoint = False)
-    if close_circle: theta = np.append(theta, theta[0])
+    theta = np.linspace(theta_range[0], theta_range[1], 256, endpoint=False)
+    if close_circle: 
+        theta = np.append(theta, theta[0])
 
-    x = cx + radius * np.cos(theta)
-    y = cy + radius * np.sin(theta)
+    if coor_type == "data":
+        x = cx + radius * np.cos(theta)
+        y = cy + radius * np.sin(theta)
+        (line,) = ax.plot(x, y, **kwargs)
+        
+    elif coor_type == "display":
+        # 1. Generate the circle centered at (0,0) with the radius in pixels
+        x = radius * np.cos(theta)
+        y = radius * np.sin(theta)
+        
+        # 2. Create a dynamic transform that places (0,0) at the data coordinates of `center`
+        # IdentityTransform keeps x,y in raw pixels.
+        # ScaledTranslation shifts those pixels by the display-coordinate position of (cx, cy).
+        offset_trans = transforms.ScaledTranslation(cx, cy, ax.transData)
+        trans = transforms.IdentityTransform() + offset_trans
+        
+        # 3. Plot passing the custom transform
+        (line,) = ax.plot(x, y, transform=trans, **kwargs)
 
-    (line,) = ax.plot(x, y, **kwargs)
     return line
 
 def fill_annulus(ax, center, r_inner, r_outer, index_convention = "xy", **kwargs):

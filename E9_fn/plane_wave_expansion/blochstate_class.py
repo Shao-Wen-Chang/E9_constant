@@ -457,7 +457,7 @@ def RealPlot(psilist, x = np.arange(-6., 6., 0.1), y = np.arange(-6., 6., 0.1), 
     return fig
         
 def ToFSubplot(vec, ax = None, center = (0, 0), maxmn = 3,
-               mark_origin = True, mark_q = True, mark_vg = True):
+               mark_origin = False, mark_q = False, mark_vg = False):
     """"Plot ToF images in a given axes.
     
     (versions after 211107) I use two different color tables: if all entries are real, I use black and blue for
@@ -484,6 +484,7 @@ def ToFSubplot(vec, ax = None, center = (0, 0), maxmn = 3,
     # color array is defined as the polar angle of entries
     if not vec_is_complex: # positive entries has angle = 0, and negative entries pi. Values close to 0 are assined pi/2
         cmp = ListedColormap(['black', 'red', 'blue'])
+        vec = vec.astype(float)
     else:
         # common choices: cm.get_cmap('twilight'); cm.get_cmap('hsv'); ListedColormap(sns.color_palette('husl', 256))
         cmp = ListedColormap(sns.color_palette('husl', 256))
@@ -493,10 +494,13 @@ def ToFSubplot(vec, ax = None, center = (0, 0), maxmn = 3,
             index = m * size + n
             (x[i], y[i]) = E9c.G1 * m + E9c.G2 * n + q
             weight[i] = abs(vec[index]) ** 2 * 800 # remember to square the wavefn (basically we measure |<psi|e^ikx>|^2)
-            if np.allclose(abs(vec[index]), 0):
-                colors[i] = np.pi/2
-            else:
+            if vec_is_complex:
                 colors[i] = np.angle(vec[index])
+            else:
+                if np.allclose(abs(vec[index]), 0):
+                    colors[i] = 0
+                else:
+                    colors[i] = np.sign(vec[index])
             i += 1
     
     # Label a few special points

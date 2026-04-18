@@ -173,8 +173,10 @@ g1g = g1/k_sw   # "Normalized" G vectors, or g_tilde in Claire's Thesis
 G1G = G1/k_lw   # Should be the same as g1g
 g2g = g2/k_sw
 G2G = G2/k_lw
+g3g = g3/k_sw   # g3g and G3G are not used in calculations, defined for completeness
+G3G = G3/k_lw
     # e_pol's: polarization vectors
-e_pol1 = np.array([-1/2, np.sqrt(3)/2])
+e_pol1 = np.array([-1/2, -np.sqrt(3)/2])
 e_pol2 = np.array([1, 0])
 e_pol3 = np.array([-1/2, np.sqrt(3)/2])
     # a's: real space lattice vectors
@@ -190,6 +192,8 @@ a3 = a_sw_tri * np.array([np.sqrt(3)/2, 1/2])
 A1 = a_lw_hex * np.array([0, 1])
 A2 = a_lw_hex * np.array([-np.sqrt(3)/2, 1/2])
 A3 = a_lw_hex * np.array([np.sqrt(3)/2, 1/2])
+n_site_tri = 3 * np.sqrt(3) / 2 / lambda_sw**2  # site densities
+n_site_hex = 3 * np.sqrt(3) / lambda_lw**2
     # (all) high-symmetry points in the quasimomentum space
     # (in clockwise order, starting from the kappa point in +y axis) (multiplied by g/2)
     # k - [0, 2/np.sqrt(3)] // [1, 1/np.sqrt(3)] // [1, -1/np.sqrt(3)] // (negative of them)
