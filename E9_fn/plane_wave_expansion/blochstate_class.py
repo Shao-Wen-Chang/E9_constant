@@ -604,11 +604,13 @@ def PlotBZSubplot(ax_BZ: plt.axes = None,
     # High symmetry points
     if label_sym_pts:
         ax_BZ.scatter(0, 0, s_q_pt, facecolor = "black")
-        ax_BZ.text(0, -0.1, r"$\mathbf{\Gamma}$", fontsize = fontsize, verticalalignment = "top", horizontalalignment = "center")
-        ax_BZ.scatter(np.sqrt(3) / 2, 0, s_q_pt, facecolor = "black")
-        ax_BZ.text(np.sqrt(3) / 2 + 0.04, 0, r"$\mathbf{M}$", fontsize = fontsize, verticalalignment = "center")
-        ax_BZ.scatter(np.sqrt(3) / 2, 1/2, s_q_pt, facecolor = "black")
-        ax_BZ.text(np.sqrt(3) / 2 + 0.04, 1 / 2 + 0.02, r"$\mathbf{K}$", fontsize = fontsize, verticalalignment = "baseline")
+        ax_BZ.text(0, -0.1, r"$\mathbf{\Gamma}$", fontsize = fontsize, va = "top", ha = "center")
+        ax_BZ.scatter(np.sqrt(3)/2, 0, s_q_pt, facecolor = "black")
+        ax_BZ.text(np.sqrt(3)/2 + 0.04, 0, r"$\mathbf{M}$", fontsize = fontsize, va = "center")
+        ax_BZ.scatter(np.sqrt(3)/2, 1/2, s_q_pt, facecolor = "black")
+        ax_BZ.text(np.sqrt(3)/2 + 0.04, 1/2 + 0.02, r"$\mathbf{K}$", fontsize = fontsize, va = "baseline")
+        ax_BZ.scatter(np.sqrt(3)/2, -1/2, s_q_pt, facecolor = "black")
+        ax_BZ.text(np.sqrt(3)/2 + 0.04, -1/2 -0.02, r"$\mathbf{K'}$", fontsize = fontsize, va = "top")
     
     ax_BZ.set_aspect('equal')
     return ax_BZ
