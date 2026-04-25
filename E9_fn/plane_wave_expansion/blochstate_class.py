@@ -411,7 +411,7 @@ def RealSubPlot(ax, psi, x, y, lev = 8, plotrange = False):
     else:
         cnt = ax1.contourf(x, y, density, lev)
     cms = ax2.pcolormesh(phase, cmap = ListedColormap(sns.color_palette('husl', 256)),
-                         vmin = -np.pi, vmax = np.pi, zorder = 1)
+                         vmin = -np.pi, vmax = np.pi, zorder = 1, rasterized = True)
     ax2.imshow(np.ones_like(phase), cmap = ListedColormap(['#FFFFFF']),
                alpha = util.LogisticFn(1 - density, x0 = 0.6, k = 8),
                origin = 'lower', zorder = 2)

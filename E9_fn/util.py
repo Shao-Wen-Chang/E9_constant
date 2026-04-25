@@ -333,6 +333,11 @@ def parametric_slice_2D(
 
     return coord_on_curve, data_on_curve
 
+def moving_average(a, n):
+    ret = np.cumsum(a, dtype=float)
+    ret[n:] = ret[n:] - ret[:-n]
+    return ret[n - 1:] / n
+
 #%% Linear algebra
 def dagger(mat, axis = None):
     """Return the conjugate transpose of the input matrix.
@@ -698,6 +703,18 @@ def fermi_stat(E, tau, mu = 0.):
     return part_stat(E, tau, mu, xi = 1)
 
 # Density of states (lowest energy is 0 by convention)
+def honeycomb_DoS(E, hbw: float = 1.):
+    """The density of state of honeycomb lattice.
+    
+    I redefined the zero to be at the bottom of the band structure.
+    Args:
+        hbw:    half bandwidth ( = tight-binding t x 3).
+    See gftool.lattice.kagome.dos for more detail. Some notes of the original dos:
+        - This function integrates to 2/3 since the flat band is not included.
+        - It returns 0 at the VHS of the second band.
+    """
+    return gt.lattice.honeycomb.dos(E - hbw, half_bandwidth = hbw)
+
 def kagome_DoS(E, hbw: float = 1., fhbw: float = 0.):
     """The density of state of kagome lattice, possibly including a 'flat-ish' band.
     
@@ -1097,7 +1114,7 @@ def plot_in_ax_break_sign_change(ax, x, y, idx_sgn_change, *args, **kwargs):
     """Break the line at where there is a sign change (or sudden jumps due to branch choices etc.)"""
     xx = np.insert(x, idx_sgn_change + 1, np.nan)
     yy = np.insert(y, idx_sgn_change + 1, np.nan)
-    ax.plot(xx, yy, *args, **kwargs)
+    return ax.plot(xx, yy, *args, **kwargs)
 
 def fill_between_ygradient(
     ax,

@@ -109,7 +109,10 @@ class HyperfineState():
         return BreitRabi(self.ahf, self.F, self.I, self.S, self.gI, self.gJ, mF, B)
     
     def PlotBreitRabi(self, ax = None, Bmin = 0, Bmax = 1000):
-        """Plot the energy of all mF levels within B = [0, Bmax]."""
+        """Plot the energy of all mF levels within B = [0, Bmax].
+        
+        Kinda don't like these functions, see thesis plot
+        """
         Bmid = (Bmin + Bmax) / 2
         BTesla = np.linspace(Bmin, Bmax, 500) / 1e4
         if ax == None:
@@ -223,8 +226,9 @@ class FeshbachResonance():
 FBres_K40_9o2_7o2 = FeshbachResonance(E9c.a_bg_K40, 202.1, 7.8)
 FBres_K40_9o2_5o2 = FeshbachResonance(E9c.a_bg_K40, 224.21, 9.7)
 FBres_K40_1o2_n1o2 = FeshbachResonance(E9c.a_bg_K40, 389.7, 26.7)
-FBres_K39_n1_n1_1 = FeshbachResonance(E9c.a_bg_K39, 32.6, -55)
-FBres_K39_n1_n1_2 = FeshbachResonance(E9c.a_bg_K39, 162.8, 37)
+FBres_K39_1_1 = FeshbachResonance(-29 * E9c.a0, 403.4, -52)
+FBres_K39_n1_n1_1 = FeshbachResonance(E9c.a_bg_K39, 32.6, 55)
+FBres_K39_n1_n1_2 = FeshbachResonance(E9c.a_bg_K39, 162.8, -37)
 FBres_K40_9o2_9o2_Rb87_1_1 = FeshbachResonance(E9c.a_bg_K40_Rb87, 545.4, -1.2)
 FBres_Li6_1_2 = FeshbachResonance(E9c.a_bg_Li6, 834, -300) # not sure about a_bg
 #%%

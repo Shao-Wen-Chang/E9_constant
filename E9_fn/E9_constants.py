@@ -189,9 +189,9 @@ a_vert = lambda_vert / 2
 a1 = a_sw_tri * np.array([0, 1])
 a2 = a_sw_tri * np.array([-np.sqrt(3)/2, 1/2])
 a3 = a_sw_tri * np.array([np.sqrt(3)/2, 1/2])
-A1 = a_lw_hex * np.array([0, 1])
-A2 = a_lw_hex * np.array([-np.sqrt(3)/2, 1/2])
-A3 = a_lw_hex * np.array([np.sqrt(3)/2, 1/2])
+A1 = 2 * a1
+A2 = 2 * a2
+A3 = 2 * a3
 n_site_tri = 3 * np.sqrt(3) / 2 / lambda_sw**2  # site densities
 n_site_hex = 3 * np.sqrt(3) / lambda_lw**2
     # (all) high-symmetry points in the quasimomentum space
