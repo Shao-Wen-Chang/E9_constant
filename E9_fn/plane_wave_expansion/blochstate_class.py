@@ -551,7 +551,7 @@ def PlotEnergyFunctional(ax, datalist, marker = '-', label = '', color = 'r', in
 def PlotBZSubplot(ax_BZ: plt.axes = None,
                   N_BZ = 4, BZcolor = E9c.BZcolor_PRL, BZ_kwargs: dict = None,
                   add_q_pts = True, s_q_pt = 16,
-                  label_sym_pts = False, fontsize = 18,
+                  label_sym_pts = False, sym_pt_kwargs: dict = None, fontsize = 18,
                   plot_k_vecs = False):
     """Plot the Brillouin zone of lattice.
     
@@ -559,6 +559,7 @@ def PlotBZSubplot(ax_BZ: plt.axes = None,
     """
     if ax_BZ is None: fig, ax_BZ = plt.subplots(1, 1)
     BZ_kwargs = dict() if BZ_kwargs is None else BZ_kwargs
+    sym_pt_kwargs = dict() if sym_pt_kwargs is None else sym_pt_kwargs
     # Define Path objects for BZ
     xx, yy = np.meshgrid(np.arange(-4, 4), np.arange(-4, 4))
     N_BZ_vertices = len(E9c.all_BZ_vertices)
@@ -601,16 +602,28 @@ def PlotBZSubplot(ax_BZ: plt.axes = None,
         ax_BZ.set_xlim(-4, 4)
         ax_BZ.set_ylim(-3, 3)
     
-    # High symmetry points
+    # High symmetry points - lots of dirty code for paper writing
     if label_sym_pts:
-        ax_BZ.scatter(0, 0, s_q_pt, facecolor = "black")
-        ax_BZ.text(0, -0.1, r"$\mathbf{\Gamma}$", fontsize = fontsize, va = "top", ha = "center")
-        ax_BZ.scatter(np.sqrt(3)/2, 0, s_q_pt, facecolor = "black")
-        ax_BZ.text(np.sqrt(3)/2 + 0.04, 0, r"$\mathbf{M}$", fontsize = fontsize, va = "center")
-        ax_BZ.scatter(np.sqrt(3)/2, 1/2, s_q_pt, facecolor = "black")
-        ax_BZ.text(np.sqrt(3)/2 + 0.04, 1/2 + 0.02, r"$\mathbf{K}$", fontsize = fontsize, va = "baseline")
-        ax_BZ.scatter(np.sqrt(3)/2, -1/2, s_q_pt, facecolor = "black")
-        ax_BZ.text(np.sqrt(3)/2 + 0.04, -1/2 -0.02, r"$\mathbf{K'}$", fontsize = fontsize, va = "top")
+        sym_pt_dict = {"s": s_q_pt, "facecolor": "black"}
+        sym_pt_dict.update(sym_pt_kwargs)
+        ax_BZ.scatter(0, 0, **sym_pt_dict)
+        ax_BZ.text(0, -0.1, r"$\Gamma$", fontsize = fontsize, va = "top", ha = "center")
+        # ax_BZ.text(0, -0.1, r"$\mathbf{\Gamma}$", fontsize = fontsize, va = "top", ha = "center")
+
+        ax_BZ.scatter(np.sqrt(3)/2, 0, **sym_pt_dict)
+        ax_BZ.text(np.sqrt(3)/2 + 0.04, 0, "M", fontsize = fontsize, va = "center")
+        # ax_BZ.text(np.sqrt(3)/2 + 0.04, 0, r"$\mathbf{M}$", fontsize = fontsize, va = "center")
+
+        # ax_BZ.scatter(np.sqrt(3)/2, 1/2, **sym_pt_dict)
+        ax_BZ.scatter(0, 1, **sym_pt_dict)
+        ax_BZ.text(0, 1 - 0.1, "K'", fontsize = fontsize, va = "top", ha = "center")
+        # ax_BZ.text(np.sqrt(3)/2 + 0.04, 1/2 + 0.02, "K", fontsize = fontsize, va = "baseline")
+        # ax_BZ.text(np.sqrt(3)/2 + 0.04, 1/2 + 0.02, r"$\mathbf{K}$", fontsize = fontsize, va = "baseline")
+
+        # ax_BZ.scatter(np.sqrt(3)/2, -1/2, **sym_pt_dict)
+        # ax_BZ.text(np.sqrt(3)/2 + 0.04, -1/2 -0.02, r"$\mathbf{K'}$", fontsize = fontsize, va = "top")
+        ax_BZ.scatter(-np.sqrt(3)/2, 1/2, **sym_pt_dict)
+        ax_BZ.text(-np.sqrt(3)/2 + 0.04, 1/2 - 0.02, "K", fontsize = fontsize, va = "top", ha = "left")
     
     ax_BZ.set_aspect('equal')
     return ax_BZ
@@ -1069,9 +1082,9 @@ def find_H_components(num, Exp_lib, center = (0, 0)):
         elif j == -1 and l == 0:
             return phi23
         elif j == 1 and l == 1:
-            return phi12
-        elif j == -1 and l == -1:
             return -phi12
+        elif j == -1 and l == -1:
+            return phi12
         else:
             return 0
     
