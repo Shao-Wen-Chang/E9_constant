@@ -171,7 +171,7 @@ class NVT_exp():
             ax_DoS.axhline(sp["mu"], color = pDoS[0].get_color(), ls = '--'
                         , label = r'$\mu = ${:.3f}, $s = ${:.4f}'.format(sp["mu"], sp["S"] / sp["Np"]))
             if sp["N_BEC"] != 0:
-                util.plot_delta_fn(ax, x0 = sp["E_orbs"][0], text = sp["N_BEC"], a_plt = max_DoS[i] * 0.8,
+                util.plot_delta_fn(ax, pos = sp["E_orbs"][0], text = sp["N_BEC"], a_plt = max_DoS[i] * 0.8,
                                    axis = 'y', color = pDoS[0].get_color(), head_width = 0.5, head_length = 0.3)
 
         ax_DoS.set_xlabel("DoS [arb.]")
@@ -284,11 +284,12 @@ class muVT_exp():
         return N_tot
 
     ### plot related methods
-    def plot_DoSs(self, ax = None, offset_traces: float = 0.1):
+    def plot_DoSs(self, ax = None, offset_traces: float = 0.1, l_dirac = 2):
         """Visulaization of DoS + filling.
         
         Args:
-            offset_traces: offset each DoS trace by offset_traces horizontally."""
+            offset_traces:  offset each DoS trace by offset_traces horizontally.
+            l_dirac:        length of the Dirac function arrow, if any"""
         _, ax_DoS = util.make_simple_axes(ax, fignum = 1)
 
         # Plot DoS and filling
@@ -309,26 +310,30 @@ class muVT_exp():
                 off_h = 0
                 if offset_traces:
                     off_h = offset_traces * i * max_DoS[i]
-                    ax_DoS.axvline(off_h, color = 'k', ls = '-', lw = 0.5)
+                    # ax_DoS.axvline(off_h, color = 'k', ls = '-', lw = 0.5)
                 pDoS = ax_DoS.plot(DoS_plot + off_h, E_orbs_plot, '-', label = sr.name)
                 clr = pDoS[0].get_color()
                 # if sr.species not in colors_used.keys():
                 #     colors_used[sr.species] = pDoS[0].get_color()
-                ax_DoS.fill_betweenx(E_orbs_plot, x1 = filling + off_h, x2 = off_h
-                                    , ls = '--', alpha = 0.3)
-                ax_DoS.axhline(mu_i, color = clr, ls = '--'
-                            , label = r'$\mu = ${:.3f}, $s = ${:.4f}'.format(mu_i, self.results[sr.name]["S"] / self.results[sr.name]["Np"]))
-                print("xlim = {}, ylim = {}".format(ax_DoS.get_xlim(), ax_DoS.get_ylim()))
+                ax_DoS.fill_betweenx(E_orbs_plot, x1 = filling + off_h, x2 = off_h, ls = '--', alpha = 0.3,
+                                     label = r'$\sigma = ${:.3f}'.format(self.results[sr.name]["S"] / self.results[sr.name]["Np"]))
+                                    #  label = r'$\mu = ${:.3g}, $\sigma = ${:.4f}'.format(mu_i, self.results[sr.name]["S"] / self.results[sr.name]["Np"]))
+                ax_DoS.axhline(mu_i, color = clr, ls = '--')
+                # print("xlim = {}, ylim = {}".format(ax_DoS.get_xlim(), ax_DoS.get_ylim()))
                 for dgn in sr.dgn_list:
                     nu_dgn = util.part_stat(dgn[0], self.T, mu_i, sr.stat)
                     N_dgn = dgn[1] * nu_dgn
-                    util.plot_delta_fn(ax_DoS, dgn[0], 2, text = r"$N_{orbs} = $" + "{:.2f}".format(dgn[1]), axis = "y", color = clr)
-                    util.plot_delta_fn(ax_DoS, dgn[0], 2 * nu_dgn, text = r"$N_{fill} = $" + "{:.2f}".format(N_dgn), axis = "y", color = clr, alpha = 0.3, text_height = -1)
+                    util.plot_delta_fn(ax_DoS, dgn[0], arr_offset = off_h, a_plt = l_dirac, axis = "y", color = clr,
+                                    #    text = r"$N_{orbs} = $" + "{:.2f}".format(dgn[1])
+                                       )
+                    util.plot_delta_fn(ax_DoS, dgn[0], arr_offset = off_h, a_plt = off_h + (l_dirac - off_h) * nu_dgn, axis = "y", color = clr, alpha = 0.3,
+                                    #    text_height = -1, text = r"$N_{fill} = $" + "{:.2f}".format(N_dgn)
+                                       )
 
         ax_DoS.set_xlabel("DoS [arb.]")
         ax_DoS.set_ylabel("E/t")
         ax_DoS.set_title(r'DoS ($T = ${:.4f})'.format(self.T))
-        # ax_DoS.set_xlim(0, max(max_DoS) * 1.5)
+        ax_DoS.set_xlim(0, l_dirac * 1.25)#max(max_DoS) * 1.5)
         ax_DoS.legend()
         return ax_DoS
     

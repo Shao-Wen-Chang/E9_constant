@@ -5,7 +5,7 @@ from scipy.linalg import eigh
 from scipy.special import wofz
 import matplotlib.pyplot as plt
 from matplotlib.path import Path as plt_Path
-from matplotlib.patches import Wedge
+from matplotlib.patches import Wedge, FancyArrowPatch
 import matplotlib.transforms as transforms
 from pathlib import Path as fPath
 import gftool as gt
@@ -388,6 +388,9 @@ def Normalize(vec, norm = 1):
     """Return the normalized input vector."""
     norm0 = np.linalg.norm(vec)
     return vec / norm0 * np.sqrt(norm)
+
+def unit_vector(theta_rad):
+    return np.array([np.cos(theta_rad), np.sin(theta_rad)])
 
 def VecProj(a, b):
     """Return the projection of a on b (with C.C.)"""
@@ -974,6 +977,60 @@ def plot_rectangle(ax, center = None, half_widths = None, top = None, bottom = N
     
     return lines
 
+def add_line_with_arrows(ax, x, y, num_arrows = 3, color = "black", lw = 2,
+                         arr_kwargs: dict = None):
+    """
+    Plots a continuous line and places multiple sharp arrowheads evenly along its path.
+    """
+    arr_kwargs = dict() if arr_kwargs is None else arr_kwargs
+    arr_dict = {"color": color,
+                "lw": lw,
+                "arrowstyle": '-|>',
+                "mutation_scale": 15,
+                "joinstyle": 'miter',       # Sharp corners
+                "capstyle": 'projecting'}
+    arr_dict.update(**arr_kwargs)
+
+    # 1. Plot the main underlying line
+    ax.plot(x, y, color = color, lw = lw)
+
+    # 2. Calculate the cumulative distance (arc length) along the line
+    dx = np.diff(x)
+    dy = np.diff(y)
+    distances = np.hypot(dx, dy)
+    cumulative_s = np.insert(np.cumsum(distances), 0, 0)
+    total_length = cumulative_s[-1]
+
+    # 3. Determine the target distances where arrows should be placed
+    # Using num_arrows + 2 to avoid placing arrows exactly at the very start/end points
+    target_s = np.linspace(0, total_length, num_arrows + 2)[1:-1]
+
+    # 4. Interpolate to find positions and tangents, then draw arrows
+    for ts in target_s:
+        # Find which line segment this distance falls into
+        idx = np.searchsorted(cumulative_s, ts)
+        
+        # Linear interpolation factor within the segment
+        t_interp = (ts - cumulative_s[idx-1]) / (cumulative_s[idx] - cumulative_s[idx-1])
+        
+        # Exact (px, py) coordinate for the arrowhead tip
+        px = x[idx-1] + t_interp * dx[idx-1]
+        py = y[idx-1] + t_interp * dy[idx-1]
+
+        # Local tangent direction (normalized)
+        norm = distances[idx-1]
+        vx = dx[idx-1] / norm
+        vy = dy[idx-1] / norm
+
+        # Create a tiny arrow patch ending exactly at (px, py)
+        # We step back by a microscopic epsilon so FancyArrowPatch knows the direction
+        eps = 1e-5
+        start_x = px - eps * vx
+        start_y = py - eps * vy
+        
+        arrow = FancyArrowPatch((start_x, start_y), (px, py), **arr_dict)
+        ax.add_patch(arrow)
+
 def draw_circle(ax, center, radius,
                 theta_range=(0, 2 * np.pi),
                 close_circle: bool = True,
@@ -1077,7 +1134,8 @@ def fill_annulus(ax, center, r_inner, r_outer, index_convention = "xy", **kwargs
     return ann
         
 def plot_delta_fn(ax,
-                  x0: float = 0,
+                  pos: float = 0,
+                  arr_offset: float = 0,
                   a_plt: float = 1,
                   text: str = "",
                   text_height: float = 0.,
@@ -1086,28 +1144,29 @@ def plot_delta_fn(ax,
     """Plot the delta function, a0 * delta(x - x0), as an arrow, and put a0 next to it.
     
     The arrow must be plotted after limits have changed.
-        ax: the Axes object to be plotted on.
-        x0: position of the delta function peak.
-        text: What to display next to the arrow.
-        a_plt: length of the arrow.
+        ax:         the Axes object to be plotted on.
+        pos:        position of the delta function peak.
+        arr_offset: offset the "root" of the arrow.
+        text:       What to display next to the arrow.
+        a_plt:      length of the arrow.
         text_height: moves the position of the text up or down by a certain amount.
-        axis: which axis is used as the variable. Default is x (horizontal axis).
-        *kwargs: must be plot-related arguments accepted by arrow()."""
+        axis:       which axis is used as the variable. Default is x (horizontal axis).
+        *kwargs:    must be plot-related arguments accepted by arrow()."""
     # Initialize arguments to arrow()
     xlims, ylims = ax.get_xlim(), ax.get_ylim()
     xc, xr = (xlims[0] + xlims[1]) / 2., xlims[1] - xlims[0]
     yc, yr = (ylims[0] + ylims[1]) / 2., ylims[1] - ylims[0]
     if axis == 'x':
-        (xi, yi, dx, dy) = (x0, 0, 0, a_plt)
+        (xi, yi, dx, dy) = (pos, arr_offset, 0, a_plt - arr_offset)
         tx, ty = xi + dx + 0.05 * xr, yi + dy + text_height
     elif axis == 'y':
-        (xi, yi, dx, dy) = (0, x0, a_plt, 0)
+        (xi, yi, dx, dy) = (arr_offset, pos, a_plt - arr_offset, 0)
         tx, ty = xi + dx, yi + dy + 0.05 * yr + text_height
     else:
         raise Exception("axis must be \'x\' or \'y\'")
     
     arr = ax.arrow(xi, yi, dx, dy, head_width = 0.5, head_length = 0.1, **kwargs)
-    ax.text(tx, ty, text)
+    ax.text(tx, ty, text)# Why did I think adding text is a good idea?
     return arr
 
 def plot_in_ax_break_sign_change(ax, x, y, idx_sgn_change, *args, **kwargs):
@@ -1124,15 +1183,20 @@ def fill_between_ygradient(
     color1 = np.array([1, 0, 0, 1]),
     color2 = np.array([1, 0, 0, 0]),
     n_strips: int = 50,
+    fill_params: dict = None
 ):
     """
     Fill between y1 and y2 with a vertical alpha / color gradient.
     """
+    fill_params = dict() if fill_params is None else fill_params
     x = np.asarray(x)
     y1 = np.asarray(y1)
     y2 = np.asarray(y2)
     color1 = np.asarray(color1)
     color2 = np.asarray(color2)
+    fill_dict = {"edgecolor": "none"}
+    fill_dict.update(fill_params)
+
 
     for k in range(n_strips):
         rb = k / n_strips
@@ -1143,7 +1207,7 @@ def fill_between_ygradient(
         band_top    = y1 + rt * (y2 - y1)
         color = color1 + rc * (color2 - color1)
 
-        ax.fill_between(x, band_bottom, band_top, facecolor = color, edgecolor = "none")
+        ax.fill_between(x, band_bottom, band_top, facecolor = color, **fill_dict)
 
 def add_shades(ax, mask, axis_data, axis="x", **kwargs):
     """

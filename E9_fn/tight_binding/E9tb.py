@@ -155,7 +155,8 @@ class tbmodel_2D:
         return (i + b0) * self.lat_vec[0] + (j + b1) * self.lat_vec[1]
     
     def plot_H(self, ax = None, H = None, t_farthest = 1,
-               sublat_colors = None, sublat_kwargs: dict = None):
+               sublat_colors = None, sublat_alpha_min = 0.2, sublat_kwargs: dict = None,
+               plot_t: bool = True, t_kwargs: dict = None):
         """Plot the lattice in the specified axes using the Hamiltonian.
         
         One can add stuff to the Hamiltonian after it is initialized, and use this fuction to plot
@@ -176,8 +177,11 @@ class tbmodel_2D:
         elif not isinstance(sublat_colors, Iterable):
             sublat_colors = [sublat_colors for _ in range(6)]
         if sublat_kwargs is None: sublat_kwargs = dict()
+        if t_kwargs is None: t_kwargs = dict()
         sublat_plt_dict = {"s": 15}
         sublat_plt_dict.update(sublat_kwargs)
+        t_plt_dict = {"lw": 1.5, "color": "black", "zorder": -100}  # linestyle is determined by the boundary condition
+        t_plt_dict.update(t_kwargs)
         
         # Find the maximum offset and bond strengths (for plotting purposes)
         Hd = H.diagonal().real
@@ -186,7 +190,7 @@ class tbmodel_2D:
         if V_offset_range == 0:
             get_offset_alpha = lambda x: 1
         else:
-            get_offset_alpha = lambda x: min(0.8 * (x.real - V_offset_min) / V_offset_range + 0.2, 1) # min needed for floating point error
+            get_offset_alpha = lambda x: min((1 - sublat_alpha_min) * (x.real - V_offset_min) / V_offset_range + sublat_alpha_min, 1) # min needed for floating point error
         
         H_offdiag_abs = abs(H - np.diag(Hd)).flatten()
         t_max, t_min = max(H_offdiag_abs), min(H_offdiag_abs)
@@ -201,11 +205,10 @@ class tbmodel_2D:
                 if ri1 == ri2: # this element (if non-zero) is an on-site offset
                     i, j, k = self.get_natural_index(ri1)
                     pos = self.get_lat_pos((i, j, k))
-                    # ax.scatter(pos[0], pos[1], color = sublat_colors[k], s = 15, alpha = get_offset_alpha(H[ri1, ri2]))
                     ax.scatter(pos[0], pos[1], color = sublat_colors[k], alpha = get_offset_alpha(H[ri1, ri2]),
                                **sublat_plt_dict)
-                else:
-                    if H[ri1, ri2] != 0: # There is some hopping between the two sites
+                elif plot_t:                # hopping terms
+                    if H[ri1, ri2] != 0:    # There is some hopping between the two sites
                         pos1, pos2 = self.get_lat_pos(ri1), self.get_lat_pos(ri2)
                         ls = "-"
                         if np.linalg.norm(pos1 - pos2) > t_farthest:
@@ -218,8 +221,9 @@ class tbmodel_2D:
                             ax.arrow(xa, ya, dxa, dya, color = "black", length_includes_head = True, ls = ls,
                                      width = 0.015, head_width = 0.3, head_length = 0.3, alpha = get_t_alpha(H[ri1, ri2]), zorder = -100)
                         else:
-                            ax.plot([pos1[0], pos2[0]], [pos1[1], pos2[1]], ls = ls, lw = 1.5, color = "black",
-                                    alpha = get_t_alpha(H[ri1, ri2]), zorder = -100)
+                            t_plt_dict.update({"ls": ls})
+                            ax.plot([pos1[0], pos2[0]], [pos1[1], pos2[1]], alpha = get_t_alpha(H[ri1, ri2]),
+                                    **t_plt_dict)
         ax.set_aspect("equal")
         return ax
     
@@ -469,6 +473,22 @@ def get_model_params(model_in,
                 (tnn, 1, 0, (1, 0)),   # right to center in next cell
                 (tnn, 2, 0, (0, 1)),   # up to center in next cell
             ]
+        },
+
+        "lieb_kagome":{
+            "lat_vec": [np.array([0, 1]),
+                        np.array([-np.sqrt(3)/2, 1/2])],
+            "basis_vec": [np.array([0, 0]),
+                          np.array([0.5, 0]),
+                          np.array([0, 0.5])],
+            "lat_bc": (0, 0),
+            "sublat_offsets": [0, 0, 0],
+            "hoppings": [(tnn, 0, 1, (0, 0)),
+                        (tnn, 0, 2, (0, 0)),
+                        (tnnn, 1, 2, (0, 0)),
+                        (tnn, 0, 1, (-1, 0)),
+                        (tnn, 0, 2, (0, -1)),
+                        (tnnn, 1, 2, (1, -1))]
         },
 
         "sawtooth": {            # sawtooth lattice - 2nd dimension is supposed to be 1

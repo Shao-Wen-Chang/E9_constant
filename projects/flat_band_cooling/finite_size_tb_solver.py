@@ -25,32 +25,29 @@ rng_seed = randbits(128)
 rng1 = np.random.default_rng(rng_seed)
 
 #%% Define the model
-lattice_str = "sawtooth_shifted"
+lattice_str = "kagome_nnn"
 parent_folder_name = lattice_str
-lattice_len = 40
-tnnn = -0.02
-# lattice_dim = (lattice_len, lattice_len)    # 2D lattices
-lattice_dim = (lattice_len, 1)              # 1D lattices
+lattice_len = 20
+tnnn = -0.01
+lattice_dim = (lattice_len, lattice_len)
 overwrite_param = {}
 # overwrite_param = {"sublat_offsets": [0., 0., 0., 15.]}
-# overwrite_param = {"tnnn": tnnn, "lat_bc": (1, 1)}
-tb_params = E9tb.get_model_params(lattice_str, overwrite_param = overwrite_param)
+# overwrite_param = {"lat_bc": (1, 1)}
+# tb_params = E9tb.get_model_params(lattice_str, overwrite_param = overwrite_param)
+tb_params = E9tb.get_model_params(lattice_str, tnnn = tnnn)
 my_tb_model= E9tb.tbmodel_2D(lat_dim = lattice_dim, **tb_params)
 H_bare = my_tb_model.H
 
 # Add offset to the bare model
-sys_len = 0
+sys_len = 12
 sys_range = ((lattice_len - sys_len) // 2, (lattice_len + sys_len) // 2)
 n_sys = sys_len**2
-V_rsv_offset = 0.
-l_res = 0.   # Resolution of the box potential (in units of lattice cell size)
-V_std_random = 0.
+V_rsv_offset = -4.5
+l_res = 1.   # Resolution of the box potential (in units of lattice cell size)
+V_std_random = 0.1
 # Find what unit cells are in the reservoir by excluding the unit cells in the system
 # 2D lattices:
-# sys_natural_uc_ind = set([(ii, jj) for jj in range(my_tb_model.lat_dim[1]) if sys_range[0] <= jj and jj < sys_range[1]
-#                                     for ii in range(my_tb_model.lat_dim[0]) if sys_range[0] <= ii and ii < sys_range[1]])
-# 1D lattices:
-sys_natural_uc_ind = set([(ii, jj) for jj in range(my_tb_model.lat_dim[1])
+sys_natural_uc_ind = set([(ii, jj) for jj in range(my_tb_model.lat_dim[1]) if sys_range[0] <= jj and jj < sys_range[1]
                                     for ii in range(my_tb_model.lat_dim[0]) if sys_range[0] <= ii and ii < sys_range[1]])
 rsv_natural_uc_ind = set([(ii, jj) for jj in range(my_tb_model.lat_dim[1])
                                     for ii in range(my_tb_model.lat_dim[0])])
@@ -63,7 +60,7 @@ rsv_ind = np.hstack(
 
 #%% save related configs
 data_folder = Path(E9path, "projects", "flat_band_cooling", "eigvals_library")
-bool_save_results = False
+bool_save_results = True
 bool_overwrite = False      # always overwrite existing results if True, check existing results if False
 save_new_upto = 1           # if overwrite = False and there is a existing folder, save another result up to the n-th folder
 # arr_str_list_to_save = ["eigvals", "eigvecs", "density_sys"]
@@ -97,18 +94,18 @@ for i in range(len(density_sys)):
     density_sys[i] = sum(abs(eigvec[sys_reduced_uc_ind]**2))
 
 # von Neumann entropy in the system
-S_sys = np.zeros_like(eigvals)
-for i in range(my_tb_model.n_orbs):
-    eigvec = eigvecs[:, i]
-    rho = np.outer(eigvec.conj().T, eigvec)
-    rho_sys = util.get_red_den_mat(rho, sys_reduced_uc_ind)
-    S_sys[i] = thmdy.find_SvN_fermi(rho_sys)
+# S_sys = np.zeros_like(eigvals)
+# for i in range(my_tb_model.n_orbs):
+#     eigvec = eigvecs[:, i]
+#     rho = np.outer(eigvec.conj().T, eigvec)
+#     rho_sys = util.get_red_den_mat(rho, sys_reduced_uc_ind)
+#     S_sys[i] = thmdy.find_SvN_fermi(rho_sys)
 
 # When I care enough, calculate the ratio of the density on the edge for each state
 pass
 
 #%% Plots
-plot_real_space = True
+plot_real_space = False
 plot_state_list = [25, 35]
 
 # fig_H, ax_H = util.make_simple_axes(fignum = 100)
@@ -120,7 +117,7 @@ fig_E.suptitle("{} (total {}, system {}, reservoir offset = {}, V_std_random = {
 ax_E = fig_E.add_subplot(221)
 ax_DoS = fig_E.add_subplot(222)
 ax_nu = fig_E.add_subplot(223)
-ax_S_sys = fig_E.add_subplot(224)
+# ax_S_sys = fig_E.add_subplot(224)
 ax_E.scatter(np.arange(len(eigvals)), eigvals)
 ax_E.set_title("Energy of all states")
 ax_E.scatter(plot_state_list, eigvals[plot_state_list], color = "red", label = "selected states")
@@ -130,10 +127,10 @@ ax_DoS.hist(eigvals, bins = E_bins, orientation = "horizontal")
 ax_DoS.set_title("DoS")
 ax_nu.plot(density_sys)
 ax_nu.set_title(r"$\nu_{sys}$")
-ax_S_sys.plot(S_sys, label = r"$S^{vN}_{sys}$")
-ax_S_sys.plot(density_sys * (1 - density_sys), label = r"$\nu_{sys} (1 - \nu_{sys})$")
-ax_S_sys.set_title("Entropy wannabes")
-ax_S_sys.legend()
+# ax_S_sys.plot(S_sys, label = r"$S^{vN}_{sys}$")
+# ax_S_sys.plot(density_sys * (1 - density_sys), label = r"$\nu_{sys} (1 - \nu_{sys})$")
+# ax_S_sys.set_title("Entropy wannabes")
+# ax_S_sys.legend()
 fig_E.tight_layout()
 
 if plot_real_space:

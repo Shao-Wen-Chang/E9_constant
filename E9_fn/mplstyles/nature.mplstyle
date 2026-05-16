@@ -1,0 +1,60 @@
+# Call signature: plt.style.use('./nature.mplstyle')
+# --- NATURE JOURNAL MATPLOTLIB STYLE ---
+
+# FIGURE SIZE & RESOLUTION
+# Single column width: 89 mm (3.5039 inches). Height is set to a 4:3 ratio (2.6279 inches)
+figure.figsize : 3.5039, 2.6279
+figure.dpi : 300         # Resolution for the interactive viewing window
+savefig.dpi : 300        # Resolution when saving the file to an image
+
+# FONT & TEXT
+# Nature requires sans-serif fonts (Arial or Helvetica)
+# Standard text should be 7-8 pt, no smaller than 5 pt.
+font.family : sans-serif
+font.sans-serif : Arial, Helvetica, sans-serif
+font.size : 7.0
+axes.titlesize : 8.0
+axes.labelsize : 7.0
+xtick.labelsize : 7.0
+ytick.labelsize : 7.0
+legend.fontsize : 7.0
+figure.titlesize : 8.0
+
+# MATH FONT (Custom Arial to match regular text)
+mathtext.fontset : custom
+mathtext.rm : Arial
+mathtext.it : Arial:italic
+mathtext.bf : Arial:bold
+
+# AXES & TICKS
+# Nature recommends axes and grid lines be between 0.5 and 0.75 pt
+axes.linewidth : 0.5
+xtick.major.width : 0.5
+ytick.major.width : 0.5
+xtick.minor.width : 0.5
+ytick.minor.width : 0.5
+
+xtick.major.size : 3.0
+ytick.major.size : 3.0
+xtick.minor.size : 1.5
+ytick.minor.size : 1.5
+xtick.direction : in
+ytick.direction : in
+
+# LINES & MARKERS
+# Plotting lines should be between 0.5 and 1.5 pt
+lines.linewidth : 1.0
+lines.markeredgewidth : 0.5
+lines.markersize : 3.0
+
+# LEGEND
+legend.frameon : False
+legend.handlelength : 1.5
+legend.borderpad : 0.2
+
+# SAVING FIGURES
+# Export editable text (TrueType) instead of vector paths
+pdf.fonttype : 42
+ps.fonttype : 42
+savefig.bbox : tight
+savefig.pad_inches : 0.05
