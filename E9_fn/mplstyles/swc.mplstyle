@@ -1,0 +1,56 @@
+# Call signature: plt.style.use(Path(E9path, r'E9_fn/mplstyles/swc.mplstyle'))
+# --- APS (PHYSICAL REVIEW) MATPLOTLIB STYLE ---
+
+# FIGURE SIZE & RESOLUTION
+# Single column width: 3.375 inches (8.6 cm). Height is set to a 4:3 ratio (2.531 inches)
+figure.figsize : 3.375, 2.531
+figure.dpi : 300
+savefig.dpi : 600        # APS requires minimum 600 dpi for line art
+
+# FONT & TEXT
+font.family : serif
+font.serif : Times New Roman, Times, DejaVu Serif, serif
+# font.size : 10.0
+# axes.titlesize : 10.0
+# axes.labelsize : 10.0
+# xtick.labelsize : 8.0
+# ytick.labelsize : 8.0
+# legend.fontsize : 8.0
+# figure.titlesize : 10.0
+
+# MATH FONT
+mathtext.fontset : stix
+
+# AXES & TICKS
+axes.linewidth : 0.75
+xtick.major.width : 0.75
+ytick.major.width : 0.75
+xtick.minor.width : 0.5
+ytick.minor.width : 0.5
+
+xtick.major.size : 4.0
+ytick.major.size : 4.0
+xtick.minor.size : 2.0
+ytick.minor.size : 2.0
+xtick.direction : in
+ytick.direction : in
+
+# LINES & MARKERS
+lines.linewidth : 1.25
+lines.markeredgewidth : 0.75
+lines.markersize : 4.0
+
+# CUSTOM COLOR CYCLE
+# A professional colorblind-friendly palette
+axes.prop_cycle : cycler('color', ['0072B2', 'E69F00', '009E73', 'D55E00', 'CC79A7', '56B4E9'])
+
+# LEGEND
+legend.frameon : False
+legend.handlelength : 1.5
+legend.borderpad : 0.2
+
+# SAVING FIGURES
+pdf.fonttype : 42
+ps.fonttype : 42
+savefig.bbox : tight
+savefig.pad_inches : 0.05

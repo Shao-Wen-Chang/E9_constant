@@ -1,0 +1,576 @@
+@article{dai_recent_2023,
+    title = {Recent progress in the theory of bulk photovoltaic effect},
+    volume = {4},
+    url = {https://doi.org/10.1063/5.0101513},
+    doi = {10.1063/5.0101513},
+    number = {1},
+    journal = {Chemical Physics Reviews},
+    author = {Dai, Zhenbang and Rappe, Andrew M.},
+    month = jan,
+    year = {2023},
+    pages = {011303},
+}
+
+@article{cao_unifying_2018,
+    title = {Unifying Optical Selection Rules for Excitons in Two Dimensions: Band Topology and Winding Numbers},
+    volume = {120},
+    url = {https://link.aps.org/doi/10.1103/PhysRevLett.120.087402},
+    doi = {10.1103/PhysRevLett.120.087402},
+    number = {8},
+    journal = {Physical Review Letters},
+    author = {Cao, Ting and Wu, Meng and Louie, Steven G.},
+    month = feb,
+    year = {2018},
+    pages = {087402},
+}
+
+@article{jankowski_optical_2025,
+    title = {Optical manifestations and bounds of topological Euler class},
+    volume = {111},
+    url = {https://link.aps.org/doi/10.1103/PhysRevB.111.L081103},
+    doi = {10.1103/PhysRevB.111.L081103},
+    number = {8},
+    journal = {Physical Review B},
+    author = {Jankowski, Wojciech J. and Morris, Arthur S. and Bouhon, Adrien and Ünal, F. Nur and Slager, Robert-Jan},
+    month = feb,
+    year = {2025},
+    pages = {L081103},
+}
+
+@article{slager_non-abelian_2024,
+    title = {Non-Abelian Floquet braiding and anomalous Dirac string phase in periodically driven systems},
+    volume = {15},
+    url = {https://www.nature.com/articles/s41467-024-45302-2},
+    doi = {10.1038/s41467-024-45302-2},
+    number = {1},
+    journal = {Nature Communications},
+    author = {Slager, Robert-Jan and Bouhon, Adrien and Ünal, F. Nur},
+    month = feb,
+    year = {2024},
+    pages = {1144},
+}
+
+@article{de_juan_quantized_2017,
+    title = {Quantized circular photogalvanic effect in Weyl semimetals},
+    volume = {8},
+    url = {https://www.nature.com/articles/ncomms15995},
+    doi = {10.1038/ncomms15995},
+    number = {1},
+    journal = {Nature Communications},
+    author = {de Juan, Fernando and Grushin, Adolfo G. and Morimoto, Takahiro and Moore, Joel E.},
+    month = jul,
+    year = {2017},
+    pages = {15995},
+}
+
+@article{heinze_intrinsic_2013,
+    title = {Intrinsic Photoconductivity of Ultracold Fermions in Optical Lattices},
+    volume = {110},
+    url = {https://link.aps.org/doi/10.1103/PhysRevLett.110.085302},
+    doi = {10.1103/PhysRevLett.110.085302},
+    number = {8},
+    journal = {Physical Review Letters},
+    author = {Heinze, J. and Krauser, J. S. and Fläschner, N. and Hundt, B. and Götze, S. and Itin, A. P. and Mathey, L. and Sengstock, K. and Becker, C.},
+    month = feb,
+    year = {2013},
+    pages = {085302},
+}
+
+@article{tran_probing_2017,
+    title = {Probing topology by “heating”: Quantized circular dichroism in ultracold atoms},
+    volume = {3},
+    url = {https://www.science.org/doi/10.1126/sciadv.1701207},
+    doi = {10.1126/sciadv.1701207},
+    number = {8},
+    journal = {Science Advances},
+    author = {Tran, Duc Thanh and Dauphin, Alexandre and Grushin, Adolfo G. and Zoller, Peter and Goldman, Nathan},
+    month = aug,
+    year = {2017},
+    pages = {e1701207},
+}
+
+@article{bouhon_non-abelian_2020,
+    title = {Non-Abelian reciprocal braiding of Weyl points and its manifestation in ZrTe},
+    volume = {16},
+    url = {https://www.nature.com/articles/s41567-020-0967-9},
+    doi = {10.1038/s41567-020-0967-9},
+    number = {11},
+    journal = {Nature Physics},
+    author = {Bouhon, Adrien and Wu, QuanSheng and Slager, Robert-Jan and Weng, Hongming and Yazyev, Oleg V. and Bzdušek, Tomáš},
+    month = nov,
+    year = {2020},
+    pages = {1137--1143},
+}
+
+@article{ozawa_extracting_2018,
+    title = {Extracting the quantum metric tensor through periodic driving},
+    volume = {97},
+    url = {https://link.aps.org/doi/10.1103/PhysRevB.97.201117},
+    doi = {10.1103/PhysRevB.97.201117},
+    number = {20},
+    journal = {Physical Review B},
+    author = {Ozawa, Tomoki and Goldman, Nathan},
+    month = may,
+    year = {2018},
+    pages = {201117},
+}
+
+@article{asteria_measuring_2019,
+    title = {Measuring quantized circular dichroism in ultracold topological matter},
+    volume = {15},
+    url = {https://www.nature.com/articles/s41567-019-0417-8},
+    doi = {10.1038/s41567-019-0417-8},
+    number = {5},
+    journal = {Nature Physics},
+    author = {Asteria, Luca and Tran, Duc Thanh and Ozawa, Tomoki and Tarnowski, Matthias and Rem, Benno S. and Fläschner, Nick and Sengstock, Klaus and Goldman, Nathan and Weitenberg, Christof},
+    month = may,
+    year = {2019},
+    pages = {449--454},
+}
+
+@article{cuerda_observation_2024,
+    title = {Observation of quantum metric and non-Hermitian Berry curvature in a plasmonic lattice},
+    volume = {6},
+    url = {https://link.aps.org/doi/10.1103/PhysRevResearch.6.L022020},
+    doi = {10.1103/PhysRevResearch.6.L022020},
+    number = {2},
+    journal = {Physical Review Research},
+    author = {Cuerda, Javier and Taskinen, Jani M. and Källman, Nicki and Grabitz, Leo and Törmä, Päivi},
+    month = apr,
+    year = {2024},
+    pages = {L022020},
+}
+
+@article{hughes_calculation_1996,
+    title = {Calculation of second-order optical response in semiconductors},
+    volume = {53},
+    url = {https://link.aps.org/doi/10.1103/PhysRevB.53.10751},
+    doi = {10.1103/PhysRevB.53.10751},
+    number = {16},
+    journal = {Physical Review B},
+    author = {Hughes, James L. P. and Sipe, J. E.},
+    month = apr,
+    year = {1996},
+    pages = {10751--10763},
+}
+
+@article{morimoto_topological_2016,
+    title = {Topological nature of nonlinear optical effects in solids},
+    volume = {2},
+    url = {https://www.science.org/doi/10.1126/sciadv.1501524},
+    doi = {10.1126/sciadv.1501524},
+    number = {5},
+    journal = {Science Advances},
+    author = {Morimoto, Takahiro and Nagaosa, Naoto},
+    month = may,
+    year = {2016},
+    pages = {e1501524},
+}
+
+@article{kwon_quantum_2024,
+    title = {Quantum geometric bound and ideal condition for Euler band topology},
+    volume = {109},
+    url = {https://link.aps.org/doi/10.1103/PhysRevB.109.L161111},
+    doi = {10.1103/PhysRevB.109.L161111},
+    number = {16},
+    journal = {Physical Review B},
+    author = {Kwon, Soonhyun and Yang, Bohm-Jung},
+    month = apr,
+    year = {2024},
+    pages = {L161111},
+}
+
+@article{tarruell_creating_2012,
+    title = {Creating, moving and merging Dirac points with a Fermi gas in a tunable honeycomb lattice},
+    volume = {483},
+    url = {http://www.nature.com/articles/nature10871},
+    doi = {10.1038/nature10871},
+    number = {7389},
+    journal = {Nature},
+    author = {Tarruell, Leticia and Greif, Daniel and Uehlinger, Thomas and Jotzu, Gregor and Esslinger, Tilman},
+    month = mar,
+    year = {2012},
+    pages = {302--305},
+}
+
+@article{tarnowski_observation_2017,
+    title = {Observation of Topological Bloch-State Defects and Their Merging Transition},
+    volume = {118},
+    url = {http://link.aps.org/doi/10.1103/PhysRevLett.118.240403},
+    doi = {10.1103/PhysRevLett.118.240403},
+    number = {24},
+    journal = {Physical Review Letters},
+    author = {Tarnowski, Matthias and Nuske, Marlon and Fläschner, Nick and Rem, Benno and Vogel, Dominik and Freystatzky, Lukas and Sengstock, Klaus and Mathey, Ludwig and Weitenberg, Christof},
+    month = jun,
+    year = {2017},
+    pages = {240403},
+}
+
+@article{onishi_fundamental_2024,
+    title = {Fundamental Bound on Topological Gap},
+    volume = {14},
+    url = {https://link.aps.org/doi/10.1103/PhysRevX.14.011052},
+    doi = {10.1103/PhysRevX.14.011052},
+    number = {1},
+    journal = {Physical Review X},
+    author = {Onishi, Yugo and Fu, Liang},
+    month = mar,
+    year = {2024},
+    pages = {011052},
+}
+
+@article{zhao_quantum_2022,
+    title = {Quantum simulation for topological Euler insulators},
+    volume = {5},
+    url = {https://www.nature.com/articles/s42005-022-01001-2},
+    doi = {10.1038/s42005-022-01001-2},
+    number = {1},
+    journal = {Communications Physics},
+    author = {Zhao, Wending and Yang, Yan-Bin and Jiang, Yue and Mao, Zhichao and Guo, Weixuan and Qiu, Liyuan and Wang, Gangxi and Yao, Lin and He, Li and Zhou, Zichao and Xu, Yong and Duan, Luming},
+    month = sep,
+    year = {2022},
+    pages = {223},
+}
+
+@article{gianfrate_measurement_2020,
+    title = {Measurement of the quantum geometric tensor and of the anomalous Hall drift},
+    volume = {578},
+    url = {https://www.nature.com/articles/s41586-020-1989-2},
+    doi = {10.1038/s41586-020-1989-2},
+    number = {7795},
+    journal = {Nature},
+    author = {Gianfrate, A. and Bleu, O. and Dominici, L. and Ardizzone, V. and De Giorgi, M. and Ballarini, D. and Lerario, G. and West, K. W. and Pfeiffer, L. N. and Solnyshkov, D. D. and Sanvitto, D. and Malpuech, G.},
+    month = feb,
+    year = {2020},
+    pages = {381--385},
+}
+
+@article{po_fragile_2018,
+    title = {Fragile Topology and Wannier Obstructions},
+    volume = {121},
+    url = {https://link.aps.org/doi/10.1103/PhysRevLett.121.126402},
+    doi = {10.1103/PhysRevLett.121.126402},
+    number = {12},
+    journal = {Physical Review Letters},
+    author = {Po, Hoi Chun and Watanabe, Haruki and Vishwanath, Ashvin},
+    month = sep,
+    year = {2018},
+    pages = {126402},
+}
+
+@article{unal_topological_2020,
+    title = {Topological Euler Class as a Dynamical Observable in Optical Lattices},
+    volume = {125},
+    url = {https://link.aps.org/doi/10.1103/PhysRevLett.125.053601},
+    doi = {10.1103/PhysRevLett.125.053601},
+    number = {5},
+    journal = {Physical Review Letters},
+    author = {Ünal, F. Nur and Bouhon, Adrien and Slager, Robert-Jan},
+    month = jul,
+    year = {2020},
+    pages = {053601},
+}
+
+@article{ahn_failure_2019,
+    title = {Failure of Nielsen-Ninomiya Theorem and Fragile Topology in Two-Dimensional Systems with Space-Time Inversion Symmetry},
+    volume = {9},
+    url = {https://link.aps.org/doi/10.1103/PhysRevX.9.021013},
+    doi = {10.1103/PhysRevX.9.021013},
+    number = {2},
+    journal = {Physical Review X},
+    author = {Ahn, Junyeong and Park, Sungjoon and Yang, Bohm-Jung},
+    month = apr,
+    year = {2019},
+    pages = {021013},
+}
+
+@article{esteve-paredes_comprehensive_2023,
+	title = {A comprehensive study of the velocity, momentum and position matrix elements for Bloch states: Application to a local orbital basis},
+	volume = {6},
+	url = {https://scipost.org/10.21468/SciPostPhysCore.6.1.002},
+	doi = {10.21468/SciPostPhysCore.6.1.002},
+	number = {1},
+	journal = {SciPost Physics Core},
+	author = {Esteve-Paredes, Juan José and Palacios, Juan José},
+	month = jan,
+	year = {2023},
+	pages = {002},
+}
+
+@article{avdoshkin_multistate_2025,
+  title = {Multistate Geometry of Shift Current and Polarization},
+  author = {Avdoshkin, Alexander and Mitscherling, Johannes and Moore, Joel E.},
+  journal = {Phys. Rev. Lett.},
+  volume = {135},
+  number = {6},
+  pages = {066901},
+  year = {2025},
+  month = aug,
+  doi = {10.1103/w761-8nf7},
+  url = {https://link.aps.org/doi/10.1103/w761-8nf7}
+}
+
+@article{bardeen_theory_1957,
+    title = {Theory of Superconductivity},
+    volume = {108},
+    url = {https://link.aps.org/doi/10.1103/PhysRev.108.1175},
+    doi = {10.1103/PhysRev.108.1175},
+    number = {5},
+    journal = {Physical Review},
+    author = {Bardeen, J. and Cooper, L. N. and Schrieffer, J. R.},
+    month = dec,
+    year = {1957},
+    pages = {1175--1204},
+}
+
+@article{wang_colloquium_2018,
+    title = {Colloquium: Excitons in atomically thin transition metal dichalcogenides},
+    volume = {90},
+    url = {https://link.aps.org/doi/10.1103/RevModPhys.90.021001},
+    doi = {10.1103/RevModPhys.90.021001},
+    number = {2},
+    journal = {Reviews of Modern Physics},
+    author = {Wang, Gang and Chernikov, Alexey and Glazov, Mikhail M. and Heinz, Tony F. and Marie, Xavier and Amand, Thierry and Urbaszek, Bernhard},
+    month = apr,
+    year = {2018},
+    pages = {021001},
+}
+
+@article{huhtinen_revisiting_2022,
+    title = {Revisiting flat band superconductivity: Dependence on minimal quantum metric and band touchings},
+    volume = {106},
+    url = {https://link.aps.org/doi/10.1103/PhysRevB.106.014518},
+    doi = {10.1103/PhysRevB.106.014518},
+    number = {1},
+    journal = {Physical Review B},
+    author = {Huhtinen, Kukka-Emilia and Herzog-Arbeitman, Jonah and Chew, Aaron and Bernevig, Bogdan A. and Törmä, Päivi},
+    month = jul,
+    year = {2022},
+    pages = {014518},
+}
+
+@article{rhim_quantum_2020,
+    title = {Quantum distance and anomalous Landau levels of flat bands},
+    volume = {584},
+    url = {https://www.nature.com/articles/s41586-020-2540-1},
+    doi = {10.1038/s41586-020-2540-1},
+    number = {7819},
+    journal = {Nature},
+    author = {Rhim, Jun-Won and Kim, Kyoo and Yang, Bohm-Jung},
+    month = aug,
+    year = {2020},
+    pages = {59--63},
+}
+
+@article{mitscherling_bound_2022,
+    title = {Bound on resistivity in flat-band materials due to the quantum metric},
+    volume = {105},
+    url = {https://link.aps.org/doi/10.1103/PhysRevB.105.085154},
+    doi = {10.1103/PhysRevB.105.085154},
+    number = {8},
+    journal = {Physical Review B},
+    author = {Mitscherling, Johannes and Holder, Tobias},
+    month = feb,
+    year = {2022},
+    pages = {085154},
+}
+
+@article{qi_topological_2011,
+    title = {Topological insulators and superconductors},
+    volume = {83},
+    url = {https://link.aps.org/doi/10.1103/RevModPhys.83.1057},
+    doi = {10.1103/RevModPhys.83.1057},
+    number = {4},
+    journal = {Reviews of Modern Physics},
+    author = {Qi, Xiao-Liang and Zhang, Shou-Cheng},
+    month = oct,
+    year = {2011},
+    pages = {1057--1110},
+}
+
+@article{ma_abelian_2010,
+    title = {Abelian and Non-Abelian Quantum Geometric Tensor},
+    author = {Ma, Yu-Quan and Chen, Shu and Fan, Heng and Liu, Wu-Ming},
+    year = {2010},
+    month = jun,
+    journal = {Physical Review B},
+    volume = {81},
+    number = {24},
+    pages = {245129},
+    doi = {10.1103/PhysRevB.81.245129},
+}
+
+@article{kang_measurements_2025,
+	title = {Measurements of the quantum geometric tensor in solids},
+	volume = {21},
+	url = {https://www.nature.com/articles/s41567-024-02678-8},
+	doi = {10.1038/s41567-024-02678-8},
+	number = {1},
+	journal = {Nature Physics},
+	author = {Kang, Mingu and Kim, Sunje and Qian, Yuting and Neves, Paul M. and Ye, Linda and Jung, Junseo and Puntel, Denny and Mazzola, Federico and Fang, Shiang and Jozwiak, Chris and Bostwick, Aaron and Rotenberg, Eli and Fuji, Jun and Vobornik, Ivana and Park, Jae-Hoon and Checkelsky, Joseph G. and Yang, Bohm-Jung and Comin, Riccardo},
+	month = jan,
+	year = {2025},
+	pages = {110--117},
+}
+
+@article{jung02anomalous,
+   author = {Jungwirth, T. and Niu, Qian and MacDonald, A. H.},
+   title = {Anomalous Hall Effect in Ferromagnetic Semiconductors},
+   journal = {Phys. Rev. Lett.},
+   volume = {88},
+   pages = {207208},
+   year = {2002}
+}
+
+@article{chan96berry,
+   author = {Chang, Ming-Che and Niu, Qian},
+   title = {Berry phase, hyperorbits, and the Hofstadter spectrum: Semiclassical dynamics in magnetic Bloch bands},
+   journal = {Phys. Rev. B},
+   volume = {53},
+   pages = {7010},
+   year = {1996}
+}
+
+@article{jotz14haldane,
+   author = {Jotzu, G. and Messer, M. and Desbuquois, R. and Lebrat, M. and Uehlinger, T. and Greif, D. and Esslinger, T.},
+   title = {Experimental realization of the topological Haldane model with ultracold fermions},
+   journal = {Nature},
+   volume = {515},
+   pages = {237},
+   year = {2014}
+}
+
+@article{rest94rmp,
+   author = {Resta, Raffaele},
+   title = {Macroscopic polarization in crystalline dielectrics: the geometric phase approach},
+   journal = {Rev. Mod. Phys.},
+   volume = {66},
+   pages = {899},
+   year = {1994}
+}
+
+@article{berr84phase,
+   author = {Berry, Michael Victor},
+   title = {Quantal phase factors accompanying adiabatic changes},
+   journal = {Proceedings of the Royal Society of London. A. Mathematical and Physical Sciences},
+   volume = {392},
+   pages = {45},
+   year = {1984}
+}
+
+@article{xiao10rmp,
+   author = {Xiao, Di and Chang, Ming-Che and Niu, Qian},
+   title = {Berry phase effects on electronic properties},
+   journal = {Rev. Mod. Phys.},
+   volume = {82},
+   pages = {1959},
+   year = {2010}
+}
+
+@article{wilc84nonabelian,
+   author = {Wilczek, Frank and Zee, A.},
+   title = {Appearance of Gauge Structure in Simple Dynamical Systems},
+   journal = {Phys. Rev. Lett.},
+   volume = {52},
+   pages = {2111},
+   year = {1984}
+}
+
+@inbook{blou62,
+   author = {Blount, E. I.},
+   title = {Formalisms of Band Theory},
+   booktitle = {Solid State Physics},
+   editor = {Seitz, Frederick and Turnbull, David},
+   publisher = {Academic Press},
+   volume = {13},
+   pages = {305},
+   year = {1962}
+}
+
+@article{aide15chern,
+   author = {Aidelsburger, M. and Lohse, M. and Schweizer, C. and Atala, M. and Barreiro, J. T. and Nascimbene, S. and Cooper, N. R. and Bloch, I. and Goldman, N.},
+   title = {Measuring the Chern number of Hofstadter bands with ultracold bosonic atoms},
+   journal = {Nature Physics},
+   volume = {11},
+   pages = {162},
+   year = {2015}
+}
+
+@article{wint20floquet,
+   author = {Wintersperger, Karen and Braun, Christoph and Ünal, F. Nur and Eckardt, André and Liberto, Marco Di and Goldman, Nathan and Bloch, Immanuel and Aidelsburger, Monika},
+   title = {Realization of an anomalous Floquet topological system with ultracold atoms},
+   journal = {Nature Physics},
+   volume = {16},
+   pages = {1058},
+   year = {2020}
+}
+
+@article{duca15ab,
+   author = {Duca, L. and Li, T. and Reitter, M. and Bloch, I. and Schleier-Smith, M. and Schneider, U.},
+   title = {An Aharonov-Bohm interferometer for determining Bloch band topology},
+   journal = {Science},
+   volume = {347},
+   pages = {288},
+   year = {2015}
+}
+
+@article{brow22singularity,
+   author = {Brown, Charles D. and Chang, Shao-Wen and Schwarz, Malte N. and Leung, Tsz-Him and Kozii, Vladyslav and Avdoshkin, Alexander and Moore, Joel E. and Stamper-Kurn, Dan},
+   title = {Direct geometric probe of singularities in band structure},
+   journal = {Science},
+   volume = {377},
+   pages = {1319},
+   year = {2022}
+}
+
+@article{kim25qmt,
+   author = {Kim, Sunje and Chung, Yoonah and Qian, Yuting and Park, Soobin and Jozwiak, Chris and Rotenberg, Eli and Bostwick, Aaron and Kim, Keun Su and Yang, Bohm-Jung},
+   title = {Direct measurement of the quantum metric tensor in solids},
+   journal = {Science},
+   volume = {388},
+   pages = {1050},
+   year = {2025}
+}
+
+@article{flas16Berry,
+   author = {Fläschner, N. and Rem, B. S. and Tarnowski, M. and Vogel, D. and Lühmann, D. S. and Sengstock, K. and Weitenberg, C.},
+   title = {Experimental reconstruction of the Berry curvature in a Floquet Bloch band},
+   journal = {Science},
+   volume = {352},
+   pages = {1091},
+   year = {2016}
+}
+
+@article{li16wilson,
+   author = {Li, Tracy and Duca, Lucia and Reitter, Martin and Grusdt, Fabian and Demler, Eugene and Endres, Manuel and Schleier-Smith, Monika and Bloch, Immanuel and Schneider, Ulrich},
+   title = {Bloch state tomography using Wilson lines},
+   journal = {Science},
+   volume = {352},
+   pages = {1094},
+   year = {2016}
+}
+
+@article{yi23qgt,
+   author = {Yi, Chang-Rui and Yu, Jinlong and Yuan, Huan and Jiao, Rui-Heng and Yang, Yu-Meng and Jiang, Xiao and Zhang, Jin-Yi and Chen, Shuai and Pan, Jian-Wei},
+   title = {Extracting the quantum geometric tensor of an optical Raman lattice by Bloch-state tomography},
+   journal = {Physical Review Research},
+   volume = {5},
+   pages = {L032016},
+   year = {2023}
+}
+
+@misc{guil25quantumgeometry,
+   author = {Guillot, Martin and Blanchard, Cédric and Morassi, Martina and Lemaître, Aristide and Le Gratiet, Luc and Harouri, Abdelmounaim and Sagnes, Isabelle and Slager, Robert-Jan and Ünal, F. Nur and Bloch, Jacqueline and Ravets, Sylvain},
+   title = {Measuring non-Abelian quantum geometry and topology in a multi-gap photonic lattice},
+   note = {preprint, arXiv:2511.03894},
+   year = {2025}
+}
+
+@article{jo12kag,
+   author = {Jo, Gyu-Boong and Guzman, Jennie and Thomas, Claire K. and Hosur, Pavan and Vishwanath, Ashvin and Stamper-Kurn, Dan M.},
+   title = {Ultracold Atoms in a Tunable Optical Kagome Lattice},
+   journal = {Phys. Rev. Lett.},
+   volume = {108},
+   pages = {045305},
+   year = {2012}
+}

@@ -503,36 +503,40 @@ def get_model_params(model_in,
                          (tnn * np.sqrt(2), 1, 0, (1, 0)),]
         },
 
-        "sawtooth_shifted": {    # sawtooth lattice with flat band shifted to create a touching
-            "lat_vec": [np.array([1, 0]),
-                        np.array([0, np.sqrt(3)])],
-            "basis_vec": [np.array([0, 0]),
-                          np.array([0.5, 0.5])],
-            "lat_bc": (0, 0),   # 2nd dimension should have bc = 0
+        "sawtooth_shifted": {    
+            "lat_vec": [np.array([1, 0]), np.array([0, np.sqrt(3)])],
+            "basis_vec": [np.array([0, 0]), np.array([0.5, 0.5])],
+            "lat_bc": (0, 0),   
             "sublat_offsets": [0, 0],
-            "hoppings": [(tnn * np.sqrt(2), 0, 1, (0, 0)),
-                         (tnn, 0, 0, (1, 0)),
-                         (tnn * np.sqrt(2), 1, 0, (1, 0)),
-                         # Additional terms are exponentially decaying - include up to 3rd order
-                         # Note that I don't have the 2*pi factor in energy
-                         # H'_AA
-                         (-tnn * 2 / np.sqrt(3)                      , 0, 0, (0, 0)),
-                         (-tnn * 2 / np.sqrt(3) * (np.sqrt(3) - 2)   , 0, 0, (1, 0)),
-                         (-tnn * 2 / np.sqrt(3) * (np.sqrt(3) - 2)**2, 0, 0, (2, 0)),
-                         (-tnn * 2 / np.sqrt(3) * (np.sqrt(3) - 2)**3, 0, 0, (3, 0)),
-                         # H'_BB
-                         (-tnn * 2 * (1 - 1 / np.sqrt(3))               , 1, 1, (0, 0)),
-                         ( tnn * 2 / np.sqrt(3) * (np.sqrt(3) - 2)      , 1, 1, (1, 0)),
-                         ( tnn * 2 / np.sqrt(3) * (np.sqrt(3) - 2)**2   , 1, 1, (2, 0)),
-                         ( tnn * 2 / np.sqrt(3) * (np.sqrt(3) - 2)**3   , 1, 1, (3, 0)),
-                         # H'_AB
-                         ( tnn * 2 / np.sqrt(6) * (np.sqrt(3) - 1)                          , 1, 0, (0, 0)),
-                         ( tnn * 2 / np.sqrt(6) * (np.sqrt(3) - 1) * (np.sqrt(3) - 2)       , 1, 0, (1, 0)),
-                         ( tnn * 2 / np.sqrt(6) * (np.sqrt(3) - 1) * (np.sqrt(3) - 2)**2    , 1, 0, (2, 0)),
-                         ( tnn * 2 / np.sqrt(6) * (np.sqrt(3) - 1) * (np.sqrt(3) - 2)**3    , 1, 0, (3, 0)),
-                         (-tnn * 2 / np.sqrt(6) * (-np.sqrt(3) - 1) * (np.sqrt(3) - 2)      , 1, 0, (1, 0)),
-                         (-tnn * 2 / np.sqrt(6) * (-np.sqrt(3) - 1) * (np.sqrt(3) - 2)**2   , 1, 0, (2, 0)),
-                         (-tnn * 2 / np.sqrt(6) * (-np.sqrt(3) - 1) * (np.sqrt(3) - 2)**3   , 1, 0, (3, 0)),]
+            "hoppings": [
+                 # Bare hoppings (H_0)
+                 (tnn * np.sqrt(2), 0, 1, (0, 0)),
+                 (tnn, 0, 0, (1, 0)),
+                 (tnn * np.sqrt(2), 1, 0, (1, 0)),
+                 
+                 # H'_AA 
+                 (-tnn * 2 / np.sqrt(3)                      , 0, 0, (0, 0)),
+                 (-tnn * 2 / np.sqrt(3) * (np.sqrt(3) - 2)   , 0, 0, (1, 0)),
+                 (-tnn * 2 / np.sqrt(3) * (np.sqrt(3) - 2)**2, 0, 0, (2, 0)),
+                 (-tnn * 2 / np.sqrt(3) * (np.sqrt(3) - 2)**3, 0, 0, (3, 0)),
+                 
+                 # H'_BB
+                 (-tnn * 2 * (1 - 1 / np.sqrt(3))               , 1, 1, (0, 0)),
+                 ( tnn * 2 / np.sqrt(3) * (np.sqrt(3) - 2)      , 1, 1, (1, 0)),
+                 ( tnn * 2 / np.sqrt(3) * (np.sqrt(3) - 2)**2   , 1, 1, (2, 0)),
+                 ( tnn * 2 / np.sqrt(3) * (np.sqrt(3) - 2)**3   , 1, 1, (3, 0)),
+                 
+                 # H'_AB (Rightward hoppings: a^dagger b)
+                 ( tnn * 2 / np.sqrt(6) * (np.sqrt(3) - 1)                          , 0, 1, (0, 0)),
+                 ( tnn * 2 / np.sqrt(6) * (np.sqrt(3) - 1) * (np.sqrt(3) - 2)       , 0, 1, (1, 0)),
+                 ( tnn * 2 / np.sqrt(6) * (np.sqrt(3) - 1) * (np.sqrt(3) - 2)**2    , 0, 1, (2, 0)),
+                 ( tnn * 2 / np.sqrt(6) * (np.sqrt(3) - 1) * (np.sqrt(3) - 2)**3    , 0, 1, (3, 0)),
+                 
+                 # H'_AB (Leftward hoppings: b^dagger a)
+                 (-tnn * 2 / np.sqrt(6) * (-np.sqrt(3) - 1) * (np.sqrt(3) - 2)      , 1, 0, (1, 0)),
+                 (-tnn * 2 / np.sqrt(6) * (-np.sqrt(3) - 1) * (np.sqrt(3) - 2)**2   , 1, 0, (2, 0)),
+                 (-tnn * 2 / np.sqrt(6) * (-np.sqrt(3) - 1) * (np.sqrt(3) - 2)**3   , 1, 0, (3, 0)),
+            ]
         },
 
         "bilayer_sawtooth": {
