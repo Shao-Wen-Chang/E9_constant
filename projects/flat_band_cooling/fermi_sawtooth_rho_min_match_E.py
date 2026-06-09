@@ -239,7 +239,6 @@ all_Delta_S = all_S_tot[np.newaxis, :] - all_S_E
 all_Delta_s_sys = all_SvN_sys / all_N_sys - all_SvN_sys_init[np.newaxis, :] / all_N_sys_init[np.newaxis, :]
 
 #%% --------------- T-x plots (initial parameters x) ---------------
-util.set_custom_plot_style(overwrite = {"font.size": 10})
 fig_title_str = (f"{lattice_str}, lattice size {lattice_dim}, system size {sys_len}"
                  f"\nN_atoms = {N_tot}, V_std_random = {V_std_random:.3f}")
 

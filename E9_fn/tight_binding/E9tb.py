@@ -168,7 +168,7 @@ class tbmodel_2D:
             H: Hamiltonian to be plotted.
             t_farthest: the longest hopping distance without closed boundary condition.
         """
-        if ax is None: _fig, ax = util.make_simple_axes()
+        if ax is None: _fig, ax = plt.subplots()
         if H is None: H = self.H
 
         # Sublattice plot configs
@@ -239,7 +239,7 @@ class tbmodel_2D:
         """
         if len(state) != self.n_orbs:
             raise(Exception("The size of the input state doesn't match the number of orbitals"))
-        if ax is None: _fig, ax = util.make_simple_axes()
+        if ax is None: _fig, ax = plt.subplots()
         
         for ri in range(self.n_orbs):
             if abs(state[ri]) < cutoff: continue
@@ -609,13 +609,13 @@ if __name__ == "__main__":
     eigvals, eigvecs = eigh(H_total)
 
     ### Plots
-    # fig_H, ax_H = util.make_simple_axes(fignum = 100)
+    # fig_H, ax_H = plt.subplots(num = 100)
     # ax_H.matshow(H_total)
     
-    fig_E, ax_E = util.make_simple_axes()
+    fig_E, ax_E = plt.subplots()
     ax_E.scatter(np.arange(len(eigvals)), eigvals)
     ax_E.set_title("{} ({} unit cells), all states".format(lattice_str, lattice_dim))
 
-    fig_lat, ax_lat = util.make_simple_axes()
+    fig_lat, ax_lat = plt.subplots()
     my_tb_model.plot_H(ax = ax_lat, H = H_total)
     my_tb_model.plot_state(eigvecs[0], ax_lat)

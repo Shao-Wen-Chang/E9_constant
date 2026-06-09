@@ -84,7 +84,6 @@ def calc_isentropic():
         isen_exp_list[i] = deepcopy(exp_now)
     
     # Plots
-    util.set_custom_plot_style()
     # Entropy scan
     fig_exp = plt.figure(1, figsize = (16, 10))
     ax_SvsT = fig_exp.add_subplot(221)

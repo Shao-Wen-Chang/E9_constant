@@ -33,8 +33,7 @@ def main():
     V_DMD = V_target - V_lat_har
 
     # Plot
-    # util.set_custom_plot_style(overwrite = {"font.size": 14})
-    fig, ax = util.make_simple_axes(fig_kwarg = {"figsize": (7, 1.5)})
+    fig, ax = plt.subplots(figsize = (7, 1.5))
     ax.plot(x_axis, V_lat_har, color = "#f16951", linewidth = 3, label = r"$V_{\mathrm{ext}}$")
     ax.plot(x_axis, V_target, color = "k", linewidth = 1, label = r"$V_{\mathrm{tar}}$")
     ax.plot(x_axis, V_DMD, label = r"$V_{\mathrm{DMD}}$")

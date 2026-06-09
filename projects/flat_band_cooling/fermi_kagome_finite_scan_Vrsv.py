@@ -140,8 +140,6 @@ for i_rsv, V_rsv in enumerate(V_rsv_offsets):
 all_TTF = all_T / all_T_F[:, np.newaxis]
 
 #%% Vrsv-S plots
-util.set_custom_plot_style(overwrite = {"font.size": 10})
-
 fig_VS = plt.figure(figsize = (9, 8))
 ax_T = fig_VS.add_subplot(221)
 ax_nu = fig_VS.add_subplot(222)
@@ -171,7 +169,6 @@ fig_VS.suptitle((f"{lattice_str}, lattice size {lattice_dim}, system size {sys_l
                  f"; N_atoms = {N_tot}, V_std_random = {V_std_random:.3f}"))
 
 #%% fig2a plots
-util.set_custom_plot_style(overwrite = {"font.size": 10})
 mag_fig = 2.5
 bool_save_fig = True
 

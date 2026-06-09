@@ -790,27 +790,6 @@ def step_fn(x, x0: float = 0):
 #%% Helper plotting functions
 #%% Plot related
 ### general stuff
-def set_custom_plot_style(activate: bool = True, overwrite: dict = {}):
-    """Use a set of rcParams that I prefer.
-    
-    To restore to default values, use plt.rcdefaults().
-        overwrite: a dictionary with rcParams settings. This overwrites the
-                   original custom values."""
-    # The default custom parameters
-    custom_rcParams = {"font.size": 18,                     # Default is 10
-                       "axes.labelsize": "large",
-                       "axes.formatter.limits": (-3, 3),    # Default is [-5, 6]
-                       "xtick.minor.visible": True,
-                       "ytick.minor.visible": True,
-                       "figure.autolayout": True,           # Use tight layout
-                       } | overwrite
-
-    if activate:
-        for key, value in custom_rcParams.items():
-            plt.rcParams[key] = value
-    else:
-        plt.rcdefaults()
-
 def get_color(var, var_list: np.ndarray, cmap = plt.cm.viridis, assignment = "index", 
               crange = (0.0, 1.0), cfn = lambda x: x):
     """Get a color from a colormap based on a variable's index or value, 
@@ -886,19 +865,6 @@ def fix_clabel_orientation(labels):
             lbl.set_rotation(angle - 180)
         elif angle < -90:
             lbl.set_rotation(angle + 180)
-
-# I want to remove this function
-def make_simple_axes(ax = None, fignum = None, fig_kwarg = {}):
-    """Make a figure with one single Axes if ax is None, and return (figure, axes).
-    
-    My favorite thing to have in the beginning of a plotting function."""
-    if ax is None:
-        f = plt.figure(num = fignum, **fig_kwarg)
-        f.clf()
-        ax = f.add_axes(111)
-        return (f, ax)
-    else:
-        return (ax.get_figure(), ax)
 
 def get_closed_polygon(vert):
     '''Generate the plt_Path defined by a set of vertices that defines a closed polygon.'''

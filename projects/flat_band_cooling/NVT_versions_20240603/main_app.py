@@ -18,8 +18,6 @@ from E9_fn import util
 # then slowly ramp interaction to zero. Then the results should apply reasonably well.
 
 def main():
-    util.set_custom_plot_style(True, overwrite = {"font.size": 10})
-
     # User inputs
     logpath = '' # '' if not logging to a file
     loglevel = logging.INFO

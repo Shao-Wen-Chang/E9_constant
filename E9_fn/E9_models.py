@@ -147,7 +147,8 @@ class NVT_exp():
         
         Args:
             offset_traces: if True, offset each DoS trace by a bit horizontally."""
-        _, ax_DoS = util.make_simple_axes(ax, fignum = 1)
+        if ax is None: _, ax_DoS = plt.subplots(num = 1)
+        else: ax_DoS = ax
 
         # Plot DoS and filling
         max_DoS = np.zeros(len(self.subregion_list))
@@ -191,7 +192,8 @@ class NVT_exp():
             hidden: a list of keys to ignore.
             str_len: length of the string displayed. Long strings are truncated, and short
                      strings are padded with spaces to the left."""
-        _, ax_table = util.make_simple_axes(ax, fignum = 2)
+        if ax is None: _, ax_table = plt.subplots(num = 2)
+        else: ax_table = ax
         
         displayed_keys = list(self.subregion_list[0].keys())
         for x in hidden: displayed_keys.remove(x)
@@ -290,7 +292,8 @@ class muVT_exp():
         Args:
             offset_traces:  offset each DoS trace by offset_traces horizontally.
             l_dirac:        length of the Dirac function arrow, if any"""
-        _, ax_DoS = util.make_simple_axes(ax, fignum = 1)
+        if ax is None: _, ax_DoS = plt.subplots(num = 1)
+        else: ax_DoS = ax
 
         # Plot DoS and filling
         max_DoS = np.zeros(len(self.subregion_list))
@@ -347,7 +350,8 @@ class muVT_exp():
             hidden: a list of keys to ignore.
             str_len: length of the string displayed. Long strings are truncated, and short
                      strings are padded with spaces to the left."""
-        _, ax_table = util.make_simple_axes(ax, fignum = 2)
+        if ax is None: _, ax_table = plt.subplots(num = 2)
+        else: ax_table = ax
         
         all_init_fields = list(muVT_subregion._fields)
         all_derv_fields = list(list(self.results.values())[0].keys()) # Gross!

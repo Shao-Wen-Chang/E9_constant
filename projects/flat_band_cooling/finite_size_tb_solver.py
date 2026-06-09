@@ -108,7 +108,7 @@ pass
 plot_real_space = False
 plot_state_list = [25, 35]
 
-# fig_H, ax_H = util.make_simple_axes(fignum = 100)
+# fig_H, ax_H = plt.subplots(num = 100)
 # ax_H.matshow(H_total)
 
 fig_E = plt.figure(figsize = (8, 8))
@@ -135,12 +135,12 @@ fig_E.tight_layout()
 
 if plot_real_space:
     for st in plot_state_list:
-        fig_lat, ax_lat = util.make_simple_axes(fig_kwarg = {"figsize": (12, 6)})
+        fig_lat, ax_lat = plt.subplots(figsize = (12, 6))
         my_tb_model.plot_H(ax = ax_lat, H = H_total)
         my_tb_model.plot_state(eigvecs[:, st], ax_lat)
         ax_lat.set_title("state {}, E = {:.4f}".format(st, eigvals[st]))
     if plot_state_list == []:
-        fig_lat, ax_lat = util.make_simple_axes(fig_kwarg = {"figsize": (12, 6)})
+        fig_lat, ax_lat = plt.subplots(figsize = (12, 6))
         my_tb_model.plot_H(ax = ax_lat, H = H_total)
 
 #%% Save results
