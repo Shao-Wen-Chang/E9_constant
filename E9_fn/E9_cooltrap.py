@@ -128,212 +128,14 @@ def n_thermal_norm1_from_V(V, T):
     n_not_norm = np.exp(- V / (E9c.k_B * T))
     return n_not_norm / np.sum(n_not_norm)
 
+import E9_fn.polarizabilities_calculation as E9pol
+
 # Optical dipole traps
-def FORT_scattering_rate(I, species: str, f_light):
-    """[Hz] Photon scattering rate for far-off-resonance optical traps.
-    
-    From Grimm eqn.(21); only works for delta >> HFS splitting. For us we don't have
-    delta >> FS splitting."""
-    if species == "Rb":
-        delta1 = 2 * np.pi * (E9c.nu_Rb87_5_2P1o2 - f_light)
-        delta2 = 2 * np.pi * (E9c.nu_Rb87_5_2P3o2 - f_light)
-        gamma = E9c.gamma_Rb87_D2
-        w0 = 2 * np.pi * E9c.nu_Rb87_5_2P
-    elif species == "K":
-        delta1 = 2 * np.pi * (E9c.nu_K40_4_2P1o2 - f_light)
-        delta2 = 2 * np.pi * (E9c.nu_K40_4_2P3o2 - f_light)
-        gamma = E9c.gamma_K40_D2
-        w0 = 2 * np.pi * E9c.nu_K40_4_2P
-    else:
-        raise ValueError(f"species = {species} is not supported")
-    
-    return (np.pi * E9c.c_light**2 * gamma**2 / (2 * E9c.hbar * w0**3)
-            * (2 / delta2**2 + 1 / delta1**2)) * I
-
-# Collisional properties
-def collision_rate(n: float, sigma: float, m1: float, T1: float, m2: float = None, T2: float = None):
-    """[Hz] Returns the collision rate for a (possibly mixture of) thermal gas.
-    
-    Note that m2 = None and T2 != None is a valid input. Perhaps you are combining two clouds at different
-    temperatures. We can't really do this in the lab though.
-    
-    Args:
-        sigma:  [m^2] scattering cross-section
-        m1:     [kg] mass of the first species
-        T1:     [K] temperature of the first species
-        m2:     [kg] mass of the second species. If None, assume m1.
-        T2:     [K] temperature of the second species. If None, assume T1.
-    
-    """
-    if m2 is None: m2 = m1
-    if T2 is None: T2 = T1
-    v_rel_avg = np.sqrt((8 * E9c.k_B / np.pi) * (T1 / m1 + T2 / m2))
-    return n * sigma * v_rel_avg
-
-def majorana_loss_rate(hfs, B_grad, T, mF = None):
-    """[1/s] Returns an approximation of Majorana spin flip loss rate in an unplugged magnetic trap.
-    
-    What might actually be happening is depolarization, where the atoms are flipped to a not-as-trappable state
-    and either are lost from the trap due the the lower potential, or from further mF-changing collisions.
-    The prefactor is tricky:
-        - 1.85 is from e.g. Y-J Lin's paper, which cites Cornell's paper. This is experimentally measured
-          for Rb |1, -1> atoms.
-        - There is a factor of np.log(np.pi * np.sqrt(F)) for different F. This is from Jervis' thesis and
-          I can't find what he cited there. The prefactor is defined such that for F = 1 I recover 1.85.
-    But in any case, this is a factor on the order of 1, and what really matters is the F dependence.
-
-    Args:
-        Bgrad_z:    Gradient along the z-axis (the tight direction).
-        mF:         Use None if abs(mF) = F. (Which should always be the case in a functional magnetic trap)
-    """
-    return _majorana_loss_stuff("rate", hfs, B_grad, T, mF)
-
-def majorana_loss_radius(hfs, B_grad, T, mF = None):
-    """[m] Returns the "loss radius" of an atom.
-    
-    See W. Petrich ..., E. A. Cornell, Phys. Rev. Lett. 74, 3352 (1995).
-    In the expression for the loss ellipsoid, I replace v with the rms velocity of a gas at temperature T.
-    """
-    return _majorana_loss_stuff("radius", hfs, B_grad, T, mF)
-
-def _majorana_loss_stuff(stuff, hfs, B_grad, T, mF):
-    """See majorana_loss_rate and majorana_loss_radius."""
-    F = hfs.F
-    if mF is None:
-        mF = F
-    elif abs(mF) > F or not util.is_int(mF - F):
-        raise ValueError(f"mF = {mF} is illegal for F = {F}")
-    prefactor = (1.85 / np.log(np.pi)) * np.log(np.pi * np.sqrt(F))
-    mu = hfs.gF * mF * E9c.mu_B
-
-    if stuff == "rate":
-        return prefactor * E9c.hbar / hfs.mass * (mu * B_grad / E9c.k_B / T)**2
-    elif stuff == "radius":
-        v_rms = np.sqrt(3 * E9c.k_B * T / hfs.mass)
-        return prefactor * np.sqrt(E9c.hbar / mu / B_grad * v_rms)
-
-#%% Thermodynamical properties of Bose gases
-def T_BEC_bose(wbar, N, a_s: float = 0, V = 0, m = E9c.m_Rb87):
-    """[K] Returns the BEC critical temperature of a Bose gas.
-    
-    See [BECDilute] p.23. When wbar is 0, assume that atoms are trapped in a box of volume V. In the case where a != 0, Tc is
-    shifted accordingly ([Bloch08] eqn.11 & the equation to its right) and the effect is quite sizable (of order 0.1*Tc).
-        wbar: [rad/s] Trap frequency
-        N: [#] atom number
-        a_s: [m] s-wave scattering length
-        V: [m^3] (only for wbar = 0) box volume
-        m: [kg] (only for wbar = 0) mass of the atom
-    """
-    if wbar != 0:
-        if a_s != 0: print("interaction effect is not included yet in the case of harmonic potential")
-        return (1 + 1.32 * (N / V) * a_s) * E9c.hbar * wbar * (N * zeta(3))**(1/3) / E9c.k_B
-    else:
-        return (1 + 1.32 * (N / V) * a_s) * (2 * np.pi * E9c.hbar**2 / m) * (N / V / zeta(3/2))**(2/3) / E9c.k_B
-
-def mu_BEC_har(m, wbar, a_s, N):
-    """[E] Returns the chemical potential of an interacting BEC in a
-    harmonic potential at T = 0.
-    
-    See e.g. [BECDilute] eqn.(6.35).
-    """
-    if a_s == 0:
-        logging.warning("No interaction in mu_BEC_har, results might not make sense")
-    abar = np.sqrt(E9c.hbar / m / wbar)
-    return (15**(2/5) / 2) * (N * a_s / abar)**(2/5) * E9c.hbar * wbar
-
-def N_collapse_bose(a):
-    """[#] Returns the (order of magnutide estimate) of critical number N_c for an attractive Bose gas, above which the
-    gas collapses.
-    
-    See [BECDilute] p.164, and references therein.
-        a: [m] s-wave scattering length
-    """
-    pass
-
-#%% Thermodynamical properties of Fermi gases
-def fermi_energy_lat(m, wbar, a_lat, N):
-    """Returns the Fermi energy of N fermions in a single spin component, loaded in a (square) lattice + harmonic confinement.
-    
-    See e.g. Eqn.(20) in [Tarruell18]. (I actually don't know how to compute this.) Often we need to compare E_F to U and t."""
-    return (m * wbar**2 * a_lat**2 / 2) * (N / (4 * np.pi / 3))**(2/3)
-
-def fermi_energy_har(wbar, N):
-    """Returns the Fermi energy of N fermions in a single spin component, loaded in a harmonic confinement.
-    
-    See e.g. Eqn.(33) in [Ketterle08]."""
-    return E9c.hbar * wbar * (6 * N)**(1/3)
-
-def fermi_radius(m, w, N, xi, a_s = 0.):
-    """Return the Fermi radius in the axis with trap frequency w.
-    
-    The expression is the same for Bose and Fermi gas, but E_F is different.
-        w: [rad/s] trap frequency, assumed to be isotropic.
-        xi: [#] -1 for Bose gases, +1 for fermi gases.
-    Note that
-        for Fermi gases, this is the NON-INTERACTING profile.
-        for Bose gases, this is the INTERACTING profile in T-F approx."""
-    if xi != 1 and xi != -1:
-        logging.error("xi = {}".format(xi))
-        raise Exception("xi must be 1 or -1 in fermi_radius")
-    elif xi == 1: # Non-interacting Fermi gas
-        mu0 = fermi_energy_har(w, N) # Fermi energy, i.e. mu(T = 0)
-    elif xi == -1: # Interacting Bose gas
-        mu0 = mu_BEC_har(m, w, a_s, N) # chemical potential at T = 0
-    return np.sqrt(2 * mu0 / (m * w**2))
-
-def fermi_radius_Rb(w, N):
-    return fermi_radius(E9c.m_Rb87, w, N, -1, E9c.a_bg_Rb87)
-
-def fermi_radius_K40(w, N):
-    return fermi_radius(E9c.m_K40, w, N, 1)
-
-def density_profile_fermi(m, wx, wy, wz, N, pos_arr, z = 0):
-    """Given a harmonic trapping potential with specified trapping frequencies, for each point in pos_arr (where the origin
-    is set at trap center), return the number density at zero temperature.
-    
-    See e.g. Eqn.(34) in [Ketterle08].
-        wx/y/z: [rad/s] trapping frequencies in x / y / z direction
-        pos_arr: [m] a (2, L)-dim ndarray, where pos[:, i] = (x, y) of the i-th point. 
-        z: [m] specifies the z-coordinate shared by all points in pos."""
-    R = np.sqrt(pos_arr[0, :]**2 + pos_arr[1, :]**2 + z**2) # Distances from trap center
-    wbar = (wx * wy * wz)**(1/3)
-    Rx, Ry, Rz = fermi_radius(m, wx, N), fermi_radius(m, wy, N), fermi_radius(m, wz, N)
-    tempfill = 1 - (pos_arr[0, :] / Rx)**2 - (pos_arr[1, :] / Ry)**2 - (z / Rz)**2
-    return (8 / np.pi**2) * (N / (Rx * Ry * Rz)) * np.maximum(tempfill, np.zeros_like(tempfill))**(3/2)
-
-def kFa_from_TFa(m, T_F, a_s):
-    """Prints k_F * a_s given T_F (Fermi temperature) and a_s (s-wave scattering length). (use SI unit inputs.)"""
-    k_F = np.sqrt(2 * m * E9c.k_B * T_F) / E9c.hbar
-    ka = k_F * a_s
-    print('ka = {}; 1 / (ka) = {}'.format(ka, 1 / ka))
-    return ka
-
-def mu_fermi():
-    """[Bloch08]"""
-    pass
-
-#%% Values that depend on optical beams but not B field
-def J_from_Vlat(Vlat, theta = np.pi/2):
-    """[dimless] Return (t/Er) given some lattice depth V0 = Vlat/Er, where Er is the (photon) recoil energy.
-    
-    This is the value obtained by solving the Mathieu equation. See e.g. [Bloch08] eqn.(39).
-        theta: [dimless] angle between one of the beam and the symmetry plane. (theta = pi/2 for counter-propagating beams)"""
-    V0 = Vlat / np.sin(theta)**2
-    return (4 / np.sqrt(np.pi)) * V0**(3/4) * np.exp(-2 * np.sqrt(V0)) / np.sin(theta)**2
-
-def wsite_from_Vlat(Vlat, alat, m):
-    """[rad/s] Return the trap frequency (angular frequency) for a lattice potential (Vlat / 2) * sin(2 * pi * x / alat).
-    
-    This result is obtained by approximating the sites as harmonic traps and is valid for deep traps.
-        Vlat: [J] lattice depth. Remember e.g. the factor of 1/9 in honeycomb lattices
-        alat: [m] lattice constant
-        m: [kg] mass of particles"""
-    return (2 * np.pi / alat) * np.sqrt(Vlat / 2 / m)
-
 def V0_from_I(Gamma, nu, fl, I, gF, mF, P_pol = 0, Delta_FS = 0):
     """[J] Gives the trap depth for a hyperfine state (hfs).
     
-    See [Grimm99] eqn.20. This works for the large detuning (>> fine structure splitting of relevant excited states) limit.
+    Legacy approximation. See [Grimm99] eqn.20. 
+    This works for the large detuning (>> fine structure splitting of relevant excited states) limit.
         Gamma: [rad/s] (average) linewidth of relevant excited states. Usually the 2P3/2 and 2P1/2 states.
         nu: [Hz] (average) excited state energy in frequency. Note that w0 = 2 * pi * nu.
         fl: [Hz] frequency of light field. Note that wl = 2 * pi * fl.
@@ -347,6 +149,20 @@ def V0_from_I(Gamma, nu, fl, I, gF, mF, P_pol = 0, Delta_FS = 0):
     Delta = wl - w0
     Delta_FS = 2 * np.pi * Delta_FS
     return (3 * np.pi * E9c.c_light**2 / 2 / w0**3) * (Gamma / Delta) * (1 + (P_pol * gF * mF / 3) * (Delta_FS / Delta)) * I
+
+def V0_from_I_arc(I, fl, arc_atom, n, l, j, K=0, method="ARC", **kwargs):
+    """[J] Gives the exact trap depth using ARC-backed polarizabilities.
+    
+    Args:
+        I:          [W/m^2] Light intensity.
+        fl:         [Hz] Light frequency.
+        arc_atom:   ARC atom instance.
+        n, l, j:    Atomic state.
+        K:          Rank of polarizability (0=scalar, 1=vector, 2=tensor).
+    """
+    lamb_in = E9c.c_light / fl
+    alpha = E9pol.get_polarizability(lamb_in, K, method=method, arc_atom=arc_atom, n=n, l=l, j=j, **kwargs)
+    return E9pol.I2J_from_pol(I, alpha)
 
 def U_from_Vlat(Vlat, a_s, k_L):
     """Returns U for some lattice parameters under harmonic well assumption.

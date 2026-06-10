@@ -54,19 +54,37 @@ mu_B = 9.274009994e-24          # Bohr magneton, = e_ele * hbar / (2 * m_e)
 # Other unit conversion constants
 pol_SI2au = 1/1.64877727436e-41 # Conversion factor from SI to a.u. for polarizability | TODO: from where?
 
-########## isotope specific constants (from [SteckRb] and [TieckeK] unless otherwise noted) ##########
-m_Rb87 = 1.4431606e-25
-m_K40 = 6.636178e-26
-m_K39 = 6.470076e-26
-I_Rb87 = 3/2
-I_K40 = 4
-I_K39 = 3/2
-gJ_K_4S1o2 = 2.00229421
-gJ_Rb_5S1o2 = 2.00233113
+# Reduced Planck constant (hbar) already defined above as hbar
+import scipy.constants as sc
+from arc import Rubidium87, Potassium40, Potassium39
+
+# Initialize ARC instances
+Rb87 = Rubidium87()
+K40 = Potassium40()
+K39 = Potassium39()
+
+########## isotope specific constants (dynamically pulled from ARC) ##########
+m_Rb87 = Rb87.mass
+m_K40 = K40.mass
+m_K39 = K39.mass
+I_Rb87 = Rb87.I
+I_K40 = K40.I
+I_K39 = K39.I
+
+# Lande g-factors (J=1/2, L=0, S=1/2)
+gJ_K_4S1o2 = K40.getLandegjExact(0, 0.5, 0.5) # L, S, J
+gJ_Rb_5S1o2 = Rb87.getLandegjExact(0, 0.5, 0.5)
+
 # Hyperfine structure coefficients, ahf (M1) and bhf (E2), in J
-ahf_39K_4S1o2 = 230.8598601e6 * hnobar
-ahf_40K_4S1o2 = -285.7308e6 * hnobar
-ahf_87Rb_5S1o2 = 3.417341305452145e9 * hnobar
+# ARC getHFSCoefficients returns (A, B) in Hz. Multiply by hnobar (h) to get J.
+_ahf_39K_Hz, _bhf_39K_Hz = K39.getHFSCoefficients(4, 0, 0.5)
+ahf_39K_4S1o2 = _ahf_39K_Hz * hnobar
+
+_ahf_40K_Hz, _bhf_40K_Hz = K40.getHFSCoefficients(4, 0, 0.5)
+ahf_40K_4S1o2 = _ahf_40K_Hz * hnobar
+
+_ahf_87Rb_Hz, _bhf_87Rb_Hz = Rb87.getHFSCoefficients(5, 0, 0.5)
+ahf_87Rb_5S1o2 = _ahf_87Rb_Hz * hnobar
 
 # scattering lengths
 # also see FeshbachResonance in E9_atom.py

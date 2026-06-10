@@ -4,6 +4,14 @@ import E9_fn.E9_constants as E9c
 import logging
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy.constants as sc
+from arc import Rubidium87, Potassium40, Potassium39
+
+# Initialize ARC instances for internal use
+_Rb87 = Rubidium87()
+_K40 = Potassium40()
+_K39 = Potassium39()
+
 # See E9_constants for list of references and some file conventions
 
 #%% Scattering properties
@@ -75,19 +83,51 @@ def ZeemanSplittingdBdx(gF, dBdx):
 
 #%% class HyperfineState
 class HyperfineState():
-    def __init__(self, mass, I, J, F, gJ, gI = 0, ahf = None, bhf = None, nu = 0):
-        self.mass = mass
-        self.S = 1/2
-        self.F = F
-        self.I = I
-        self.J = J
-        self.gJ = gJ
-        self.gI = gI
-        self.gF = E9c.gF(I, J, F, gJ, gI)
-        self.ahf = ahf
-        self.bhf = bhf
-        self.nu = nu # energy relative to ground state (in frequency unit, not radial frequency); ground state should
-                     # be obvious in most cases
+    def __init__(self, mass=None, I=None, J=None, F=None, gJ=None, gI=0, ahf=None, bhf=None, nu=0,
+                 arc_atom=None, n=None, L=None, S=0.5):
+        """
+        HyperfineState object representing an atomic state.
+        
+        This class supports a hybrid architecture:
+        1. ARC-backed: If arc_atom is provided, constants are dynamically pulled from ARC.
+           Requires: arc_atom, n, L, J, F.
+        2. Manual: Fallback for unsupported isotopes (e.g. 162Dy, 87Sr).
+           Requires: mass, I, J, F, gJ, ahf, bhf.
+        """
+        if arc_atom is not None:
+            # ARC-backed initialization
+            self.arc_atom = arc_atom
+            self.mass = arc_atom.mass
+            self.I = arc_atom.I
+            self.S = S
+            self.J = J
+            self.L = L
+            self.n = n
+            self.F = F
+            
+            self.gJ = arc_atom.getLandegjExact(self.L, self.S, self.J)
+            self.gI = arc_atom.gI
+            
+            # ARC returns A, B in Hz. Convert to J using hnobar (h).
+            A_Hz, B_Hz = arc_atom.getHFSCoefficients(n, L, J)
+            self.ahf = A_Hz * E9c.hnobar
+            self.bhf = B_Hz * E9c.hnobar
+            
+            self.gF = E9c.gF(self.I, self.J, self.F, self.gJ, self.gI)
+        else:
+            # Manual fallback
+            self.mass = mass
+            self.S = S
+            self.F = F
+            self.I = I
+            self.J = J
+            self.gJ = gJ
+            self.gI = gI
+            self.gF = E9c.gF(I, J, F, gJ, gI)
+            self.ahf = ahf
+            self.bhf = bhf
+            
+        self.nu = nu # energy relative to ground state (in frequency unit)
     
     # methods copying from various functions defined above (might want to delete all these)
     def Getgravity_compensation_BGrad(self, mF):
@@ -173,12 +213,12 @@ class HyperfineState():
         return ax
 
 # format: (isotope)_n_(term symbol)_F(F value); 9/2 -> 9o2 etc
-K40_4_2S1o2_F9o2 = HyperfineState(E9c.m_K40, E9c.I_K40, 1/2, 9/2, gJ = E9c.gJ(1/2, 0, 1/2), ahf = E9c.ahf_40K_4S1o2)
-K40_4_2S1o2_F7o2 = HyperfineState(E9c.m_K40, E9c.I_K40, 1/2, 7/2, gJ = E9c.gJ(1/2, 0, 1/2), ahf = E9c.ahf_40K_4S1o2)
-K39_4_2S1o2_F1 = HyperfineState(E9c.m_K39, E9c.I_K39, 1/2, 1, gJ = E9c.gJ(1/2, 0, 1/2), ahf = E9c.ahf_39K_4S1o2)
-K39_4_2S1o2_F2 = HyperfineState(E9c.m_K39, E9c.I_K39, 1/2, 2, gJ = E9c.gJ(1/2, 0, 1/2), ahf = E9c.ahf_39K_4S1o2)
-Rb87_5_2S1o2_F1 = HyperfineState(E9c.m_Rb87, E9c.I_Rb87, 1/2, 1, gJ = E9c.gJ(1/2, 0, 1/2), ahf = E9c.ahf_87Rb_5S1o2)
-Rb87_5_2S1o2_F2 = HyperfineState(E9c.m_Rb87, E9c.I_Rb87, 1/2, 2, gJ = E9c.gJ(1/2, 0, 1/2), ahf = E9c.ahf_87Rb_5S1o2)
+K40_4_2S1o2_F9o2 = HyperfineState(arc_atom = _K40, n = 4, L = 0, J = 0.5, F = 9/2)
+K40_4_2S1o2_F7o2 = HyperfineState(arc_atom = _K40, n = 4, L = 0, J = 0.5, F = 7/2)
+K39_4_2S1o2_F1 = HyperfineState(arc_atom = _K39, n = 4, L = 0, J = 0.5, F = 1)
+K39_4_2S1o2_F2 = HyperfineState(arc_atom = _K39, n = 4, L = 0, J = 0.5, F = 2)
+Rb87_5_2S1o2_F1 = HyperfineState(arc_atom = _Rb87, n = 5, L = 0, J = 0.5, F = 1)
+Rb87_5_2S1o2_F2 = HyperfineState(arc_atom = _Rb87, n = 5, L = 0, J = 0.5, F = 2)
 
 #%% class FeshbachResonance
 class FeshbachResonance():
