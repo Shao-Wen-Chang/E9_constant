@@ -38,11 +38,29 @@ arrow_tips = [-1.05 * v for v in _arrow_dir]
 arrow_ends = [-1.6 * v for v in _arrow_dir]
 
 str_journal = "BIGGUS"  # for screen display
-str_journal = "nature"
+str_journal = "PRL"
 
 mm2inch = 1 / 25.4
 plt_sizes_all_journals = {
     "nature": {
+        "fig_figsize":      np.array([20, 30]) * mm2inch,
+
+        "AB_site_size":     16,
+        "AB_site_lw":       0.2,
+
+        "honeycomb_lw":     1.5,
+        "a_hc_H_lw":        0.5,
+        "coor_lw":          0.5,
+        "lat_beams_lw":     0.5,
+
+        "lat_arrow_style":  '-|>,head_width=0.01,head_length=0.02',
+
+        "a_hc_fontsize":    7,
+        "AB_fontsize":      7,
+        "coor_fontsize":    7,
+        "delta_fontsize":   6,
+    },
+    "PRL": {
         "fig_figsize":      np.array([20, 30]) * mm2inch,
 
         "AB_site_size":     16,
@@ -151,15 +169,17 @@ for p1, p2 in zip(arrow_ends, arrow_tips):
         shrinkB = 0
     )
     ax1.add_patch(arrow)
-ax1.text(*arrow_ends[2] + np.array([-0.18, 0.2]) * E9c.k_lw, r"$\vec{k}_1$", color = "black", fontsize = plt_sizes["delta_fontsize"])
-ax1.text(*arrow_ends[0] + np.array([-0.2, 0.2]) * E9c.k_lw, r"$\vec{k}_2$", color = "black", fontsize = plt_sizes["delta_fontsize"])
-ax1.text(*arrow_ends[1] + np.array([-0.45, -0.4]) * E9c.k_lw, r"$\vec{k}_3$", color = "black", fontsize = plt_sizes["delta_fontsize"])
-# ax1.text(*arrow_ends[2] + np.array([-0.08, -0.35]) * E9c.k_lw, r"$\delta_1(t)$", color = "black", fontsize = plt_sizes["delta_fontsize"])
-# ax1.text(*arrow_ends[0] + np.array([-0.63, -0.35]) * E9c.k_lw, r"$\delta_2(t)$", color = "black", fontsize = plt_sizes["delta_fontsize"])
+ax1.text(*arrow_ends[2] + np.array([-0.18, 0.2]) * E9c.k_lw, r"$\mathbf{k}_1$", color = "black", fontsize = plt_sizes["delta_fontsize"])
+ax1.text(*arrow_ends[0] + np.array([-0.2, 0.2]) * E9c.k_lw, r"$\mathbf{k}_2$", color = "black", fontsize = plt_sizes["delta_fontsize"])
+ax1.text(*arrow_ends[1] + np.array([-0.45, -0.4]) * E9c.k_lw, r"$\mathbf{k}_3$", color = "black", fontsize = plt_sizes["delta_fontsize"])
 ax1.text(*arrow_ends[2] + np.array([-0.08, -0.35]) * E9c.k_lw, r"$\ \ {}_1(t)$", color = "black", fontsize = plt_sizes["delta_fontsize"])
 ax1.text(*arrow_ends[0] + np.array([-0.63, -0.35]) * E9c.k_lw, r"$\ \ {}_2(t)$", color = "black", fontsize = plt_sizes["delta_fontsize"])
+# plt.rcParams['mathtext.fontset'] = 'cm'
+# ax1.text(*arrow_ends[2] + np.array([-0.08, -0.35]) * E9c.k_lw, r"$\delta_1(t)$", color = "black", fontsize = plt_sizes["delta_fontsize"], fontfamily = "cursive")
+# ax1.text(*arrow_ends[0] + np.array([-0.63, -0.35]) * E9c.k_lw, r"$\delta_2(t)$", color = "black", fontsize = plt_sizes["delta_fontsize"], fontfamily = "cursive")
 
-fig1apath = Path(r"C:\Users\ken92\Documents\Studies\E5\simulation\E9_simulations\projects\band_spectroscopy\paper_figures\fig1",
+fig1cpath = Path(r"C:\Users\ken92\Documents\Studies\E5\simulation\E9_simulations\projects\band_spectroscopy\paper_figures\fig1",
                  f"fig1c_{str_journal}.pdf")
-fig.savefig(fig1apath, format = "pdf", facecolor = "none", dpi = 300, bbox_inches = 'tight')
+# fig.savefig(fig1cpath, format = "pdf", facecolor = "none", dpi = 300, bbox_inches = 'tight')
+fig.savefig(fig1cpath, format = "pdf", facecolor = "none", dpi = 600, bbox_inches = 'tight')
 # %%

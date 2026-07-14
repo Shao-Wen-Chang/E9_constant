@@ -1,0 +1,26 @@
+Write a Python script to calculate and visualize a 2D optical kagome superlattice potential by evaluating a 3D superspace potential on a (111) cut. 
+
+# Physics and Geometry
+We have three laser axes arranged at 120 degrees. The fundamental wavevectors in the 2D plane (x, y) are given by k1, k2 and k3 (and K1, K2, K3 for the long wavelength laser, which points in the same directions) in E9_constants.py.
+
+The 3D superspace coordinates for any physical 2D position r = (x, y) are given by the dot products:
+X_i = k_i \cdot r
+
+The superspace potential is a bichromatic lattice defined as:
+V(X_1, X_2, X_3) = \sum_{i=1}^{3} [V_1 \cos(X_i) + V_2 \cos(2X_i + \theta_i)]
+
+# Objective
+Create a script that evaluates this potential on a 2D spatial grid (x, y) and plots the resulting 2D potential landscape. The script should define a primary function or class that takes the following as arguments:
+- V1 (amplitude of the fundamental lattice)
+- V2 (amplitude of the harmonic lattice)
+- Theta (a 3-element array/tuple for the phase shifts: theta_1, theta_2, theta_3)
+
+# Architecture and Formatting Constraints
+You must strictly adhere to the following coding standards:
+1. Plotting Architecture: Use strict object-oriented Matplotlib (e.g., fig, ax = plt.subplots()). Do not use the state-based pyplot interface (plt.plot, plt.title, etc.) for anything other than creating the figure and showing the final output.
+2. Vectorization: Use NumPy arrays and vectorized operations to calculate the grid. Avoid explicit for-loops over the spatial coordinates.
+3. Operator Spacing: You must add spaces before and after all mathematical and assignment operators, such as +, -, *, /, %, @, =.
+   - Exception 1: Do not add spaces around the exponentiation operator (**).
+   - Exception 2: Do not add spaces after a minus sign if it represents a negative number (e.g., use -1, not - 1).
+
+Please output only the complete, executable Python code (or preferably, a Jupiter notebook) with necessary comments, in the same folder as where this prompt is saved. Use a visually distinct colormap (like 'viridis' or 'magma') for the potential landscape.

@@ -607,16 +607,16 @@ def PlotBZSubplot(ax_BZ: plt.axes = None,
         sym_pt_dict = {"s": s_q_pt, "facecolor": "black"}
         sym_pt_dict.update(sym_pt_kwargs)
         ax_BZ.scatter(0, 0, **sym_pt_dict)
-        ax_BZ.text(0, -0.1, r"$\Gamma$", fontsize = fontsize, va = "top", ha = "center")
+        ax_BZ.text(0, -0.2, r"$\Gamma$", fontsize = fontsize, va = "top", ha = "center")
         # ax_BZ.text(0, -0.1, r"$\mathbf{\Gamma}$", fontsize = fontsize, va = "top", ha = "center")
 
         ax_BZ.scatter(np.sqrt(3)/2, 0, **sym_pt_dict)
-        ax_BZ.text(np.sqrt(3)/2 + 0.04, 0, "M", fontsize = fontsize, va = "center")
+        ax_BZ.text(np.sqrt(3)/2 + 0.1, 0, "M", fontsize = fontsize, va = "center")
         # ax_BZ.text(np.sqrt(3)/2 + 0.04, 0, r"$\mathbf{M}$", fontsize = fontsize, va = "center")
 
         # ax_BZ.scatter(np.sqrt(3)/2, 1/2, **sym_pt_dict)
         ax_BZ.scatter(0, 1, **sym_pt_dict)
-        ax_BZ.text(0, 1 - 0.1, "K'", fontsize = fontsize, va = "top", ha = "center")
+        ax_BZ.text(0, 1 - 0.2, "K'", fontsize = fontsize, va = "top", ha = "center")
         # ax_BZ.text(np.sqrt(3)/2 + 0.04, 1/2 + 0.02, "K", fontsize = fontsize, va = "baseline")
         # ax_BZ.text(np.sqrt(3)/2 + 0.04, 1/2 + 0.02, r"$\mathbf{K}$", fontsize = fontsize, va = "baseline")
 

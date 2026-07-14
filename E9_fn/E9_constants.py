@@ -1,5 +1,6 @@
 # Recommended import call: import E9_fn.E9_constants as E9c
 import numpy as np
+import matplotlib.pyplot as plt
 # All in SI units unless otherwise noted. Also, I try to use FREQUENCIES instead of ANGULAR FREQUENCIES all the time, and if
 # I ever use ANGULAR FREQUENCIES I prefer to include the factor of 2pi explicitly. e.g. (2 * pi) * 20. The units for ANGULAR
 # FREQUENCIES is [rad/s].
@@ -57,6 +58,7 @@ pol_SI2au = 1/1.64877727436e-41 # Conversion factor from SI to a.u. for polariza
 # Reduced Planck constant (hbar) already defined above as hbar
 import scipy.constants as sc
 from arc import Rubidium87, Potassium40, Potassium39
+plt.rcdefaults()
 
 # Initialize ARC instances
 Rb87 = Rubidium87()
