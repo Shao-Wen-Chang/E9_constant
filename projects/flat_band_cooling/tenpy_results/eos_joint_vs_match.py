@@ -2,165 +2,672 @@ import util_match
 import pickle
 import matplotlib.pyplot as plt
 import numpy as np
-from pathlib import Path
 import pandas as pd
 import os
+from pathlib import Path
 
-#%% Reading data
-# Shared values
-data_folder = Path(r"C:\Users\ken92\Downloads\Shao-Wen Data")
-geometry = "sawtooth" # "sawtooth", "kagome"
-chi_tenpy = 64
-V_model = 0.3
-tp_ST = 1.41421356237
-shift_ST = -2.0
+#%% Helper functions
+def load_eos_data(
+    scan_folder: Path,
+    tnpspc: dict = None,
+    is_joint: bool = None,
+) -> pd.DataFrame:
+    """
+    Load EoS measurements from all subfolders in scan_folder into a pandas DataFrame.
 
-# Subregion parameters (User specified)
-SRoffset = 2.               # muR - muS
-L_subregion = 50            # This is the total number of unit cells, even if bool_muSR is True
+    Checks parameter consistency across folder names and measurement files,
+    and checks consistency of beta grids across runs.
 
-# Joint system (Derived from subregion parameters)
-L_joint = 100               # This is the total number of unit cells, even if bool_muSR is True
+    Parameters
+    ----------
+    scan_folder : Path
+        Directory containing simulation subfolders.
+    tnpspc : dict, optional
+        Dictionary of parameters (e.g. {'geometry': 'sawtooth', 'L': 100, 'chi': 64})
+        that must be consistent across all subfolders.
+    is_joint : bool, optional
+        Whether the data comes from a joint simulation (with muS and muR)
+        or a single-subregion simulation (with mu). If None, auto-detected from file content.
 
-# Shared derived parameters
-E_flat_ST = 2. + shift_ST   # energy of the flat band with shift (noninteracting; assuming ymax is None)
-E_min = min(E_flat_ST, -4.)
-E_max = max(E_flat_ST, 0.)
-geom_spec_str = f"V{V_model}_tp{tp_ST}_shift{shift_ST}"
-tnpspc = {                  # For checking folder parameter consistency
-    "geometry": geometry,
-    "L": L_joint,
-    "chi": chi_tenpy,
-}
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame containing records of all measurement data.
+    """
+    scan_folder = Path(scan_folder)
+    if not scan_folder.exists():
+        raise FileNotFoundError(f"Scan folder does not exist: {scan_folder}")
 
-#%% Joint system
-scan_name_joint = f"ST_SL_I_L{L_joint}_t1_tpsqrt2_shf{int(shift_ST)}_V{V_model}_chi{chi_tenpy}_SRoff{np.round(SRoffset, 1)}"
-N_sites_joint = 2 * L_joint
+    subfolder_list = [f for f in scan_folder.iterdir() if f.is_dir()]
+    print(f"Found {len(subfolder_list)} folders in {scan_folder.name}")
 
-# Check parameter consistency
-##### Make below a function #####
-folder_params_shared = None
-records_EoS = []
-scan_folder = Path(data_folder, scan_name_joint)
-assert scan_folder.exists()
+    # folder_params_shared = None
+    records_EoS = []
+    first_betas = None
 
-subfolder_list = [f for f in scan_folder.iterdir() if f.is_dir()]
-print(f"found {len(subfolder_list)} folders")
+    for sf_path in subfolder_list:
+        filepath = sf_path / "measurements.pkl"
+        if not filepath.is_file():
+            print(f"No measurements.pkl found in {sf_path.name}")
+            continue
 
-first_betas = None
-for i_f, sf_path in enumerate(subfolder_list):
-    # Load data and store them as panda data rows
-    filepath = Path(sf_path, "measurements.pkl")
-    assert filepath.is_file()
-    with open(filepath, "rb") as f:
-        file_content = pickle.load(f)
+        with open(filepath, "rb") as f:
+            file_content = pickle.load(f)
 
-    try:
-        folder_params = util_match.parse_folder_name(sf_path)
-        
-        # Check mu consistency between folder name and file
-        for s in ['muS', 'muR']: # Assume that mu is specified as muR and muS
-            mu = file_content[s]
-            if not np.isclose(mu, folder_params[s]):
-                raise(ValueError(f"{s}_folder = {folder_params[s]} doesn't agree with mu_file = {mu}"))
+        try:
+            folder_params = util_match.parse_folder_name(sf_path)
+
+            if is_joint is None:    # Autodetect
+                is_joint = "muS" in file_content
+
+            # Check mu consistency between folder name and file
+            if is_joint:
+                for s in ["muS", "muR"]:
+                    mu = file_content[s]
+                    if not np.isclose(mu, folder_params[s]):
+                        raise ValueError(
+                            f"{s}_folder = {folder_params[s]} doesn't agree with mu_file = {mu}"
+                        )
+                    folder_params.pop(s)
             else:
-                folder_params.pop(s)
-        
-        # Check shared folder parameters
-        V = folder_params.pop("V")
-        shift = folder_params.pop("shift")
-        tp = folder_params.pop("tp")
-        if folder_params_shared is None:
-            folder_params_shared = folder_params.copy()
-            for k, v in tnpspc.items():
-                if folder_params_shared[k] != v:
-                    raise(ValueError(f"mismatch in tenpy parameter {k}: specified {v}, but {folder_params_shared[k]} from folder"))
+                mu = file_content["mu"]
+                if not np.isclose(mu, folder_params["mu"]):
+                    raise ValueError(
+                        f"mu_folder = {folder_params['mu']} doesn't agree with mu_file = {mu}"
+                    )
+                folder_params.pop("mu")
+
+            # Check shared folder parameters
+            V = folder_params.pop("V")
+            shift = folder_params.pop("shift")
+            tp = folder_params.pop("tp")
+
+            # if folder_params_shared is None:
+            #     folder_params_shared = folder_params.copy()
+            #     if tnpspc is not None:
+            #         for k, v in tnpspc.items():
+            #             if folder_params_shared.get(k) != v:
+            #                 raise ValueError(
+            #                     f"Mismatch in tenpy parameter {k}: specified {v}, "
+            #                     f"but {folder_params_shared.get(k)} from folder"
+            #                 )
+            # else:
+            #     if folder_params != folder_params_shared:
+            #         print(folder_params)
+            #         print(folder_params_shared)
+            #         raise ValueError("Mismatch in folder parameters")
+            # folder_params_shared = folder_params.copy()
+            if tnpspc is not None:
+                for k, v in tnpspc.items():
+                    if folder_params.get(k) != v:
+                        raise ValueError(
+                            f"Mismatch in tenpy parameter {k}: specified {v}, "
+                            f"but {folder_params.get(k)} from folder"
+                        )
+
+            # Save data records
+            file_mtime = os.path.getmtime(filepath)
+            for i_b, beta in enumerate(file_content["betas"]):
+                if is_joint:
+                    (
+                        S2,
+                        S2S,
+                        S2R,
+                        n_avg,
+                        n_avgS,
+                        n_avgR,
+                        energy,
+                        energyS,
+                        energyR,
+                        eps,
+                        ov,
+                        max_chi,
+                        trace,
+                        runtime,
+                    ) = file_content["data"][i_b, :]
+                    records_EoS.append({
+                        "muS": file_content["muS"],
+                        "muR": file_content["muR"],
+                        "beta": beta,
+                        "S2": S2,           # per site (total joint)
+                        "S2S": S2S,         # per site (subregion S)
+                        "S2R": S2R,         # per site (subregion R)
+                        "n_avg": n_avg,     # per site (total joint)
+                        "n_avgS": n_avgS,   # per site (subregion S)
+                        "n_avgR": n_avgR,   # per site (subregion R)
+                        "energy": energy,   # per site (total joint)
+                        "energyS": energyS, # per site (subregion S)
+                        "energyR": energyR, # per site (subregion R)
+                        "eps": eps,
+                        "ov": ov,
+                        "max_chi": max_chi,
+                        "trace": trace,
+                        "runtime": runtime,
+                        "file_mtime": file_mtime,
+                        "V": V,
+                        "shift": shift,
+                        "tp": tp,
+                    })
+                else:
+                    (
+                        S2,
+                        n_avg,
+                        energy,
+                        eps,
+                        ov,
+                        max_chi,
+                        trace,
+                        runtime,
+                    ) = file_content["data"][i_b, :]
+                    records_EoS.append({
+                        "mu": file_content["mu"],
+                        "beta": beta,
+                        "S2": S2,           # per site
+                        "n_avg": n_avg,     # per site
+                        "energy": energy,   # per site
+                        "eps": eps,
+                        "ov": ov,
+                        "max_chi": max_chi,
+                        "trace": trace,
+                        "runtime": runtime,
+                        "file_mtime": file_mtime,
+                        "V": V,
+                        "shift": shift,
+                        "tp": tp,
+                    })
+        except ValueError as e:
+            print(f"Error reading {filepath}: {e}")
+            raise e
+
+        # Check beta length and consistency
+        if first_betas is None:
+            first_betas = file_content["betas"]
         else:
-            if folder_params != folder_params_shared:
-                print(folder_params)
-                print(folder_params_shared)
-                raise(ValueError("mismatch in folder parameters"))
-
-        # Save data
-        for i_b, beta in enumerate(file_content['betas']):
-            S2, S2S, S2R, n_avg, n_avgS, n_avgR, energy, energyS, energyR, eps, ov, max_chi, trace, runtime = file_content['data'][i_b, :]
-            records_EoS.append({
-                "muS": file_content['muS'],
-                "muR": file_content['muR'],
-                "beta": beta,
-                "S2": S2,           # per site
-                "S2S": S2S,         # per site
-                "S2R": S2R,         # per site
-                "n_avg": n_avg,     # per site
-                "n_avgS": n_avgS,   # per site
-                "n_avgR": n_avgR,   # per site
-                "energy": energy,   # per site
-                "energyS": energyS, # per site
-                "energyR": energyR, # per site
-                "eps": eps,
-                "ov": ov,
-                "max_chi": max_chi,
-                "trace": trace,
-                "runtime": runtime,
-                "file_mtime": os.path.getmtime(filepath),
-                "V": V,
-                "shift": shift,
-                "tp": tp
-            })
-    except ValueError as e:
-        print(filepath)
-        raise(e)
-
-    # Check beta length and print warnings if they don't look right
-    if first_betas is None:   # assuming that the first subfolder has the right length of data
-        first_betas = file_content['betas']
-        continue
-    else:
-        len_good = (len(file_content['betas']) == len(first_betas))      # length is good
-        if len_good: # content is also good
-            if np.allclose(file_content['betas'], first_betas):
+            len_good = len(file_content["betas"]) == len(first_betas)
+            if len_good and np.allclose(file_content["betas"], first_betas):
                 continue
-    print(f"beta doesn't agree for {filepath}")
-    print(f"getting {file_content['betas']}")
+            print(f"Warning: beta doesn't agree for {filepath}")
+            print(f"getting {file_content['betas']}")
 
-df_all_data = pd.DataFrame.from_records(records_EoS)
-##### Make above a function #####
-
-#%% Filter parameters using Dataframe
-##### Make below a function #####
-filter_params = {"V": V_model, "shift": shift_ST, "tp": tp_ST}
-
-df_filtered = df_all_data.query(f"(V == {V_model}) & (shift == {shift_ST})")
-idx_list = ["muR", "beta"]
-df_filtered = df_filtered.set_index(idx_list).sort_index()
-
-mu_vals  = df_filtered.index.get_level_values("muR").unique().to_numpy()
-beta_vals = df_filtered.index.get_level_values("beta").unique().to_numpy()
-n_grid = df_filtered["n_avg"].unstack("beta").loc[mu_vals, beta_vals].to_numpy()    # particle per site
-s2_grid = df_filtered["S2"].unstack("beta").loc[mu_vals, beta_vals].to_numpy()      # Renyi 2-entropy per site
-e_grid = df_filtered["energy"].unstack("beta").loc[mu_vals, beta_vals].to_numpy()   # energy per site
-eps_grid = df_filtered["eps"].unstack("beta").loc[mu_vals, beta_vals].to_numpy()    # sum of all discarded Schmidt values squared
-ov_grid = df_filtered["ov"].unstack("beta").loc[mu_vals, beta_vals].to_numpy()      # lower bound for the overlap
-##### Make above a function #####
-
-#%% Plots (joint)
-fig_ns, axes_ns = plt.subplots(2, 2, figsize = (8, 7))
-for ax, vals, str_label, clim in zip(axes_ns.flatten(),
-                    [n_grid, s2_grid, e_grid, 1 - ov_grid],
-                    ["n_avg", "S2_avg", "E", "max infidelity"],
-                    [None, None, None, (0, 0.01)],):
-    img = ax.pcolormesh(beta_vals, mu_vals, vals, clim = clim)
-    ax.set_box_aspect(1)
-    ax.set_title(str_label)
-    ax.set_xlabel(r"$\beta$")
-    ax.set_ylabel(r"$\mu$")
-    # cntr = ax.contour(beta_vals, mu_vals, vals, colors = "white", linestyles = "solid", levels = 8)
-    # ax.clabel(cntr, inline = True)
-    fig_ns.colorbar(img, ax = ax)
-fig_ns.suptitle(f"{geometry} lattice, {geom_spec_str}")
-fig_ns.tight_layout()
-
-#%% Repeat the same things for system
+    return pd.DataFrame.from_records(records_EoS)
 
 
-#%% Now, compare the difference in EoS between the two
+def filter_and_create_grid(
+    df_all_data: pd.DataFrame,
+    filter_params: dict,
+    mu_col: str = None,
+):
+    """
+    Filter DataFrame using specified parameters and unstack into 2D grids vs. (mu, beta).
+
+    Parameters
+    ----------
+    df_all_data : pd.DataFrame
+        DataFrame loaded via load_eos_data.
+    filter_params : dict
+        Parameters to filter by, e.g. {"V": 0.3, "shift": -2.0}.
+    mu_col : str, optional
+        Column name for chemical potential ("muR" for joint, "mu" for subregion).
+        If None, automatically inferred.
+
+    Returns
+    -------
+    mu_vals : np.ndarray
+        Unique sorted chemical potential values.
+    beta_vals : np.ndarray
+        Unique sorted inverse temperature values.
+    grids : dict of np.ndarray
+        Dictionary of 2D grids with shape (len(mu_vals), len(beta_vals)).
+        Keys include 'n_avg', 'S2', 'energy', 'eps', 'ov', and subregion quantities if available.
+    df_filtered : pd.DataFrame
+        The filtered DataFrame indexed by [mu_col, "beta"].
+    """
+    if mu_col is None:
+        mu_col = "muR" if "muR" in df_all_data.columns else "mu"
+
+    query_parts = []
+    for k, v in filter_params.items():
+        if k in df_all_data.columns:
+            if isinstance(v, (int, float, np.floating, np.integer)):
+                query_parts.append(f"({k} == {v})")
+            else:
+                query_parts.append(f"({k} == '{v}')")
+    query_str = " & ".join(query_parts)
+
+    df_filtered = df_all_data.query(query_str) if query_str else df_all_data.copy()
+    idx_list = [mu_col, "beta"]
+    df_filtered = df_filtered.set_index(idx_list).sort_index()
+
+    mu_vals = df_filtered.index.get_level_values(mu_col).unique().to_numpy()
+    beta_vals = df_filtered.index.get_level_values("beta").unique().to_numpy()
+
+    grids = {}
+    candidate_cols = [
+        "n_avg",
+        "S2",
+        "energy",
+        "eps",
+        "ov",
+        "n_avgS",
+        "n_avgR",
+        "S2S",
+        "S2R",
+        "energyS",
+        "energyR",
+    ]
+    for col in candidate_cols:
+        if col in df_filtered.columns:
+            grids[col] = df_filtered[col].unstack("beta").loc[mu_vals, beta_vals].to_numpy()
+
+    return mu_vals, beta_vals, grids, df_filtered
+
+
+def compute_match_eos(
+    mu_vals_target: np.ndarray,
+    beta_vals_target: np.ndarray,
+    mu_vals_sub: np.ndarray,
+    beta_vals_sub: np.ndarray,
+    grids_sub: dict,
+    SRoffset: float,
+) -> dict:
+    """
+    Calculate the composite 'match' EoS for the big system on the target (muR, beta) grid.
+
+    The big system consists of two equal-sized subregions S and R:
+    - Subregion S has chemical potential muS = muR - SRoffset
+    - Subregion R has chemical potential muR
+
+    The EoS for the combined system is obtained by interpolating subregion EoS
+    along the mu axis at muS and muR, then averaging per-site quantities:
+        n_match = (n_sub(muS) + n_sub(muR)) / 2
+        S2_match = (S2_sub(muS) + S2_sub(muR)) / 2
+        E_match = (E_sub(muS) + E_sub(muR)) / 2
+
+    Parameters
+    ----------
+    mu_vals_target : np.ndarray
+        Array of target muR values (e.g. from joint system).
+    beta_vals_target : np.ndarray
+        Array of target beta values.
+    mu_vals_sub : np.ndarray
+        Chemical potential values from the single-subregion calculation.
+    beta_vals_sub : np.ndarray
+        Inverse temperature values from the single-subregion calculation.
+    grids_sub : dict
+        Dictionary of single-subregion 2D grids (n_avg, S2, energy, etc.).
+    SRoffset : float
+        Chemical potential difference muR - muS.
+
+    Returns
+    -------
+    grids_match : dict
+        Dictionary of 2D grids on (mu_vals_target, beta_vals_target) for the match system.
+    """
+    assert np.all(np.diff(mu_vals_sub) > 0)
+    N_mu = len(mu_vals_target)
+    N_beta = len(beta_vals_target)
+    grids_match = {}
+
+    # Check if beta grids are identical
+    betas_match = len(beta_vals_sub) == N_beta and np.allclose(beta_vals_sub, beta_vals_target)
+
+    quantities = ["n_avg", "S2", "energy", "eps", "ov"]
+    for q in quantities:
+        if q not in grids_sub:
+            continue
+
+        val_sub = grids_sub[q]
+        val_S = np.full((N_mu, N_beta), np.nan, dtype=float)
+        val_R = np.full((N_mu, N_beta), np.nan, dtype=float)
+
+        if betas_match:
+            for j in range(N_beta):
+                val_S[:, j] = np.interp(
+                    mu_vals_target - SRoffset,
+                    mu_vals_sub,
+                    val_sub[:, j],
+                    left=np.nan,
+                    right=np.nan,
+                )
+                val_R[:, j] = np.interp(
+                    mu_vals_target,
+                    mu_vals_sub,
+                    val_sub[:, j],
+                    left=np.nan,
+                    right=np.nan,
+                )
+        else:
+            # Fallback 2D interpolation if beta grids differ
+            print("beta grids differ - check the original data!")
+            from scipy.interpolate import RegularGridInterpolator
+
+            interp_fn = RegularGridInterpolator(
+                (mu_vals_sub, beta_vals_sub),
+                val_sub,
+                bounds_error=False,
+                fill_value=np.nan,
+            )
+            MU, BETA = np.meshgrid(mu_vals_target, beta_vals_target, indexing="ij")
+            pts_S = np.stack([(MU - SRoffset).ravel(), BETA.ravel()], axis=-1)
+            pts_R = np.stack([MU.ravel(), BETA.ravel()], axis=-1)
+            val_S = interp_fn(pts_S).reshape(N_mu, N_beta)
+            val_R = interp_fn(pts_R).reshape(N_mu, N_beta)
+
+        # Average over the two subregions for whole-system per-site EoS
+        grids_match[q] = 0.5 * (val_S + val_R)
+
+        # Also store individual subregion contributions
+        if q == "n_avg":
+            grids_match["n_avgS"] = val_S
+            grids_match["n_avgR"] = val_R
+        elif q == "S2":
+            grids_match["S2S"] = val_S
+            grids_match["S2R"] = val_R
+        elif q == "energy":
+            grids_match["energyS"] = val_S
+            grids_match["energyR"] = val_R
+
+    return grids_match
+
+
+def plot_eos_grids(
+    beta_vals: np.ndarray,
+    mu_vals: np.ndarray,
+    grids: dict,
+    title: str = None,
+    mu_label: str = r"$\mu$",
+):
+    """
+    Plot 2x2 grid of thermodynamic quantities: n_avg, S2_avg, Energy, and max infidelity.
+    """
+    fig, axes = plt.subplots(2, 2, figsize=(8, 7))
+    plot_items = [
+        (grids["n_avg"], r"$n_{\rm avg}$", None),
+        (grids["S2"], r"$S_{2, \rm avg}$", None),
+        (grids["energy"], r"$E$", None),
+        (1.0 - grids["ov"] if "ov" in grids else grids.get("eps", None), "max infidelity (1 - ov)", (0, 0.01)),
+    ]
+
+    for ax, (vals, str_label, clim) in zip(axes.flatten(), plot_items):
+        if vals is None:
+            continue
+        img = ax.pcolormesh(beta_vals, mu_vals, vals, clim=clim, shading="auto")
+        ax.set_box_aspect(1)
+        ax.set_title(str_label)
+        ax.set_xlabel(r"$\beta$")
+        ax.set_ylabel(mu_label)
+        fig.colorbar(img, ax=ax)
+
+    if title:
+        fig.suptitle(title)
+    fig.tight_layout()
+    return fig, axes
+
+
+def plot_eos_difference_2x2(
+    beta_vals: np.ndarray,
+    mu_vals: np.ndarray,
+    grids_joint: dict,
+    grids_match: dict,
+    title: str = None,
+    mu_label: str = r"$\mu_R$",
+):
+    """
+    Plot 2D heatmaps of the difference between Joint and Match EoS:
+    Delta n_avg, Delta S2_avg, Delta Energy, and relative difference Delta n / n.
+    """
+    fig, axes = plt.subplots(2, 2, figsize=(8, 7))
+
+    diff_n = grids_joint["n_avg"] - grids_match["n_avg"]
+    diff_s2 = grids_joint["S2"] - grids_match["S2"]
+    diff_e = grids_joint["energy"] - grids_match["energy"]
+    # Relative density difference
+    with np.errstate(divide="ignore", invalid="ignore"):
+        rel_diff_n = np.where(grids_joint["n_avg"] > 1e-4, diff_n / grids_joint["n_avg"], np.nan)
+
+    plot_items = [
+        (diff_n, r"$\Delta n_{\rm avg} = n_{\rm joint} - n_{\rm match}$"),
+        (diff_s2, r"$\Delta S_{2} = S_{2, \rm joint} - S_{2, \rm match}$"),
+        (diff_e, r"$\Delta E = E_{\rm joint} - E_{\rm match}$"),
+        (rel_diff_n, r"$\Delta n / n_{\rm joint}$ (relative)"),
+    ]
+
+    for ax, (vals, str_label) in zip(axes.flatten(), plot_items):
+        max_abs = np.nanmax(np.abs(vals))
+        clim = (-max_abs, max_abs) if max_abs > 0 else None
+        img = ax.pcolormesh(beta_vals, mu_vals, vals, clim=clim, cmap="coolwarm", shading="auto")
+        ax.set_box_aspect(1)
+        ax.set_title(str_label)
+        ax.set_xlabel(r"$\beta$")
+        ax.set_ylabel(mu_label)
+        fig.colorbar(img, ax=ax)
+
+    if title:
+        fig.suptitle(title)
+    fig.tight_layout()
+    return fig, axes
+
+
+def plot_eos_1d_cuts(
+    beta_vals: np.ndarray,
+    mu_vals: np.ndarray,
+    grids_joint: dict,
+    grids_match: dict,
+    selected_betas: list = None,
+    title: str = None,
+):
+    """
+    Plot 1D cuts comparing Joint (solid) vs. Match (dashed) as a function of muR
+    at selected inverse temperatures beta.
+    """
+    if selected_betas is None:
+        selected_betas = [0.5, 2.0, 5.0, 10.0, 20.0]
+
+    # Find closest available beta indices
+    beta_indices = []
+    actual_betas = []
+    for b in selected_betas:
+        idx = int(np.argmin(np.abs(beta_vals - b)))
+        if idx not in beta_indices:
+            beta_indices.append(idx)
+            actual_betas.append(beta_vals[idx])
+
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4.5))
+    quantities = [
+        ("n_avg", r"$n_{\rm avg}$", axes[0]),
+        ("S2", r"$S_{2, \rm avg}$", axes[1]),
+        ("energy", r"$E$", axes[2]),
+    ]
+
+    colors = plt.cm.viridis(np.linspace(0.1, 0.9, len(actual_betas)))
+
+    for q_key, q_label, ax in quantities:
+        for idx, b_val, c in zip(beta_indices, actual_betas, colors):
+            yj = grids_joint[q_key][:, idx]
+            ym = grids_match[q_key][:, idx]
+            ax.plot(mu_vals, yj, color=c, linestyle="-", label=rf"$\beta={b_val:.1f}$ (joint)")
+            ax.plot(mu_vals, ym, color=c, linestyle="--", label=rf"$\beta={b_val:.1f}$ (match)")
+
+        ax.set_xlabel(r"$\mu_R$")
+        ax.set_ylabel(q_label)
+        ax.set_title(q_label)
+        ax.grid(True, linestyle=":", alpha=0.6)
+
+    # Place legend on the first subplot
+    axes[0].legend(fontsize=7, ncol=2)
+
+    if title:
+        fig.suptitle(title)
+    fig.tight_layout()
+    return fig, axes
+
+
+#%% Main execution script
+if __name__ == "__main__":
+    # =========================================================================
+    # 1. Shared simulation parameters
+    # =========================================================================
+    data_folder = Path(r"C:\Users\ken92\Downloads\Shao-Wen Data")
+    geometry = "sawtooth"  # "sawtooth", "kagome"
+    chi_tenpy = 64
+    V_model = 0.3
+    tp_ST = 1.41421356237
+    shift_ST = -2.0
+
+    # Subregion parameters (User specified)
+    SRoffset = 2.0         # muR - muS
+    L_subregion = 50       # Number of unit cells in each subregion
+
+    # Joint system (Derived from subregion parameters)
+    L_joint = 100          # Number of unit cells in the joint system (2 * L_subregion)
+
+    # Shared derived parameters
+    E_flat_ST = 2.0 + shift_ST   # Flat band energy with shift (noninteracting)
+    E_min = min(E_flat_ST, -4.0)
+    E_max = max(E_flat_ST, 0.0)
+    geom_spec_str = f"V{V_model}_tp{tp_ST}_shift{shift_ST}"
+    filter_params = {"V": V_model, "shift": shift_ST, "tp": tp_ST}
+
+    print("=" * 70)
+    print("EoS Joint vs. Match Comparison")
+    print(f"Geometry: {geometry}, {geom_spec_str}, chi = {chi_tenpy}")
+    print(f"L_subregion = {L_subregion}, L_joint = {L_joint}, SRoffset = {SRoffset}")
+    print("=" * 70)
+
+    # =========================================================================
+    # 2. Joint system: Load, filter, and extract EoS grids
+    # =========================================================================
+    print("\n--- Loading Joint System Data ---")
+    scan_name_joint = (
+        f"ST_SL_I_L{L_joint}_t1_tpsqrt2_shf{int(shift_ST)}_V{V_model}"
+        f"_chi{chi_tenpy}_SRoff{np.round(SRoffset, 1)}"
+    )
+    scan_folder_joint = Path(data_folder, scan_name_joint)
+    assert scan_folder_joint.exists(), f"Joint folder does not exist: {scan_folder_joint}"
+
+    tnpspc_joint = {
+        "geometry": geometry,
+        "L": L_joint,
+        "chi": chi_tenpy,
+    }
+
+    df_all_joint = load_eos_data(scan_folder_joint, tnpspc_joint, is_joint=True)
+    mu_vals_joint, beta_vals_joint, grids_joint, df_filtered_joint = filter_and_create_grid(
+        df_all_joint, filter_params, mu_col="muR"
+    )
+
+    print(f"Joint grid: {len(mu_vals_joint)} muR points x {len(beta_vals_joint)} beta points")
+    print(f"muR range: [{mu_vals_joint.min():.2f}, {mu_vals_joint.max():.2f}]")
+    print(f"beta range: [{beta_vals_joint.min():.2f}, {beta_vals_joint.max():.2f}]")
+
+    # Plot joint EoS
+    fig_joint, _ = plot_eos_grids(
+        beta_vals_joint,
+        mu_vals_joint,
+        grids_joint,
+        title=f"Joint system: {geometry} lattice, L={L_joint}, {geom_spec_str}, SRoffset={SRoffset}",
+        mu_label=r"$\mu_R$",
+    )
+
+    # =========================================================================
+    # 3. Subregion (single) system: Load, filter, and extract EoS grids
+    # =========================================================================
+    print("\n--- Loading Subregion (Single) System Data ---")
+    scan_name_sub = (
+        f"ST_SL_I_L{L_subregion}_t1_tpsqrt2_shf{int(shift_ST)}_V{V_model}_chi{chi_tenpy}"
+    )
+    scan_folder_sub = Path(data_folder, scan_name_sub)
+    if not scan_folder_sub.exists():
+        # Check fallback with .tar suffix if folder was created with .tar in name
+        scan_folder_sub = Path(data_folder, scan_name_sub + ".tar")
+    assert scan_folder_sub.exists(), f"Subregion folder does not exist: {scan_folder_sub}"
+
+    tnpspc_sub = {
+        "geometry": geometry,
+        "L": L_subregion,
+        "chi": chi_tenpy,
+    }
+
+    df_all_sub = load_eos_data(scan_folder_sub, tnpspc_sub, is_joint=False)
+    mu_vals_sub, beta_vals_sub, grids_sub, df_filtered_sub = filter_and_create_grid(
+        df_all_sub, filter_params, mu_col="mu"
+    )
+
+    print(f"Subregion grid: {len(mu_vals_sub)} mu points x {len(beta_vals_sub)} beta points")
+    print(f"Subregion mu range: [{mu_vals_sub.min():.2f}, {mu_vals_sub.max():.2f}]")
+    print(f"Subregion beta range: [{beta_vals_sub.min():.2f}, {beta_vals_sub.max():.2f}]")
+
+    # Plot subregion EoS
+    fig_sub, _ = plot_eos_grids(
+        beta_vals_sub,
+        mu_vals_sub,
+        grids_sub,
+        title=f"Single subregion: {geometry} lattice, L={L_subregion}, {geom_spec_str}",
+        mu_label=r"$\mu$",
+    )
+
+    # =========================================================================
+    # 4. Construct Match EoS (interpolating and summing the two subregions)
+    # =========================================================================
+    print("\n--- Computing Match EoS (Sum of two subregions with SRoffset) ---")
+    grids_match = compute_match_eos(
+        mu_vals_target=mu_vals_joint,
+        beta_vals_target=beta_vals_joint,
+        mu_vals_sub=mu_vals_sub,
+        beta_vals_sub=beta_vals_sub,
+        grids_sub=grids_sub,
+        SRoffset=SRoffset,
+    )
+
+    # Plot match EoS
+    fig_match, axes_match = plot_eos_grids(
+        beta_vals_joint,
+        mu_vals_joint,
+        grids_match,
+        title=f"Match system: 2 x L={L_subregion} combined, {geom_spec_str}, SRoffset={SRoffset}",
+        mu_label=r"$\mu_R$",
+    )
+    axes_match[1, 1].set_title("(infidelity doesn't necessarily make sense)")
+
+    # =========================================================================
+    # 5. Compare Joint vs. Match EoS
+    # =========================================================================
+    print("\n--- Comparing Joint vs. Match EoS ---")
+    diff_n = grids_joint["n_avg"] - grids_match["n_avg"]
+    diff_s2 = grids_joint["S2"] - grids_match["S2"]
+    diff_e = grids_joint["energy"] - grids_match["energy"]
+
+    print("Summary of differences (Joint - Match):")
+    print(f"  Particle density n:  Max abs = {np.nanmax(np.abs(diff_n)):.6f},  Mean abs = {np.nanmean(np.abs(diff_n)):.6f}")
+    print(f"  Renyi-2 entropy S2:  Max abs = {np.nanmax(np.abs(diff_s2)):.6f},  Mean abs = {np.nanmean(np.abs(diff_s2)):.6f}")
+    print(f"  Energy per site E:   Max abs = {np.nanmax(np.abs(diff_e)):.6f},  Mean abs = {np.nanmean(np.abs(diff_e)):.6f}")
+
+    # Subregion level comparisons if available
+    if "n_avgS" in grids_joint and "n_avgS" in grids_match:
+        diff_n_S = grids_joint["n_avgS"] - grids_match["n_avgS"]
+        diff_n_R = grids_joint["n_avgR"] - grids_match["n_avgR"]
+        print(f"  Subregion S density: Max abs = {np.nanmax(np.abs(diff_n_S)):.6f},  Mean abs = {np.nanmean(np.abs(diff_n_S)):.6f}")
+        print(f"  Subregion R density: Max abs = {np.nanmax(np.abs(diff_n_R)):.6f},  Mean abs = {np.nanmean(np.abs(diff_n_R)):.6f}")
+
+    # 2D difference heatmaps
+    fig_diff, _ = plot_eos_difference_2x2(
+        beta_vals_joint,
+        mu_vals_joint,
+        grids_joint,
+        grids_match,
+        title=f"Difference (Joint - Match): {geometry} lattice, {geom_spec_str}, SRoffset={SRoffset}",
+        mu_label=r"$\mu_R$",
+    )
+
+    # 1D slice comparison cuts across muR at representative beta values
+    fig_cuts, _ = plot_eos_1d_cuts(
+        beta_vals_joint,
+        mu_vals_joint,
+        grids_joint,
+        grids_match,
+        selected_betas=[0.5, 2.0, 5.0, 10.0, 20.0],
+        title=f"1D Cuts vs. $\\mu_R$: Joint (solid) vs. Match (dashed) at fixed $\\beta$",
+    )
+
+    print("\nAll figures generated successfully. Displaying plots...")
+    plt.show()
