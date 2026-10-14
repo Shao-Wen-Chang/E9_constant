@@ -8,7 +8,7 @@ from pathlib import Path
 
 #%% Helper functions
 def load_eos_data(
-    scan_folder: Path,
+    scan_folders: Path,
     tnpspc: dict = None,
     is_joint: bool = None,
 ) -> pd.DataFrame:
@@ -34,12 +34,17 @@ def load_eos_data(
     pd.DataFrame
         DataFrame containing records of all measurement data.
     """
-    scan_folder = Path(scan_folder)
-    if not scan_folder.exists():
-        raise FileNotFoundError(f"Scan folder does not exist: {scan_folder}")
-
-    subfolder_list = [f for f in scan_folder.iterdir() if f.is_dir()]
-    print(f"Found {len(subfolder_list)} folders in {scan_folder.name}")
+    if not isinstance(scan_folders, (list, tuple)):
+        scan_folders = [scan_folders]
+    
+    subfolder_list = []
+    for scan_folder in scan_folders:
+        scan_folder = Path(scan_folder)
+        if not scan_folder.exists():
+            raise FileNotFoundError(f"Scan folder does not exist: {scan_folder}")
+        sl = [f for f in scan_folder.iterdir() if f.is_dir()]
+        subfolder_list += sl
+        print(f"Found {len(sl)} folders in {scan_folder.name}")
 
     # folder_params_shared = None
     records_EoS = []
@@ -82,21 +87,6 @@ def load_eos_data(
             shift = folder_params.pop("shift")
             tp = folder_params.pop("tp")
 
-            # if folder_params_shared is None:
-            #     folder_params_shared = folder_params.copy()
-            #     if tnpspc is not None:
-            #         for k, v in tnpspc.items():
-            #             if folder_params_shared.get(k) != v:
-            #                 raise ValueError(
-            #                     f"Mismatch in tenpy parameter {k}: specified {v}, "
-            #                     f"but {folder_params_shared.get(k)} from folder"
-            #                 )
-            # else:
-            #     if folder_params != folder_params_shared:
-            #         print(folder_params)
-            #         print(folder_params_shared)
-            #         raise ValueError("Mismatch in folder parameters")
-            # folder_params_shared = folder_params.copy()
             if tnpspc is not None:
                 for k, v in tnpspc.items():
                     if folder_params.get(k) != v:
@@ -191,6 +181,12 @@ def load_eos_data(
 
     return pd.DataFrame.from_records(records_EoS)
 
+def print_mu_vals_for_shell(mu_vals_joint, mu_vals_sub, SRoffset):
+    all_sub_region_mus = np.round(np.concatenate([mu_vals_joint, mu_vals_joint - SRoffset]),3)
+    all_mus_needed = np.setdiff1d(all_sub_region_mus, mu_vals_sub)
+    if len(all_mus_needed) != 0:
+        print("Run subregion simulations for the following mu:")
+        print("(" + " ".join([f"{v:.4g}" for v in all_mus_needed]) + ")")
 
 def filter_and_create_grid(
     df_all_data: pd.DataFrame,
@@ -370,7 +366,7 @@ def compute_match_eos(
     return grids_match
 
 
-def plot_eos_grids(
+def plot_eos_grids_2x2(
     beta_vals: np.ndarray,
     mu_vals: np.ndarray,
     grids: dict,
@@ -382,13 +378,13 @@ def plot_eos_grids(
     """
     fig, axes = plt.subplots(2, 2, figsize=(8, 7))
     plot_items = [
-        (grids["n_avg"], r"$n_{\rm avg}$", None),
-        (grids["S2"], r"$S_{2, \rm avg}$", None),
-        (grids["energy"], r"$E$", None),
-        (1.0 - grids["ov"] if "ov" in grids else grids.get("eps", None), "max infidelity (1 - ov)", (0, 0.01)),
+        (grids["n_avg"],    None,       r"$n_{\rm avg}$"),
+        (grids["S2"],       None,       r"$S_{2, \rm avg}$"),
+        (grids["energy"],   None,       r"$E$"),
+        (1.0 - grids["ov"], (0, 0.01),  "max infidelity (1 - ov)"),
     ]
 
-    for ax, (vals, str_label, clim) in zip(axes.flatten(), plot_items):
+    for ax, (vals, clim, str_label) in zip(axes.flatten(), plot_items):
         if vals is None:
             continue
         img = ax.pcolormesh(beta_vals, mu_vals, vals, clim=clim, shading="auto")
@@ -403,6 +399,40 @@ def plot_eos_grids(
     fig.tight_layout()
     return fig, axes
 
+def plot_eos_grids_2x3(
+    beta_vals: np.ndarray,
+    mu_vals: np.ndarray,
+    grids: dict,
+    title: str = None,
+    mu_label: str = r"$\mu$",
+):
+    """
+    Plot 2x2 grid of thermodynamic quantities: n_avg, S2_avg, Energy, and max infidelity.
+    """
+    fig, axes = plt.subplots(2, 3, figsize=(11.5, 7))
+    plot_items = [
+        (grids["n_avg"],    None,       r"$n_{\rm avg}$"),
+        (grids["S2"],       None,       r"$S_{2, \rm avg}$"),
+        (grids["n_avgS"],   None,       r"$n_{\rm S}$"),
+        (grids["energy"],   None,       r"$E$"),
+        (1.0 - grids["ov"], (0, 0.01),  "max infidelity (1 - ov)"),
+        (grids["S2S"],      None,       r"$S_{\rm S}$"),
+    ]
+
+    for ax, (vals, clim, str_label) in zip(axes.flatten(), plot_items):
+        if vals is None:
+            continue
+        img = ax.pcolormesh(beta_vals, mu_vals, vals, clim=clim, shading="auto")
+        ax.set_box_aspect(1)
+        ax.set_title(str_label)
+        ax.set_xlabel(r"$\beta$")
+        ax.set_ylabel(mu_label)
+        fig.colorbar(img, ax=ax)
+
+    if title:
+        fig.suptitle(title)
+    fig.tight_layout()
+    return fig, axes
 
 def plot_eos_difference_2x2(
     beta_vals: np.ndarray,
@@ -411,35 +441,47 @@ def plot_eos_difference_2x2(
     grids_match: dict,
     title: str = None,
     mu_label: str = r"$\mu_R$",
+    SRoffset: float = None,
 ):
     """
     Plot 2D heatmaps of the difference between Joint and Match EoS:
     Delta n_avg, Delta S2_avg, Delta Energy, and relative difference Delta n / n.
     """
-    fig, axes = plt.subplots(2, 2, figsize=(8, 7))
+    fig, axes = plt.subplots(2, 4, figsize=(15, 7))
 
     diff_n = grids_joint["n_avg"] - grids_match["n_avg"]
     diff_s2 = grids_joint["S2"] - grids_match["S2"]
     diff_e = grids_joint["energy"] - grids_match["energy"]
+    diff_nS = grids_joint["n_avgS"] - grids_match["n_avgS"]
+    diff_s2S = grids_joint["S2S"] - grids_match["S2S"]
     # Relative density difference
     with np.errstate(divide="ignore", invalid="ignore"):
-        rel_diff_n = np.where(grids_joint["n_avg"] > 1e-4, diff_n / grids_joint["n_avg"], np.nan)
+        rel_diff_n = diff_n / grids_joint["n_avg"]
+        rel_diff_nS = diff_nS / grids_joint["n_avgS"]
+        rel_diff_S2S = diff_s2S / grids_joint["S2S"]
 
     plot_items = [
-        (diff_n, r"$\Delta n_{\rm avg} = n_{\rm joint} - n_{\rm match}$"),
-        (diff_s2, r"$\Delta S_{2} = S_{2, \rm joint} - S_{2, \rm match}$"),
-        (diff_e, r"$\Delta E = E_{\rm joint} - E_{\rm match}$"),
-        (rel_diff_n, r"$\Delta n / n_{\rm joint}$ (relative)"),
+        (diff_n,       None,        r"$\Delta n = n_{\rm joint} - n_{\rm match}$"),
+        (diff_s2,      None,        r"$\Delta S_{2} = S_{2, \rm joint} - S_{2, \rm match}$"),
+        (diff_nS,      None,        r"$\Delta n_{\rm S} = n_{\rm S, joint} - n_{\rm S, match}$"),
+        (rel_diff_nS,  (-0.5, 0.5), r"$\Delta n_{\rm S} / n_{\rm S, joint}$ (relative)"),
+        (diff_e,       None,        r"$\Delta E = E_{\rm joint} - E_{\rm match}$"),
+        (rel_diff_n,   (-0.1, 0.1), r"$\Delta n / n_{\rm joint}$ (relative)"),
+        (diff_s2S,     None,        r"$\Delta S_{\rm S} = S_{\rm S, joint} - S_{\rm S, match}$"),
+        (rel_diff_S2S, (-0.5, 0.5), r"$\Delta S_{\rm S} / S_{\rm S, joint}$ (relative)"),
     ]
 
-    for ax, (vals, str_label) in zip(axes.flatten(), plot_items):
+    for ax, (vals, clim, str_label) in zip(axes.flatten(), plot_items):
         max_abs = np.nanmax(np.abs(vals))
-        clim = (-max_abs, max_abs) if max_abs > 0 else None
+        if clim is None: clim = (-max_abs, max_abs)
         img = ax.pcolormesh(beta_vals, mu_vals, vals, clim=clim, cmap="coolwarm", shading="auto")
         ax.set_box_aspect(1)
         ax.set_title(str_label)
         ax.set_xlabel(r"$\beta$")
         ax.set_ylabel(mu_label)
+        if SRoffset:
+            ryax = ax.secondary_yaxis('right', functions = (lambda x: x - SRoffset, lambda x: x + SRoffset))
+            ryax.set_ylabel(r"$\mu_S$")
         fig.colorbar(img, ax=ax)
 
     if title:
@@ -472,21 +514,40 @@ def plot_eos_1d_cuts(
             beta_indices.append(idx)
             actual_betas.append(beta_vals[idx])
 
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4.5))
+    # diff_n = grids_joint["n_avg"] - grids_match["n_avg"]
+    # diff_s2 = grids_joint["S2"] - grids_match["S2"]
+    # diff_e = grids_joint["energy"] - grids_match["energy"]
+    diff_nS = grids_joint["n_avgS"] - grids_match["n_avgS"]
+    diff_s2S = grids_joint["S2S"] - grids_match["S2S"]
+    diff_eS = grids_joint["energyS"] - grids_match["energyS"]
+    # Relative density difference
+    with np.errstate(divide="ignore", invalid="ignore"):
+        # rel_diff_n = diff_n / grids_joint["n_avg"]
+        rel_diff_nS = diff_nS / grids_joint["n_avgS"]
+        rel_diff_S2S = diff_s2S / grids_joint["S2S"]
+        rel_diff_eS = diff_eS / grids_joint["n_avg"]
+
+    fig, axes = plt.subplots(3, 3, figsize=(15, 14))
     quantities = [
-        ("n_avg", r"$n_{\rm avg}$", axes[0]),
-        ("S2", r"$S_{2, \rm avg}$", axes[1]),
-        ("energy", r"$E$", axes[2]),
+        ("n_avg",   axes[0, 0], r"$n_{\rm avg}$"),
+        ("S2",      axes[0, 1], r"$S_{2, \rm avg}$"),
+        ("energy",  axes[0, 2], r"$E$"),
+        ("n_avgS",  axes[1, 0], r"$n_{\rm S}$"),
+        ("S2S",     axes[1, 1], r"$S_{2, \rm S}$"),
+        ("energyS", axes[1, 2], r"$E_{\rm S}$"),
     ]
 
     colors = plt.cm.viridis(np.linspace(0.1, 0.9, len(actual_betas)))
 
-    for q_key, q_label, ax in quantities:
+    for q_key, ax, q_label in quantities:
         for idx, b_val, c in zip(beta_indices, actual_betas, colors):
             yj = grids_joint[q_key][:, idx]
             ym = grids_match[q_key][:, idx]
             ax.plot(mu_vals, yj, color=c, linestyle="-", label=rf"$\beta={b_val:.1f}$ (joint)")
             ax.plot(mu_vals, ym, color=c, linestyle="--", label=rf"$\beta={b_val:.1f}$ (match)")
+            axes[2, 0].plot(mu_vals, rel_diff_nS[:, idx], color=c, linestyle="-")
+            axes[2, 1].plot(mu_vals, rel_diff_S2S[:, idx], color=c, linestyle="-")
+            axes[2, 2].plot(mu_vals, rel_diff_eS[:, idx], color=c, linestyle="-")
 
         ax.set_xlabel(r"$\mu_R$")
         ax.set_ylabel(q_label)
@@ -494,7 +555,15 @@ def plot_eos_1d_cuts(
         ax.grid(True, linestyle=":", alpha=0.6)
 
     # Place legend on the first subplot
-    axes[0].legend(fontsize=7, ncol=2)
+    axes[0, 0].legend(fontsize=7, ncol=2)
+
+    # Limits for the relative value plots
+    axes[2, 0].set_ylim(-0.2, 0.2)
+    axes[2, 1].set_ylim(-0.5, 0.5)
+    axes[2, 2].set_ylim(-0.01, 0.2)
+    axes[2, 0].set_title(r"$\Delta n_{\rm S} / n_{\rm S, joint}$ (relative)")
+    axes[2, 1].set_title(r"$\Delta S_{\rm S} / S_{\rm S, joint}$ (relative)")
+    axes[2, 2].set_title(r"$\Delta E_{\rm S} / E_{\rm S, joint}$ (relative)")
 
     if title:
         fig.suptitle(title)
@@ -561,7 +630,7 @@ if __name__ == "__main__":
     print(f"beta range: [{beta_vals_joint.min():.2f}, {beta_vals_joint.max():.2f}]")
 
     # Plot joint EoS
-    fig_joint, _ = plot_eos_grids(
+    fig_joint, axes_joint = plot_eos_grids_2x3(
         beta_vals_joint,
         mu_vals_joint,
         grids_joint,
@@ -576,11 +645,12 @@ if __name__ == "__main__":
     scan_name_sub = (
         f"ST_SL_I_L{L_subregion}_t1_tpsqrt2_shf{int(shift_ST)}_V{V_model}_chi{chi_tenpy}"
     )
-    scan_folder_sub = Path(data_folder, scan_name_sub)
-    if not scan_folder_sub.exists():
-        # Check fallback with .tar suffix if folder was created with .tar in name
-        scan_folder_sub = Path(data_folder, scan_name_sub + ".tar")
-    assert scan_folder_sub.exists(), f"Subregion folder does not exist: {scan_folder_sub}"
+    scan_folder_sub = [d for d in data_folder.glob(f"{scan_name_sub}*")]
+    # scan_folder_sub = Path(data_folder, scan_name_sub)
+    # if not scan_folder_sub.exists():
+    #     # Check fallback with .tar suffix if folder was created with .tar in name
+    #     scan_folder_sub = Path(data_folder, scan_name_sub + ".tar")
+    # assert scan_folder_sub.exists(), f"Subregion folder does not exist: {scan_folder_sub}"
 
     tnpspc_sub = {
         "geometry": geometry,
@@ -596,9 +666,10 @@ if __name__ == "__main__":
     print(f"Subregion grid: {len(mu_vals_sub)} mu points x {len(beta_vals_sub)} beta points")
     print(f"Subregion mu range: [{mu_vals_sub.min():.2f}, {mu_vals_sub.max():.2f}]")
     print(f"Subregion beta range: [{beta_vals_sub.min():.2f}, {beta_vals_sub.max():.2f}]")
+    print_mu_vals_for_shell(mu_vals_joint, mu_vals_sub, SRoffset)
 
     # Plot subregion EoS
-    fig_sub, _ = plot_eos_grids(
+    fig_sub, axes_sub = plot_eos_grids_2x2(
         beta_vals_sub,
         mu_vals_sub,
         grids_sub,
@@ -620,7 +691,7 @@ if __name__ == "__main__":
     )
 
     # Plot match EoS
-    fig_match, axes_match = plot_eos_grids(
+    fig_match, axes_match = plot_eos_grids_2x3(
         beta_vals_joint,
         mu_vals_joint,
         grids_match,
@@ -650,17 +721,18 @@ if __name__ == "__main__":
         print(f"  Subregion R density: Max abs = {np.nanmax(np.abs(diff_n_R)):.6f},  Mean abs = {np.nanmean(np.abs(diff_n_R)):.6f}")
 
     # 2D difference heatmaps
-    fig_diff, _ = plot_eos_difference_2x2(
+    fig_diff, axes_diff = plot_eos_difference_2x2(
         beta_vals_joint,
         mu_vals_joint,
         grids_joint,
         grids_match,
         title=f"Difference (Joint - Match): {geometry} lattice, {geom_spec_str}, SRoffset={SRoffset}",
         mu_label=r"$\mu_R$",
+        SRoffset = SRoffset
     )
 
     # 1D slice comparison cuts across muR at representative beta values
-    fig_cuts, _ = plot_eos_1d_cuts(
+    fig_cuts, axes_cuts = plot_eos_1d_cuts(
         beta_vals_joint,
         mu_vals_joint,
         grids_joint,
@@ -668,6 +740,29 @@ if __name__ == "__main__":
         selected_betas=[0.5, 2.0, 5.0, 10.0, 20.0],
         title=f"1D Cuts vs. $\\mu_R$: Joint (solid) vs. Match (dashed) at fixed $\\beta$",
     )
+
+    # =========================================================================
+    # 6. Additional plot stuff
+    # =========================================================================
+    # eyeballed reservoir flat band energy
+    try:
+        if V_model == 0.3:
+            E_flat_R = 0.5
+        elif V_model == 0.1:
+            E_flat_R = 0.2
+        else:
+            raise(ValueError(f"flat band energy for V = {V_model} not eyeballed yet"))
+        E_flat_S = E_flat_R + SRoffset
+        for axes in [axes_joint, axes_sub, axes_match, axes_diff]:
+            for ax in axes.flatten():
+                ax.axhline(E_flat_R, color = "r", ls = "--", lw = 0.7, label = r"$E_{\mathrm{flat, R}}$")
+                ax.axhline(E_flat_S, color = "c", ls = "--", lw = 0.7, label = r"$E_{\mathrm{flat, S}}$")
+            axes[0, 0].legend()
+        for ax in axes_cuts.flatten():
+            ax.axvline(E_flat_R, color = "r", ls = "--", lw = 0.7, label = r"$E_{\mathrm{flat, R}}$")
+            ax.axvline(E_flat_S, color = "c", ls = "--", lw = 0.7, label = r"$E_{\mathrm{flat, S}}$")
+    except ValueError as e:
+        print(e)
 
     print("\nAll figures generated successfully. Displaying plots...")
     plt.show()
